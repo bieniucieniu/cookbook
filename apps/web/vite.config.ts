@@ -1,9 +1,19 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite"
+import { devtools } from "@tanstack/devtools-vite"
 
-export default defineConfig({
-  plugins: [react()],
-  server: {
-    port: 5173,
-  },
-});
+import { tanstackRouter } from "@tanstack/router-plugin/vite"
+
+import react from "@vitejs/plugin-react"
+import { defineConfig } from "vite"
+
+const config = defineConfig({
+  resolve: { tsconfigPaths: true },
+  plugins: [
+    devtools(),
+    tailwindcss(),
+    tanstackRouter({ target: "react", autoCodeSplitting: true }),
+    react(),
+  ],
+})
+
+export default config
