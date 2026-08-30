@@ -16,6 +16,7 @@
       "!**/.devenv",
       // generated
       "!**/routeTree.gen.ts",
+      "!**/src/generated/**",
       "!**/uniwind-types.d.ts"
     ]
   },

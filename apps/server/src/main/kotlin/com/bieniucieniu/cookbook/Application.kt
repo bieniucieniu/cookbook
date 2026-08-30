@@ -1,5 +1,6 @@
 package com.bieniucieniu.cookbook
 
+import io.ktor.http.ContentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
@@ -19,6 +20,12 @@ fun Application.module() {
         }
         get("/health") {
             call.respondText("ok")
+        }
+        get("/swagger/documentation.yaml") {
+            val yaml = environment.classLoader.getResource("swagger/documentation.yaml")
+                ?.readText()
+                ?: error("swagger/documentation.yaml missing")
+            call.respondText(yaml, ContentType.parse("application/yaml"))
         }
     }
 }

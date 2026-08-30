@@ -2,9 +2,9 @@
 	"name": "cookbook",
 	"private": true,
 	"scripts": {
-		"dev": "pnpm --filter @cookbook/web dev",
-		"build": "pnpm --filter @cookbook/web build",
-		"preview": "pnpm --filter @cookbook/web preview"
+		"dev": "pnpm --filter web dev",
+		"build": "pnpm --filter web build",
+		"preview": "pnpm --filter web preview"
 	},
 	"packages": {
 		"@biomejs/biome": "^2.5.5"
