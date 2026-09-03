@@ -7,5 +7,5 @@ plugins {
 tasks.register("test") {
     group = "verification"
     description = "Run JVM tests in all modules"
-    dependsOn(":packages:core:test", ":apps:server:test")
+    dependsOn(":packages:core:test", ":server:test")
 }

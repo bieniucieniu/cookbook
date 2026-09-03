@@ -67,7 +67,7 @@ in
           exec = ''
             set -eu
             cd "${root}"
-            exec gradle :apps:server:run
+            exec gradle :server:run
           '';
           ready = {
             http.get = {

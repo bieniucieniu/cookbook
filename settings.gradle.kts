@@ -23,5 +23,5 @@ dependencyResolutionManagement {
     }
 }
 
-include(":apps:server")
+include(":server")
 include(":packages:core")

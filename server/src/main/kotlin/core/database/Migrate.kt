@@ -1,9 +1,9 @@
-package com.bieniucieniu.cookbook
+package com.bieniucieniu.cookbook.core.database
 
 import java.io.File
 import javax.sql.DataSource
 
-fun migrate(dataSource: DataSource, directory: File) {
+fun migrate(dataSource: DataSource, directory: File = migrationDir()) {
     val scripts = directory.listFiles { file -> file.isFile && file.extension == "sql" }
         ?.sortedBy { it.name }
         ?: error("No SQL files in $directory")
@@ -16,12 +16,9 @@ fun migrate(dataSource: DataSource, directory: File) {
     }
 }
 
-fun toJdbcUrl(raw: String): String =
-    if (raw.startsWith("jdbc:")) raw else raw.replaceFirst(Regex("^postgresql:"), "jdbc:postgresql:")
-
 fun migrationDir(): File {
     System.getenv("DATABASE_MIGRATIONS")?.let { return File(it) }
-    val candidates = listOf("apps/server/db/migrations", "db/migrations")
+    val candidates = listOf("server/db/migrations", "db/migrations")
     return candidates.map(::File).firstOrNull { it.isDirectory }
         ?: error("No migrations dir. Set DATABASE_MIGRATIONS. Tried: $candidates")
 }

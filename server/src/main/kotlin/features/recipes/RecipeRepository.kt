@@ -1,5 +1,6 @@
-package com.bieniucieniu.cookbook
+package com.bieniucieniu.cookbook.features.recipes
 
+import com.bieniucieniu.cookbook.features.recipes.domain.Recipe
 import java.sql.ResultSet
 import javax.sql.DataSource
 

@@ -1,4 +1,4 @@
-package com.bieniucieniu.cookbook
+package com.bieniucieniu.cookbook.features.recipes.domain
 
 import kotlinx.serialization.Serializable
 

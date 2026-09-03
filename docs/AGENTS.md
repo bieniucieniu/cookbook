@@ -1,16 +1,16 @@
 # Agent instructions
 
-Monorepo: Gradle (Kotlin JVM) + pnpm (JS). Same layout for both.
+Monorepo: Gradle (Kotlin JVM) + pnpm (JS). JVM API at repo-root `server/`; JS apps under `apps/`.
 
 ```
+server/     JVM Ktor CIO             Gradle `:server`
 apps/
-  server    JVM Ktor CIO             Gradle `:apps:server`
   web       React + Vite             pnpm `web`
 packages/
   core      Kotlin JVM shared lib    Gradle `:packages:core`
 ```
 
-New runnable thing → `apps/<name>`. New shared lib → `packages/<name>`.
+New JS app → `apps/<name>`. JVM API stays `server/`. New shared lib → `packages/<name>`.
 
 ## Tooling
 
@@ -22,7 +22,7 @@ Use [devenv](https://devenv.sh). `devenv shell` or `direnv allow`.
 
 Postgres: `devenv up` (or a profile that starts it). URL `postgresql://127.0.0.1:5432/cookbook`, user/password `cookbook`.
 
-Server env (do not commit secrets):
+Server config: `server/src/main/resources/application.yaml` (Ktor `EngineMain`). Env (do not commit secrets):
 
 | Var | Required | Notes |
 | --- | --- | --- |
@@ -38,10 +38,10 @@ Commands:
 - Server: `devenv --profile server up` (Postgres + JVM Ktor CIO on `:8080`)
 - Web: `devenv --profile web up` (extends server; Vite on `:3000`, proxies `/api` → `:8080`)
 - All: `devenv --profile all up` (same as web)
-- Manual: `gradle :apps:server:run` / `pnpm --filter web dev`
+- Manual: `gradle :server:run` / `pnpm --filter web dev`
 - Tests: `gradle test`
 - JS install: on devenv enter (`languages.javascript.pnpm.install.enable`)
-- API client: `pnpm --filter web generate-api` (Orval; spec at `apps/server/src/main/resources/swagger/documentation.yaml`, also `GET /swagger/documentation.yaml`)
+- API client: `pnpm --filter web generate-api` (Orval; spec at `server/src/main/resources/swagger/documentation.yaml`, also `GET /swagger/documentation.yaml`)
 
 ## Version catalogs
 
@@ -51,6 +51,7 @@ Never pin versions in app/package `build.gradle.kts` or workspace `package.json`
 
 ```kotlin
 implementation(libs.ktor.serverCio)
+implementation(libs.ktor.serverConfigYaml)
 implementation(libs.workos)
 implementation(libs.hikari)
 implementation(libs.postgresql)
@@ -60,11 +61,11 @@ alias(libs.plugins.ktor)
 
 Add version → `[versions]`. Add dep → `[libraries]` or `[plugins]`. Then `libs.*`.
 
-Gradle module: `include(":apps:foo")` or `include(":packages:foo")` in `settings.gradle.kts`. Path = project path (`:packages:core` → `packages/core`).
+Gradle module: `include(":server")` or `include(":packages:foo")` in `settings.gradle.kts`. Path = project path (`:packages:foo` → `packages/foo`).
 
-Server DB: Hikari + JDBC Postgres. Migrations in `apps/server/db/migrations` (ordered `.sql` on startup). No sqlx4k, no KSP, no Native.
+Server layout (same as zula): `app/`, `core/`, `features/`, `lib/` under `server/src/main/kotlin` (packages `com.bieniucieniu.cookbook.*`, no `com/...` dirs). DB: Hikari + JDBC Postgres. Migrations in `server/db/migrations` (ordered `.sql` on startup). No sqlx4k, no KSP, no Native.
 
-Auth: WorkOS User Management (`com.workos:workos`). httpOnly `wos-session` cookie. `/` and `/health` public; `/recipes` and `/auth/me` require session. No live WorkOS in CI. OpenAPI: `apps/server/src/main/resources/swagger/documentation.yaml` (served at `/swagger/documentation.yaml`). Web client: Orval + TanStack Query (`apps/web/orval.config.ts`, `src/mutator.ts`, generated `src/generated/`).
+Auth: WorkOS User Management (`com.workos:workos`). httpOnly `wos-session` cookie. `/` and `/health` public; `/recipes` and `/auth/me` require session. No live WorkOS in CI. OpenAPI: `server/src/main/resources/swagger/documentation.yaml` (served at `/swagger/documentation.yaml`). Web client: Orval + TanStack Query (`apps/web/orval.config.ts`, `src/mutator.ts`, generated `src/generated/`).
 
 ### JS — pnpm catalog in `pnpm-workspace.yaml`
 

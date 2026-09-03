@@ -1,5 +1,11 @@
-package com.bieniucieniu.cookbook
+package com.bieniucieniu.cookbook.app
 
+import com.bieniucieniu.cookbook.core.health.configureHealth
+import com.bieniucieniu.cookbook.core.http.configureSerialization
+import com.bieniucieniu.cookbook.core.openapi.configureOpenApi
+import com.bieniucieniu.cookbook.features.auth.AuthService
+import com.bieniucieniu.cookbook.features.auth.WorkosConfig
+import com.bieniucieniu.cookbook.features.auth.requireUser
 import com.workos.WorkOS
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
@@ -15,7 +21,7 @@ class ApplicationTest {
     @Test
     fun testRoot() = testApplication {
         application {
-            module()
+            configureHealth()
         }
         val response = client.get("/")
         assertEquals(HttpStatusCode.OK, response.status)
@@ -25,7 +31,7 @@ class ApplicationTest {
     @Test
     fun testHealth() = testApplication {
         application {
-            module()
+            configureHealth()
         }
         val response = client.get("/health")
         assertEquals(HttpStatusCode.OK, response.status)
@@ -35,10 +41,19 @@ class ApplicationTest {
     @Test
     fun recipesUnauthorizedWithoutCookie() = testApplication {
         application {
-            module()
+            configureSerialization()
             routing {
                 get("/recipes") {
-                    call.requireUser(WorkOS("sk_test"), "client_test", cookieSecure = false) ?: return@get
+                    call.requireUser(
+                        AuthService(
+                            WorkOS("sk_test"),
+                            WorkosConfig(
+                                apiKey = "sk_test",
+                                clientId = "client_test",
+                                cookieSecure = false,
+                            ),
+                        ),
+                    ) ?: return@get
                 }
             }
         }
@@ -49,7 +64,7 @@ class ApplicationTest {
     @Test
     fun swaggerYaml() = testApplication {
         application {
-            module()
+            configureOpenApi()
         }
         val response = client.get("/swagger/documentation.yaml")
         assertEquals(HttpStatusCode.OK, response.status)
