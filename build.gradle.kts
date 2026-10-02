@@ -1,11 +1,11 @@
 plugins {
-    alias(libs.plugins.kotlinJvm) apply false
+    alias(libs.plugins.kotlinMultiplatform) apply false
     alias(libs.plugins.kotlinSerialization) apply false
-    alias(libs.plugins.ktor) apply false
+    alias(libs.plugins.sqldelight) apply false
 }
 
 tasks.register("test") {
     group = "verification"
-    description = "Run JVM tests in all modules"
-    dependsOn(":packages:core:test", ":server:test")
+    description = "Run native tests in all modules"
+    dependsOn(":packages:core:nativeTest", ":apps:api:nativeTest")
 }

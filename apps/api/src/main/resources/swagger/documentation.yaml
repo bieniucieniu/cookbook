@@ -27,76 +27,10 @@ paths:
             text/plain:
               schema:
                 type: string
-  /auth/login:
-    post:
-      operationId: authLogin
-      tags: [auth]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AuthRequest"
-      responses:
-        "200":
-          description: Signed in
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MeResponse"
-        "401":
-          description: Invalid credentials
-  /auth/register:
-    post:
-      operationId: authRegister
-      tags: [auth]
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AuthRequest"
-      responses:
-        "200":
-          description: Registered
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MeResponse"
-        "401":
-          description: Could not start session
-        "409":
-          description: Email already registered
-  /auth/logout:
-    post:
-      operationId: authLogout
-      tags: [auth]
-      security:
-        - cookieAuth: []
-      responses:
-        "204":
-          description: Signed out
-  /auth/me:
-    get:
-      operationId: authMe
-      tags: [auth]
-      security:
-        - cookieAuth: []
-      responses:
-        "200":
-          description: Current user
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MeResponse"
-        "401":
-          description: Missing or invalid session
   /recipes:
     get:
       operationId: listRecipes
       tags: [recipes]
-      security:
-        - cookieAuth: []
       responses:
         "200":
           description: Recipe list
@@ -106,31 +40,8 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Recipe"
-        "401":
-          description: Missing or invalid session
 components:
-  securitySchemes:
-    cookieAuth:
-      type: apiKey
-      in: cookie
-      name: wos-session
   schemas:
-    AuthRequest:
-      type: object
-      required: [email, password]
-      properties:
-        email:
-          type: string
-        password:
-          type: string
-    MeResponse:
-      type: object
-      required: [id, email]
-      properties:
-        id:
-          type: string
-        email:
-          type: string
     Recipe:
       type: object
       required: [id, title]

@@ -44,6 +44,8 @@ in
   };
 
   enterShell = ''
+    unset DEVELOPER_DIR
+    unset SDKROOT
     echo "java $(java -version 2>&1 | head -n 1)"
     echo "gradle $(gradle --version | awk '/^Gradle /{print $2; exit}')"
     echo "node $(node --version)"
@@ -66,8 +68,10 @@ in
           after = [ "devenv:processes:postgres" ];
           exec = ''
             set -eu
+            unset DEVELOPER_DIR
+            unset SDKROOT
             cd "${root}"
-            exec gradle :server:run
+            exec gradle :apps:api:runDebugExecutableNative
           '';
           ready = {
             http.get = {

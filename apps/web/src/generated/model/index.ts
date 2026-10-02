@@ -5,6 +5,4 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export * from './authRequest.ts';
-export * from './meResponse.ts';
 export * from './recipe.ts';

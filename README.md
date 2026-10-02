@@ -1,9 +1,9 @@
 Gradle multi-project + pnpm workspace. Tooling via [devenv](https://devenv.sh).
 
 ```
-server/    JVM Ktor (CIO) + JDBC Postgres + WorkOS
-apps/web   React (Vite) on :3000, proxies /api → :8080
-packages/core  Kotlin JVM shared lib
+apps/api       Kotlin/Native Ktor (CIO) + sqlx4k Postgres + SQLDelight
+apps/web       React (Vite) on :3000, proxies /api → :8080
+packages/core  Kotlin/Native shared lib
 ```
 
 ### Env
@@ -18,11 +18,11 @@ devenv --profile all up     # same as web
 
 Provides JDK 25, Gradle 9, Node, pnpm 11, Postgres. No `./gradlew`, no Corepack.
 
-Server reads `server/src/main/resources/application.yaml`. Needs `WORKOS_API_KEY`, `WORKOS_CLIENT_ID`, `WORKOS_COOKIE_PASSWORD` (32+ chars). Optional `WORKOS_COOKIE_SECURE=true` in production.
+Server reads env in `apps/api`. Database defaults to `postgresql://127.0.0.1:5432/cookbook` with user and password `cookbook`.
 
 ### Run
 
-- Server: `devenv --profile server up` or `gradle :server:run`
+- Server: `devenv --profile server up` or `gradle :apps:api:runDebugExecutableNative`
 - Web: `devenv --profile web up` or `pnpm --filter web dev`
 - Tests: `gradle test`
 - API client: `pnpm --filter web generate-api`

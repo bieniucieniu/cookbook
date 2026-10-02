@@ -1,30 +1,25 @@
 [versions]
 kotlin = "2.4.10"
 ktor = "3.5.2"
-workos = "4.14.0"
-hikari = "6.3.0"
-postgresql = "42.7.7"
-logback = "1.5.18"
 koin = "4.1.0"
+sqlx4k = "1.13.0"
+sqlx4kSqldelight = "0.74.0"
+sqlDelight = "2.3.2"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
-kotlin-testJunit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
-ktor-serverCore = { module = "io.ktor:ktor-server-core-jvm", version.ref = "ktor" }
-ktor-serverCio = { module = "io.ktor:ktor-server-cio-jvm", version.ref = "ktor" }
-ktor-serverConfigYaml = { module = "io.ktor:ktor-server-config-yaml-jvm", version.ref = "ktor" }
-ktor-serverTestHost = { module = "io.ktor:ktor-server-test-host-jvm", version.ref = "ktor" }
-ktor-serverContentNegotiation = { module = "io.ktor:ktor-server-content-negotiation-jvm", version.ref = "ktor" }
-ktor-serializationKotlinxJson = { module = "io.ktor:ktor-serialization-kotlinx-json-jvm", version.ref = "ktor" }
-workos = { module = "com.workos:workos", version.ref = "workos" }
-hikari = { module = "com.zaxxer:HikariCP", version.ref = "hikari" }
-postgresql = { module = "org.postgresql:postgresql", version.ref = "postgresql" }
-logback = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
+ktor-serverCore = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
+ktor-serverCio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
+ktor-serverTestHost = { module = "io.ktor:ktor-server-test-host", version.ref = "ktor" }
+ktor-serverContentNegotiation = { module = "io.ktor:ktor-server-content-negotiation", version.ref = "ktor" }
+ktor-serializationKotlinxJson = { module = "io.ktor:ktor-serialization-kotlinx-json", version.ref = "ktor" }
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
 koin-ktor = { module = "io.insert-koin:koin-ktor", version.ref = "koin" }
-koin-slf4j = { module = "io.insert-koin:koin-logger-slf4j", version.ref = "koin" }
+sqlx4k-postgres = { module = "io.github.smyrgeorge:sqlx4k-postgres", version.ref = "sqlx4k" }
+sqlx4k-sqldelight = { module = "io.github.smyrgeorge:sqlx4k-sqldelight", version.ref = "sqlx4kSqldelight" }
+sqlx4k-sqldelight-dialect-postgres = { module = "io.github.smyrgeorge:sqlx4k-sqldelight-dialect-postgres", version.ref = "sqlx4kSqldelight" }
 
 [plugins]
-kotlinJvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlinMultiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
-ktor = { id = "io.ktor.plugin", version.ref = "ktor" }
+sqldelight = { id = "app.cash.sqldelight", version.ref = "sqlDelight" }

@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS recipes (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  title TEXT NOT NULL
+);
+
+selectAll:
+SELECT id, title
+FROM recipes
+ORDER BY id;
