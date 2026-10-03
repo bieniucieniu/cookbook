@@ -1,6 +1,7 @@
 package com.bieniucieniu.cookbook.app
 
 import com.bieniucieniu.cookbook.core.health.configureHealth
+import com.bieniucieniu.cookbook.core.http.configureSerialization
 import com.bieniucieniu.cookbook.core.openapi.configureOpenApi
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
@@ -32,12 +33,19 @@ class ApplicationTest {
     }
 
     @Test
-    fun swaggerYaml() = testApplication {
+    fun swaggerJson() = testApplication {
         application {
+            configureSerialization()
+            configureHealth()
+            configureRouting()
             configureOpenApi()
         }
-        val response = client.get("/swagger/documentation.yaml")
+        val response = client.get("/swagger/documentation.json")
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals(true, response.bodyAsText().startsWith("openapi:"))
+        val body = response.bodyAsText()
+        assertEquals(true, body.contains("\"openapi\""))
+        assertEquals(true, body.contains("\"/recipes\""))
+        assertEquals(true, body.contains("listRecipes"))
+        assertEquals(false, body.contains("documentation.json"))
     }
 }

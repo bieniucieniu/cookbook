@@ -42,7 +42,7 @@ Commands:
 - Manual: `gradle :apps:api:runDebugExecutableNative` / `pnpm --filter web dev`
 - Tests: `gradle test` (`nativeTest` on `:apps:api` and `:packages:core`)
 - JS install: on devenv enter (`languages.javascript.pnpm.install.enable`)
-- API client: `pnpm --filter web generate-api` (Orval; spec at `../apps/api`, also `GET /swagger/documentation.yaml`)
+- API client: `pnpm --filter web generate-api` (Orval; needs the API up, reads `GET /swagger/documentation.json`)
 
 ## Version catalogs
 
@@ -64,7 +64,7 @@ Gradle module: `include(":apps:api")` or `include(":packages:foo")` in `settings
 
 Server layout: `app/`, `core/`, `features/`, `lib/` under `apps/api/src/nativeMain/kotlin` (packages `com.bieniucieniu.cookbook.*`, no `com/...` dirs). Host-only Kotlin/Native target named `native` (`embeddedServer` + CIO). DB: sqlx4k Postgres pool + SQLDelight (`generateAsync`, postgres dialect). `.sq` files live in `apps/api/src/commonMain/sqldelight` (SQLDelight 2 only generates from `commonMain`). Migrations: ordered `.sql` in `apps/api/db/migrations`, applied with sqlx4k `migrate()` on startup. No Hikari, no JDBC, no KSP, no WorkOS.
 
-`/`, `/health`, and `/recipes` are public. OpenAPI: `apps/api/src/main/resources/swagger/documentation.yaml` (served at `/swagger/documentation.yaml`). Web client: Orval + TanStack Query (`apps/web/orval.config.ts`, `src/mutator.ts`, generated `src/generated/`).
+`/`, `/health`, and `/recipes` are public. OpenAPI is built at runtime from route `.describe {}` metadata (`ktor-server-routing-openapi`) and served as JSON at `GET /swagger/documentation.json`. Native has no YAML serializer. Web client: Orval + TanStack Query (`apps/web/orval.config.ts`, `src/mutator.ts`, generated `src/generated/`).
 
 ### JS — pnpm catalog in `pnpm-workspace.yaml`
 

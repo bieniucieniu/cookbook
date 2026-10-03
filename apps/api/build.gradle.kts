@@ -41,6 +41,7 @@ kotlin {
             implementation(libs.ktor.serverCore)
             implementation(libs.ktor.serverCio)
             implementation(libs.ktor.serverContentNegotiation)
+            implementation(libs.ktor.serverRoutingOpenApi)
             implementation(libs.ktor.serializationKotlinxJson)
             implementation(libs.koin.core)
             implementation(libs.koin.ktor)
