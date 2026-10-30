@@ -8,7 +8,6 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "generate-routes": "tsr generate",
-    "generate-api": "orval",
     "build": "vite build",
     "preview": "vite preview",
     "format": "biome format",
@@ -16,34 +15,16 @@
     "check": "biome check"
   },
   "dependencies": {
-    "@base-ui/react": "catalog:",
-    "@fontsource-variable/outfit": "catalog:",
-    "@fontsource-variable/oxanium": "catalog:",
-    "@tabler/icons-react": "catalog:",
-    "class-variance-authority": "catalog:",
-    "clsx": "catalog:",
-    "tailwind-merge": "catalog:",
-    "@tailwindcss/vite": "^4.1.18",
-    "@tanstack/react-devtools": "latest",
-    "@tanstack/react-pacer": "^0.23.0",
-    "@tanstack/react-query": "catalog:",
-    "@tanstack/react-router": "latest",
-    "@tanstack/react-router-devtools": "latest",
-    "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "tailwindcss": "^4.1.18"
+    "@tanstack/solid-router": "catalog:",
+    "@tanstack/solid-router-devtools": "catalog:",
+    "solid-js": "catalog:"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.4.5",
-    "@tanstack/devtools-vite": "latest",
-    "@tanstack/router-cli": "^1.132.0",
-    "@tanstack/router-plugin": "latest",
-    "orval": "catalog:",
-    "@types/node": "^22.10.2",
-    "@types/react": "^19.2.0",
-    "@types/react-dom": "^19.2.0",
-    "@vitejs/plugin-react": "^6.0.1",
-    "typescript": "^6.0.2",
-    "vite": "^8.0.0"
+    "@biomejs/biome": "catalog:",
+    "@tanstack/router-cli": "catalog:",
+    "@tanstack/router-plugin": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "catalog:"
   }
 }
