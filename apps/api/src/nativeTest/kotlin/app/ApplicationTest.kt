@@ -45,7 +45,15 @@ class ApplicationTest {
         val body = response.bodyAsText()
         assertEquals(true, body.contains("\"openapi\""))
         assertEquals(true, body.contains("\"/recipes\""))
+        assertEquals(true, body.contains("\"/recipes/{id}\""))
+        assertEquals(true, body.contains("\"/ingredients\""))
+        assertEquals(true, body.contains("\"/tools\""))
+        assertEquals(true, body.contains("\"/allergens\""))
         assertEquals(true, body.contains("listRecipes"))
+        assertEquals(true, body.contains("createRecipe"))
+        assertEquals(true, body.contains("listIngredients"))
+        assertEquals(true, body.contains("listTools"))
+        assertEquals(true, body.contains("listAllergens"))
         assertEquals(false, body.contains("documentation.json"))
     }
 }

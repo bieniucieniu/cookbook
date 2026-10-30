@@ -1,0 +1,19 @@
+CREATE TABLE IF NOT EXISTS allergens (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL
+);
+
+selectAllergens:
+SELECT id, slug, name
+FROM allergens
+ORDER BY id;
+
+allergenById:
+SELECT id, slug, name
+FROM allergens
+WHERE id = :id;
+
+selectAllergenIds:
+SELECT id
+FROM allergens;

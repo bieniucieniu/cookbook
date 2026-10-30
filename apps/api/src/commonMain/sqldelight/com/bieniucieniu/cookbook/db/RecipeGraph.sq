@@ -1,0 +1,192 @@
+CREATE TABLE IF NOT EXISTS recipe_nodes (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  recipe_id BIGINT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL DEFAULT '',
+  branch_mode TEXT NOT NULL DEFAULT 'none',
+  join_mode TEXT NOT NULL DEFAULT 'none',
+  repeat_min INTEGER NOT NULL DEFAULT 1,
+  repeat_max INTEGER NOT NULL DEFAULT 1,
+  ord INTEGER NOT NULL DEFAULT 0,
+  CONSTRAINT recipe_nodes_branch_mode CHECK (branch_mode IN ('none', 'and', 'xor')),
+  CONSTRAINT recipe_nodes_join_mode CHECK (join_mode IN ('none', 'and', 'xor')),
+  CONSTRAINT recipe_nodes_repeat CHECK (repeat_min >= 1 AND repeat_max >= repeat_min),
+  CONSTRAINT recipe_nodes_id_recipe UNIQUE (id, recipe_id)
+);
+
+CREATE TABLE IF NOT EXISTS recipe_edges (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  recipe_id BIGINT NOT NULL,
+  from_node_id BIGINT NOT NULL,
+  to_node_id BIGINT NOT NULL,
+  label TEXT NOT NULL DEFAULT '',
+  CONSTRAINT recipe_edges_not_self CHECK (from_node_id <> to_node_id),
+  CONSTRAINT recipe_edges_from_fk FOREIGN KEY (from_node_id, recipe_id) REFERENCES recipe_nodes(id, recipe_id) ON DELETE CASCADE,
+  CONSTRAINT recipe_edges_to_fk FOREIGN KEY (to_node_id, recipe_id) REFERENCES recipe_nodes(id, recipe_id) ON DELETE CASCADE,
+  CONSTRAINT recipe_edges_pair UNIQUE (from_node_id, to_node_id)
+);
+
+CREATE TABLE IF NOT EXISTS recipe_node_spans (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  node_id BIGINT NOT NULL REFERENCES recipe_nodes(id) ON DELETE CASCADE,
+  ord INTEGER NOT NULL,
+  kind TEXT NOT NULL,
+  seconds INTEGER NOT NULL,
+  CONSTRAINT recipe_node_spans_kind CHECK (kind IN ('active', 'wait')),
+  CONSTRAINT recipe_node_spans_seconds CHECK (seconds >= 0),
+  CONSTRAINT recipe_node_spans_ord UNIQUE (node_id, ord)
+);
+
+CREATE TABLE IF NOT EXISTS node_ingredients (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  node_id BIGINT NOT NULL REFERENCES recipe_nodes(id) ON DELETE CASCADE,
+  ingredient_id BIGINT NOT NULL REFERENCES ingredients(id),
+  qty NUMERIC,
+  unit TEXT,
+  optional BOOLEAN NOT NULL DEFAULT FALSE,
+  CONSTRAINT node_ingredients_qty CHECK (qty IS NULL OR qty >= 0),
+  CONSTRAINT node_ingredients_once UNIQUE (node_id, ingredient_id)
+);
+
+CREATE TABLE IF NOT EXISTS node_tools (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  node_id BIGINT NOT NULL REFERENCES recipe_nodes(id) ON DELETE CASCADE,
+  tool_id BIGINT NOT NULL REFERENCES tools(id),
+  optional BOOLEAN NOT NULL DEFAULT FALSE,
+  hold TEXT NOT NULL DEFAULT 'active',
+  CONSTRAINT node_tools_once UNIQUE (node_id, tool_id),
+  CONSTRAINT node_tools_hold CHECK (hold IN ('active', 'span'))
+);
+
+CREATE TABLE IF NOT EXISTS recipe_ingredient_alts (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  recipe_id BIGINT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  ingredient_id BIGINT NOT NULL REFERENCES ingredients(id),
+  alt_ingredient_id BIGINT NOT NULL REFERENCES ingredients(id),
+  node_id BIGINT,
+  ratio NUMERIC NOT NULL DEFAULT 1,
+  note TEXT NOT NULL DEFAULT '',
+  CONSTRAINT recipe_ingredient_alts_not_self CHECK (ingredient_id <> alt_ingredient_id),
+  CONSTRAINT recipe_ingredient_alts_ratio CHECK (ratio > 0),
+  CONSTRAINT recipe_ingredient_alts_node_fk FOREIGN KEY (node_id, recipe_id) REFERENCES recipe_nodes(id, recipe_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS recipe_tool_alts (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  recipe_id BIGINT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  tool_id BIGINT NOT NULL REFERENCES tools(id),
+  alt_tool_id BIGINT NOT NULL REFERENCES tools(id),
+  node_id BIGINT,
+  note TEXT NOT NULL DEFAULT '',
+  CONSTRAINT recipe_tool_alts_not_self CHECK (tool_id <> alt_tool_id),
+  CONSTRAINT recipe_tool_alts_node_fk FOREIGN KEY (node_id, recipe_id) REFERENCES recipe_nodes(id, recipe_id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS recipe_ingredient_facts (
+  recipe_id BIGINT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  ingredient_id BIGINT NOT NULL REFERENCES ingredients(id),
+  presence TEXT NOT NULL,
+  PRIMARY KEY (recipe_id, ingredient_id),
+  CONSTRAINT recipe_ingredient_facts_presence CHECK (presence IN ('all_paths', 'some_paths'))
+);
+
+CREATE TABLE IF NOT EXISTS recipe_tool_facts (
+  recipe_id BIGINT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  tool_id BIGINT NOT NULL REFERENCES tools(id),
+  presence TEXT NOT NULL,
+  PRIMARY KEY (recipe_id, tool_id),
+  CONSTRAINT recipe_tool_facts_presence CHECK (presence IN ('all_paths', 'some_paths'))
+);
+
+CREATE TABLE IF NOT EXISTS recipe_time (
+  recipe_id BIGINT PRIMARY KEY NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  hands_on_min_seconds INTEGER NOT NULL,
+  hands_on_max_seconds INTEGER NOT NULL,
+  elapsed_min_seconds INTEGER NOT NULL,
+  elapsed_max_seconds INTEGER NOT NULL,
+  CONSTRAINT recipe_time_bounds CHECK (
+    hands_on_min_seconds >= 0
+    AND hands_on_max_seconds >= hands_on_min_seconds
+    AND elapsed_min_seconds >= 0
+    AND elapsed_max_seconds >= elapsed_min_seconds
+  )
+);
+
+selectNodes:
+SELECT id, recipe_id, title, body, branch_mode, join_mode, repeat_min, repeat_max, ord
+FROM recipe_nodes
+WHERE recipe_id = :recipe_id
+ORDER BY ord, id;
+
+selectEdges:
+SELECT e.id, e.recipe_id, e.from_node_id, e.to_node_id, e.label
+FROM recipe_edges e
+WHERE e.recipe_id = :recipe_id
+ORDER BY e.id;
+
+selectSpans:
+SELECT s.id, s.node_id, s.ord, s.kind, s.seconds
+FROM recipe_node_spans s
+JOIN recipe_nodes n ON n.id = s.node_id
+WHERE n.recipe_id = :recipe_id
+ORDER BY s.node_id, s.ord;
+
+selectNodeIngredients:
+SELECT ni.id, ni.node_id, ni.ingredient_id, ni.qty, ni.unit, ni.optional, i.slug
+FROM node_ingredients ni
+JOIN ingredients i ON i.id = ni.ingredient_id
+JOIN recipe_nodes n ON n.id = ni.node_id
+WHERE n.recipe_id = :recipe_id
+ORDER BY ni.id;
+
+selectNodeTools:
+SELECT nt.id, nt.node_id, nt.tool_id, nt.optional, nt.hold, t.slug
+FROM node_tools nt
+JOIN tools t ON t.id = nt.tool_id
+JOIN recipe_nodes n ON n.id = nt.node_id
+WHERE n.recipe_id = :recipe_id
+ORDER BY nt.id;
+
+selectRecipeIngredientAlts:
+SELECT id, recipe_id, ingredient_id, alt_ingredient_id, node_id, ratio, note
+FROM recipe_ingredient_alts
+WHERE recipe_id = :recipe_id
+ORDER BY id;
+
+selectRecipeToolAlts:
+SELECT id, recipe_id, tool_id, alt_tool_id, node_id, note
+FROM recipe_tool_alts
+WHERE recipe_id = :recipe_id
+ORDER BY id;
+
+selectAllIngredientFacts:
+SELECT recipe_id, ingredient_id, presence
+FROM recipe_ingredient_facts
+ORDER BY recipe_id, ingredient_id;
+
+selectAllToolFacts:
+SELECT recipe_id, tool_id, presence
+FROM recipe_tool_facts
+ORDER BY recipe_id, tool_id;
+
+selectAllRecipeIngredientAlts:
+SELECT recipe_id, ingredient_id, alt_ingredient_id, node_id
+FROM recipe_ingredient_alts
+ORDER BY recipe_id, id;
+
+selectAllRecipeToolAlts:
+SELECT recipe_id, tool_id, alt_tool_id, node_id
+FROM recipe_tool_alts
+ORDER BY recipe_id, id;
+
+selectIngredientFactsForRecipe:
+SELECT recipe_id, ingredient_id, presence
+FROM recipe_ingredient_facts
+WHERE recipe_id = :recipe_id
+ORDER BY ingredient_id;
+
+selectToolFactsForRecipe:
+SELECT recipe_id, tool_id, presence
+FROM recipe_tool_facts
+WHERE recipe_id = :recipe_id
+ORDER BY tool_id;

@@ -1,0 +1,45 @@
+CREATE TABLE IF NOT EXISTS ingredients (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ingredient_allergens (
+  ingredient_id BIGINT NOT NULL REFERENCES ingredients(id),
+  allergen_id BIGINT NOT NULL REFERENCES allergens(id),
+  PRIMARY KEY (ingredient_id, allergen_id)
+);
+
+CREATE TABLE IF NOT EXISTS ingredient_alts (
+  ingredient_id BIGINT NOT NULL REFERENCES ingredients(id),
+  alt_ingredient_id BIGINT NOT NULL REFERENCES ingredients(id),
+  ratio NUMERIC NOT NULL DEFAULT 1,
+  note TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (ingredient_id, alt_ingredient_id),
+  CONSTRAINT ingredient_alts_not_self CHECK (ingredient_id <> alt_ingredient_id),
+  CONSTRAINT ingredient_alts_ratio CHECK (ratio > 0)
+);
+
+selectIngredients:
+SELECT id, slug, name
+FROM ingredients
+ORDER BY id;
+
+ingredientById:
+SELECT id, slug, name
+FROM ingredients
+WHERE id = :id;
+
+selectIngredientIds:
+SELECT id
+FROM ingredients;
+
+selectIngredientAllergens:
+SELECT ingredient_id, allergen_id
+FROM ingredient_allergens
+ORDER BY ingredient_id, allergen_id;
+
+selectIngredientAlts:
+SELECT ingredient_id, alt_ingredient_id, ratio, note
+FROM ingredient_alts
+ORDER BY ingredient_id, alt_ingredient_id;
