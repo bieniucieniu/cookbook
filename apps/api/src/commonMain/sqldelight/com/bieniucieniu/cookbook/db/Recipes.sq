@@ -1,9 +1,23 @@
 CREATE TABLE IF NOT EXISTS recipes (
   id BIGSERIAL PRIMARY KEY NOT NULL,
-  title TEXT NOT NULL
+  title TEXT NOT NULL,
+  cooks INTEGER NOT NULL DEFAULT 1,
+  CONSTRAINT recipes_cooks CHECK (cooks >= 1)
 );
 
-selectAll:
-SELECT id, title
+selectSummaries:
+SELECT r.id,
+       r.title,
+       r.cooks,
+       t.hands_on_min_seconds,
+       t.hands_on_max_seconds,
+       t.elapsed_min_seconds,
+       t.elapsed_max_seconds
+FROM recipes r
+LEFT JOIN recipe_time t ON t.recipe_id = r.id
+ORDER BY r.id;
+
+recipeById:
+SELECT id, title, cooks
 FROM recipes
-ORDER BY id;
+WHERE id = :id;

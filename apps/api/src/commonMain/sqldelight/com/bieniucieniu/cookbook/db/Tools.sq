@@ -1,0 +1,32 @@
+CREATE TABLE IF NOT EXISTS tools (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  slug TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS tool_alts (
+  tool_id BIGINT NOT NULL REFERENCES tools(id),
+  alt_tool_id BIGINT NOT NULL REFERENCES tools(id),
+  note TEXT NOT NULL DEFAULT '',
+  PRIMARY KEY (tool_id, alt_tool_id),
+  CONSTRAINT tool_alts_not_self CHECK (tool_id <> alt_tool_id)
+);
+
+selectTools:
+SELECT id, slug, name
+FROM tools
+ORDER BY id;
+
+toolById:
+SELECT id, slug, name
+FROM tools
+WHERE id = :id;
+
+selectToolIds:
+SELECT id
+FROM tools;
+
+selectToolAlts:
+SELECT tool_id, alt_tool_id, note
+FROM tool_alts
+ORDER BY tool_id, alt_tool_id;

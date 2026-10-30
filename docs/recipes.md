@@ -1,6 +1,8 @@
 # Recipes
 
-Design for the recipe graph. Not migrated. The live table is `recipes(id, title)` in `apps/api/db/migrations/0001_recipes.sql`. When this lands, the migration and the SQLDelight `.sq` file must match.
+Migrated by `apps/api/db/migrations/0002_recipe_graph.sql`. `recipes.cooks` defaults to 1. The migration and the SQLDelight `.sq` files match. Partial unique indexes live only in the migration.
+
+`elapsed_*` can be lower than `hands_on_*` when `cooks` > 1, so `recipe_time` checks each pair on its own (`max >= min`, both `>= 0`).
 
 A recipe is a directed acyclic graph of steps. Ingredients and tools are dictionary rows. A step points at those rows. Alternatives live on the dictionary and again on the recipe. Time is a list of spans on the step. Parallel work is an `and` split.
 
@@ -326,8 +328,8 @@ create table if not exists recipe_time
     constraint recipe_time_bounds check (
         hands_on_min_seconds >= 0
         and hands_on_max_seconds >= hands_on_min_seconds
-        and elapsed_min_seconds >= hands_on_min_seconds
-        and elapsed_max_seconds >= greatest(elapsed_min_seconds, hands_on_max_seconds)
+        and elapsed_min_seconds >= 0
+        and elapsed_max_seconds >= elapsed_min_seconds
     )
 );
 ```

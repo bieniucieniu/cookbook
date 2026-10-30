@@ -39,6 +39,7 @@ kotlin {
         nativeMain.dependencies {
             implementation(project(":packages:core"))
             implementation(libs.ktor.serverCore)
+            implementation(libs.ktor.serverStatusPages)
             implementation(libs.ktor.serverCio)
             implementation(libs.ktor.serverContentNegotiation)
             implementation(libs.ktor.serverRoutingOpenApi)
