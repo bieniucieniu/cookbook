@@ -1,7 +1,7 @@
 [versions]
-kotlin = "2.4.10"
-ktor = "3.5.2"
-koin = "4.1.0"
+kotlin = "2.4.21"
+ktor = "3.6.1"
+koin = "4.2.2"
 sqlx4k = "1.13.0"
 sqlx4kSqldelight = "0.74.0"
 sqlDelight = "2.3.2"
