@@ -78,6 +78,10 @@ Workspace globs: `apps/*`, `packages/*`. Only dirs with `package.json` are pnpm 
 
 Internal JS packages: `"@cookbook/foo": "workspace:*"`. Name `@cookbook/<dir>`. App `apps/web` package name is `web`.
 
+## Recipes
+
+Step graph, ingredient and tool dictionaries, alternatives, search facts, and timing: [recipes.md](recipes.md). Design only. The live table is `recipes(id, title)`.
+
 ## Conventions
 
 - JVM group: `com.bieniucieniu.cookbook`
