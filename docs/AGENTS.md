@@ -5,7 +5,7 @@ Monorepo: Gradle (Kotlin/Native) + pnpm (JS). Native API at `apps/api`; JS apps 
 ```
 apps/
   api       Kotlin/Native Ktor CIO   Gradle `:apps:api`
-  web       React + Vite             pnpm `web`
+  web       Solid + TanStack Router  pnpm `web`
 packages/
   core      Kotlin/Native shared lib Gradle `:packages:core`
 ```
@@ -42,7 +42,6 @@ Commands:
 - Manual: `gradle :apps:api:runDebugExecutableNative` / `pnpm --filter web dev`
 - Tests: `gradle test` (`nativeTest` on `:apps:api` and `:packages:core`)
 - JS install: on devenv enter (`languages.javascript.pnpm.install.enable`)
-- API client: `pnpm --filter web generate-api` (Orval; needs the API up, reads `GET /swagger/documentation.json`)
 
 ## Version catalogs
 
@@ -64,12 +63,12 @@ Gradle module: `include(":apps:api")` or `include(":packages:foo")` in `settings
 
 Server layout: `app/`, `core/`, `features/`, `lib/` under `apps/api/src/nativeMain/kotlin` (packages `com.bieniucieniu.cookbook.*`, no `com/...` dirs). Host-only Kotlin/Native target named `native` (`embeddedServer` + CIO). DB: sqlx4k Postgres pool + SQLDelight (`generateAsync`, postgres dialect). `.sq` files live in `apps/api/src/commonMain/sqldelight` (SQLDelight 2 only generates from `commonMain`). Migrations: ordered `.sql` in `apps/api/db/migrations`, applied with sqlx4k `migrate()` on startup. No Hikari, no JDBC, no KSP, no WorkOS.
 
-`/`, `/health`, and `/recipes` are public. OpenAPI is built at runtime from route `.describe {}` metadata (`ktor-server-routing-openapi`) and served as JSON at `GET /swagger/documentation.json`. Native has no YAML serializer. Web client: Orval + TanStack Query (`apps/web/orval.config.ts`, `src/mutator.ts`, generated `src/generated/`).
+`/`, `/health`, and `/recipes` are public. OpenAPI is built at runtime from route `.describe {}` metadata (`ktor-server-routing-openapi`) and served as JSON at `GET /swagger/documentation.json`. Native has no YAML serializer. Web is a client-only Solid SPA (`@tanstack/solid-router`). No generated API client yet. Before editing `apps/web`, read [apps/web/AGENTS.md](../apps/web/AGENTS.md). JSX looks like React. Components run once and updates are fine-grained. Do not write React.
 
 ### JS — pnpm catalog in `pnpm-workspace.yaml`
 
 ```json
-"react": "catalog:"
+"solid-js": "catalog:"
 ```
 
 Add version under `catalog:` in `pnpm-workspace.yaml`. `catalogMode: strict` — `pnpm add` without a catalog entry fails. Then `catalog:` in that package's `package.json`.

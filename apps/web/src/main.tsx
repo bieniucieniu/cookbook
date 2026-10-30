@@ -1,35 +1,27 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { createRouter, RouterProvider } from "@tanstack/react-router"
-import ReactDOM from "react-dom/client"
+/* @refresh reload */
+import { createRouter, RouterProvider } from "@tanstack/solid-router"
+import { render } from "solid-js/web"
 
 import { routeTree } from "./routeTree.gen"
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: { retry: false },
-  },
-})
-
 const router = createRouter({
   routeTree,
-  context: { queryClient },
   defaultPreload: "intent",
   scrollRestoration: true,
 })
 
-declare module "@tanstack/react-router" {
+declare module "@tanstack/solid-router" {
   interface Register {
     router: typeof router
   }
 }
 
-const rootElement = document.getElementById("app")!
+const rootElement = document.getElementById("app")
+
+if (!rootElement) {
+  throw new Error("Root element #app not found")
+}
 
 if (!rootElement.innerHTML) {
-  const root = ReactDOM.createRoot(rootElement)
-  root.render(
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
-  )
+  render(() => <RouterProvider router={router} />, rootElement)
 }

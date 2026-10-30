@@ -2,7 +2,7 @@ Gradle multi-project + pnpm workspace. Tooling via [devenv](https://devenv.sh).
 
 ```
 apps/api       Kotlin/Native Ktor (CIO) + sqlx4k Postgres + SQLDelight
-apps/web       React (Vite) on :3000, proxies /api → :8080
+apps/web       Solid + TanStack Router (Vite) on :3000, proxies /api → :8080
 packages/core  Kotlin/Native shared lib
 ```
 
@@ -25,6 +25,5 @@ Server reads env in `apps/api`. Database defaults to `postgresql://127.0.0.1:543
 - Server: `devenv --profile server up` or `gradle :apps:api:runDebugExecutableNative`
 - Web: `devenv --profile web up` or `pnpm --filter web dev`
 - Tests: `gradle test`
-- API client: `pnpm --filter web generate-api`
 
 See [docs/AGENTS.md](docs/AGENTS.md).

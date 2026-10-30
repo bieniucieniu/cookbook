@@ -1,30 +1,47 @@
+# Solid
+
+`apps/web` is Solid 1.9 and TanStack Router. Client SPA. No TanStack Start. No `@solidjs/router`. No React.
+
+JSX looks like React. It is not React. A component function runs once to set up the DOM. There is no virtual DOM and no re-render. A later update runs only the expressions that read the changed signal.
+
+Source: [Solid render-once model](https://github.com/solidjs/solid) and [eslint-plugin-solid reactivity](https://github.com/solidjs-community/eslint-plugin-solid/blob/main/packages/eslint-plugin-solid/docs/reactivity.md). Router accessors: `@tanstack/solid-router` skill `solid-router`.
+
+## Write
+
+- State: `const [count, setCount] = createSignal(0)`. Read with `count()`. Setter takes a value or `(prev) => next`.
+- Derived: `createMemo`, or a function you call inside JSX. Do not copy a signal into a `let` and expect it to update.
+- Side effects: `createEffect`. No dependency array. It tracks signals read inside it. Return a cleanup, or use `onCleanup`.
+- One-time DOM setup: `onMount`. It does not track.
+- Lists: `<For each={items()}>{(item) => ...}</For>`. Primitive lists: `<Index>`. Do not use `array.map` for a reactive list.
+- Mount and unmount: `<Show when={...}>`. Branches: `<Switch>` and `<Match>`. An `if` in the component body runs once and will not update.
+- Props: `function Button(props) { return <button>{props.label}</button> }`. Do not destructure props. Do not `const label = props.label` in the function body. A prop read belongs in JSX, `createMemo`, `createEffect`, or an event handler.
+- Initial state from a prop is a snapshot. Name that prop `initial*` or `default*` so the snapshot is intentional.
+- Context: pass the accessor (`value={count}`). Call it in the consumer. `value={count()}` is a snapshot. Provider `value` is not a tracked scope.
+- Stores: read `state.field` inside JSX or a tracked scope. Do not destructure the store.
+- Refs: `let el: HTMLButtonElement | undefined` and `ref={el}`. Assigned after render. Read it in `onMount` or an event handler.
+- Events: `onClick={() => ...}`. The handler closes over accessors. Call them inside the handler.
+- Import primitives from `solid-js`. Import `render` from `solid-js/web`. Import the router from `@tanstack/solid-router`.
+
+## Do not
+
+- Import `react`, `react-dom`, `@tanstack/react-*`, or `@solidjs/router`.
+- `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `forwardRef`, `memo`, or dependency arrays.
+- Solid 2 APIs. `@tanstack/solid-router` peers `solid-js` ^1.9.10.
+- Cast router types. Register the router in `src/main.tsx`. `useSearch`, `useParams`, `useLoaderData`, `useRouterState`, and `useLocation` return an accessor. Call it: `search().page`. `useRouter()` and `useNavigate()` are not accessors.
+- Destructure an accessor result (`const { page } = useSearch(...)()`). That copy will not update.
+- Call hooks inside `loader` or `beforeLoad`. Those are plain functions.
+
+Vite: `@tanstack/router-plugin` with `target: "solid"` comes before `vite-plugin-solid`. `tsconfig` `jsx` is `preserve`. `jsxImportSource` is `solid-js`.
+
 <!-- intent-skills:start -->
 # TanStack Intent - before editing files, run the matching guidance command.
 tanstackIntent:
-  - id: "@tanstack/devtools#devtools-app-setup"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/devtools#devtools-app-setup"
-    for: "Install TanStack Devtools, pick framework adapter (React/Vue/Solid/Preact), register plugins via plugins prop, configure shell (position, hotkeys, theme, hideUntilHover, requireUrlFlag, eventBusConfig). TanStackDevtools component, defaultOpen, localStorage persistence."
-  - id: "@tanstack/devtools#devtools-marketplace"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/devtools#devtools-marketplace"
-    for: "Publish plugin to npm and submit to TanStack Devtools Marketplace. PluginMetadata registry format, plugin-registry.ts, pluginImport (importName, type), requires (packageName, minVersion), framework tagging, multi-framework submissions, featured plugins."
-  - id: "@tanstack/devtools#devtools-plugin-panel"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/devtools#devtools-plugin-panel"
-    for: "Build devtools panel components that display emitted event data. Listen via EventClient.on(), handle theme (light/dark), use @tanstack/devtools-ui components. Plugin registration (name, render, id, defaultOpen), lifecycle (mount, activate, destroy), max 3 active plugins. Two paths: Solid.js core with devtools-ui for multi-framework support, or framework-specific panels."
-  - id: "@tanstack/devtools#devtools-production"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/devtools#devtools-production"
-    for: "Handle devtools in production vs development. removeDevtoolsOnBuild, devDependency vs regular dependency, conditional imports, NoOp plugin variants for tree-shaking, non-Vite production exclusion patterns."
-  - id: "@tanstack/devtools-event-client#devtools-bidirectional"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/devtools-event-client#devtools-bidirectional"
-    for: "Two-way event patterns between devtools panel and application. App-to-devtools observation, devtools-to-app commands, time-travel debugging with snapshots and revert. structuredClone for snapshot safety, distinct event suffixes for observation vs commands, serializable payloads only."
-  - id: "@tanstack/devtools-event-client#devtools-event-client"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/devtools-event-client#devtools-event-client"
-    for: "Create typed EventClient for a library. Define event maps with typed payloads, pluginId auto-prepend namespacing, emit()/on()/onAll()/onAllPluginEvents() API. Connection lifecycle (5 retries, 300ms), event queuing, enabled/disabled state, SSR fallbacks, singleton pattern. Unique pluginId requirement to avoid event collisions."
-  - id: "@tanstack/devtools-event-client#devtools-instrumentation"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/devtools-event-client#devtools-instrumentation"
-    for: "Analyze library codebase for critical architecture and debugging points, add strategic event emissions. Identify middleware boundaries, state transitions, lifecycle hooks. Consolidate events (1 not 15), debounce high-frequency updates, DRY shared payload fields, guard emit() for production. Transparent server/client event bridging."
-  - id: "@tanstack/devtools-vite#devtools-vite-plugin"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/devtools-vite#devtools-vite-plugin"
-    for: "Configure @tanstack/devtools-vite for source inspection (data-tsd-source, inspectHotkey, ignore patterns), console piping (client-to-server, server-to-client, levels), enhanced logging, server event bus (port, host, HTTPS), production stripping (removeDevtoolsOnBuild), editor integration (launch-editor, custom editor.open). Must be FIRST plugin in Vite config. Vite ^6 || ^7 only."
+  - id: "@tanstack/solid-router#solid-router"
+    run: "pnpm dlx @tanstack/intent@latest load @tanstack/solid-router#solid-router"
+    for: "Solid bindings for TanStack Router. Hooks such as useSearch, useParams, useLoaderData, useRouterState, and useLocation return Accessor. Call the accessor. useRouter and useNavigate do not. Show, For, and createMemo around router state. Do not use @tanstack/react-router or @solidjs/router."
+  - id: "@tanstack/router-plugin#router-plugin"
+    run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-plugin#router-plugin"
+    for: "TanStack Router bundler plugin for route generation and automatic code splitting. Supports Vite, Webpack, Rspack, and esbuild. Configures autoCodeSplitting, routesDirectory, target framework, and code split groupings."
   - id: "@tanstack/router-core#router-core"
     run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core"
     for: "Framework-agnostic core concepts for TanStack Router: route trees, createRouter, createRoute, createRootRoute, createRootRouteWithContext, addChildren, Register type declaration, route matching, route sorting, file naming conventions. Entry point for all router skills."
@@ -55,9 +72,6 @@ tanstackIntent:
   - id: "@tanstack/router-core#router-core/type-safety"
     run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/type-safety"
     for: "Full type inference philosophy (never cast, never annotate inferred values), Register module declaration, from narrowing on hooks and Link, strict:false for shared components, getRouteApi for code-split typed access, addChildren with object syntax for TS perf, LinkProps and ValidateLinkOptions type utilities, as const satisfies pattern."
-  - id: "@tanstack/router-plugin#router-plugin"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-plugin#router-plugin"
-    for: "TanStack Router bundler plugin for route generation and automatic code splitting. Supports Vite, Webpack, Rspack, and esbuild. Configures autoCodeSplitting, routesDirectory, target framework, and code split groupings."
   - id: "@tanstack/virtual-file-routes#virtual-file-routes"
     run: "pnpm dlx @tanstack/intent@latest load @tanstack/virtual-file-routes#virtual-file-routes"
     for: "Programmatic route tree building as an alternative to filesystem conventions: rootRoute, index, route, layout, physical, defineVirtualSubtreeConfig. Use with TanStack Router plugin's virtualRouteConfig option."
