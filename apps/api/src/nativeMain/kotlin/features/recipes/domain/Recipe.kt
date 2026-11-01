@@ -94,14 +94,39 @@ enum class RecipePermission {
 }
 
 @Serializable
+data class PhotoRef(val id: Long, val alt: String = "")
+
+@Serializable
+data class PhotoCreated(val id: Long, val url: String)
+
+@Serializable
+data class PhotoUpload(val file: String)
+
+@Serializable
+data class CommentWrite(val stepKey: String, val body: String)
+
+@Serializable
+data class CommentResponse(
+    val id: Long,
+    val stepKey: String,
+    val userId: Long,
+    val email: String,
+    val body: String,
+    val createdAt: Long,
+)
+
+@Serializable
 data class RecipeWrite(
     val title: String,
+    val description: String = "",
+    val notes: String = "",
     val cooks: Int = 1,
     val visibility: RecipeVisibility = RecipeVisibility.Public,
     val nodes: List<NodeWrite>,
     val edges: List<EdgeWrite> = emptyList(),
     val ingredientAlts: List<IngredientAltWrite> = emptyList(),
     val toolAlts: List<ToolAltWrite> = emptyList(),
+    val photos: List<PhotoRef> = emptyList(),
 )
 
 @Serializable
@@ -148,6 +173,7 @@ data class SpanResponse(val ord: Int, val kind: SpanKind, val seconds: Int)
 @Serializable
 data class NodeResponse(
     val id: Long,
+    val key: String,
     val title: String,
     val body: String,
     val branchMode: GateMode,
@@ -209,6 +235,8 @@ data class RecipeListItem(
 data class RecipeDetail(
     val id: Long,
     val title: String,
+    val description: String,
+    val notes: String,
     val cooks: Int,
     val ownerId: Long?,
     val visibility: RecipeVisibility,
@@ -224,4 +252,6 @@ data class RecipeDetail(
     val toolFacts: List<ToolFactResponse>,
     val parallelPairs: List<ParallelPair>,
     val avoidNodeIds: List<Long> = emptyList(),
+    val photos: List<PhotoRef> = emptyList(),
+    val comments: List<CommentResponse> = emptyList(),
 )

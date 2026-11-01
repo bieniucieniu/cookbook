@@ -13,8 +13,11 @@ import com.bieniucieniu.cookbook.db.Recipe_node_spans
 import com.bieniucieniu.cookbook.db.Recipe_nodes
 import com.bieniucieniu.cookbook.db.Recipe_tool_alts
 import com.bieniucieniu.cookbook.db.Recipe_tool_facts
+import com.bieniucieniu.cookbook.db.CommentById
+import com.bieniucieniu.cookbook.db.Recipe_photos
 import com.bieniucieniu.cookbook.db.SelectAllRecipeIngredientAlts
 import com.bieniucieniu.cookbook.db.SelectAllRecipeToolAlts
+import com.bieniucieniu.cookbook.db.SelectCommentsForRecipe
 import com.bieniucieniu.cookbook.db.SelectNodeIngredients
 import com.bieniucieniu.cookbook.db.SelectNodeTools
 import com.bieniucieniu.cookbook.db.SelectPublicSummaries
@@ -23,6 +26,7 @@ import com.bieniucieniu.cookbook.features.recipes.domain.GateMode
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeGrant
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipePermission
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeVisibility
+import com.bieniucieniu.cookbook.features.recipes.domain.PhotoRef
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.SpanKind
 import com.bieniucieniu.cookbook.features.recipes.domain.ToolHold
@@ -30,12 +34,15 @@ import com.bieniucieniu.cookbook.features.recipes.graph.Analysis
 import com.bieniucieniu.cookbook.features.recipes.graph.Presence
 import io.github.smyrgeorge.sqlx4k.QueryExecutor
 import io.github.smyrgeorge.sqlx4k.impl.extensions.asLong
+import io.github.smyrgeorge.sqlx4k.impl.extensions.asLongOrNull
 import io.github.smyrgeorge.sqlx4k.postgres.IPostgresSQL
 import io.ktor.http.HttpStatusCode
 
 data class RecipeHead(
     val id: Long,
     val title: String,
+    val description: String,
+    val notes: String,
     val cooks: Int,
     val ownerId: Long?,
     val visibility: String,
@@ -44,6 +51,30 @@ data class RecipeHead(
     val elapsedMinSeconds: Int,
     val elapsedMaxSeconds: Int,
 )
+
+data class PhotoRow(
+    val id: Long,
+    val recipeId: Long?,
+    val ownerId: Long,
+    val ord: Int,
+    val storageKey: String,
+    val contentType: String,
+    val alt: String,
+)
+
+data class CommentRow(
+    val id: Long,
+    val recipeId: Long,
+    val stepKey: String,
+    val userId: Long,
+    val email: String,
+    val body: String,
+    val createdAt: Long,
+)
+
+data class SavedRecipe(val id: Long, val removedPhotoKeys: List<String>)
+
+fun photoObjectKey(storageKey: String): String = "photos/$storageKey"
 
 data class RecipeSummary(
     val id: Long,
@@ -73,6 +104,8 @@ class RecipeRepository(
             RecipeHead(
                 id = it.id,
                 title = it.title,
+                description = it.description,
+                notes = it.notes,
                 cooks = it.cooks,
                 ownerId = it.owner_id,
                 visibility = it.visibility,
@@ -138,12 +171,84 @@ class RecipeRepository(
     suspend fun allToolAlts(): List<SelectAllRecipeToolAlts> =
         database.recipeGraphQueries.selectAllRecipeToolAlts().awaitAsList()
 
-    suspend fun insert(write: RecipeWrite, analysis: Analysis, ownerId: Long): Long = postgres.tx {
+    suspend fun idByTitle(title: String): Long? =
+        database.recipesQueries.recipeIdByTitle(title).awaitAsOneOrNull()
+
+    suspend fun photos(recipeId: Long): List<PhotoRow> =
+        database.recipeGraphQueries.selectPhotosForRecipe(recipeId).awaitAsList().map { it.toRow() }
+
+    suspend fun photo(id: Long): PhotoRow? =
+        database.recipeGraphQueries.photoById(id).awaitAsOneOrNull()?.toRow()
+
+    suspend fun comments(recipeId: Long): List<CommentRow> =
+        database.recipeGraphQueries.selectCommentsForRecipe(recipeId).awaitAsList().map { it.toRow() }
+
+    suspend fun comment(recipeId: Long, commentId: Long): CommentRow? =
+        database.recipeGraphQueries.commentById(commentId, recipeId).awaitAsOneOrNull()?.toRow()
+
+    suspend fun insertPhoto(ownerId: Long, storageKey: String, contentType: String, createdAt: Long): Long =
+        postgres.tx {
+            fetchAll(
+                sql(
+                    """
+                    INSERT INTO recipe_photos (owner_id, storage_key, content_type, alt, created_at)
+                    VALUES (:owner_id, :storage_key, :content_type, '', :created_at)
+                    RETURNING id
+                    """.trimIndent(),
+                    mapOf(
+                        "owner_id" to ownerId,
+                        "storage_key" to storageKey,
+                        "content_type" to contentType,
+                        "created_at" to createdAt,
+                    ),
+                ),
+            ).getOrThrow().single().get("id").asLong()
+        }
+
+    suspend fun deletePhoto(id: Long) {
+        postgres.tx {
+            execute(sql("DELETE FROM recipe_photos WHERE id = :id", mapOf("id" to id))).getOrThrow()
+        }
+    }
+
+    suspend fun insertComment(recipeId: Long, stepKey: String, userId: Long, body: String, createdAt: Long): Long =
+        postgres.tx {
+            fetchAll(
+                sql(
+                    """
+                    INSERT INTO recipe_step_comments (recipe_id, step_key, user_id, body, created_at)
+                    VALUES (:recipe_id, :step_key, :user_id, :body, :created_at)
+                    RETURNING id
+                    """.trimIndent(),
+                    mapOf(
+                        "recipe_id" to recipeId,
+                        "step_key" to stepKey,
+                        "user_id" to userId,
+                        "body" to body,
+                        "created_at" to createdAt,
+                    ),
+                ),
+            ).getOrThrow().single().get("id").asLong()
+        }
+
+    suspend fun deleteComment(recipeId: Long, commentId: Long): Boolean {
+        val deleted = postgres.tx {
+            execute(
+                sql(
+                    "DELETE FROM recipe_step_comments WHERE recipe_id = :recipe_id AND id = :id",
+                    mapOf("recipe_id" to recipeId, "id" to commentId),
+                ),
+            ).getOrThrow()
+        }
+        return deleted == 1L
+    }
+
+    suspend fun insert(write: RecipeWrite, analysis: Analysis, ownerId: Long?, actorId: Long): SavedRecipe = postgres.tx {
         val id = fetchAll(
             sql(
                 """
-                INSERT INTO recipes (title, cooks, owner_id, visibility)
-                VALUES (:title, :cooks, :owner_id, :visibility)
+                INSERT INTO recipes (title, cooks, owner_id, visibility, description, notes)
+                VALUES (:title, :cooks, :owner_id, :visibility, :description, :notes)
                 RETURNING id
                 """.trimIndent(),
                 mapOf(
@@ -151,14 +256,17 @@ class RecipeRepository(
                     "cooks" to write.cooks,
                     "owner_id" to ownerId,
                     "visibility" to write.visibility.wire(),
+                    "description" to write.description,
+                    "notes" to write.notes,
                 ),
             ),
         ).getOrThrow().single().get("id").asLong()
         writeGraph(id, write, analysis)
-        id
+        val removed = attachPhotos(id, actorId, write.photos)
+        SavedRecipe(id, removed)
     }
 
-    suspend fun replace(id: Long, write: RecipeWrite, analysis: Analysis, actorId: Long) {
+    suspend fun replace(id: Long, write: RecipeWrite, analysis: Analysis, actorId: Long): List<String> =
         postgres.tx {
             val updated = execute(
                 sql(
@@ -167,6 +275,8 @@ class RecipeRepository(
                     SET title = :title,
                         cooks = :cooks,
                         visibility = :visibility,
+                        description = :description,
+                        notes = :notes,
                         owner_id = COALESCE(owner_id, :actor_id)
                     WHERE id = :id
                     """.trimIndent(),
@@ -175,14 +285,16 @@ class RecipeRepository(
                         "title" to write.title,
                         "cooks" to write.cooks,
                         "visibility" to write.visibility.wire(),
+                        "description" to write.description,
+                        "notes" to write.notes,
                         "actor_id" to actorId,
                     ),
                 ),
             ).getOrThrow()
             if (updated == 0L) throw ApiException(HttpStatusCode.NotFound, listOf("recipe not found"))
             writeGraph(id, write, analysis)
+            attachPhotos(id, actorId, write.photos)
         }
-    }
 
     suspend fun delete(id: Long): Boolean {
         val deleted = postgres.tx {
@@ -209,13 +321,14 @@ private suspend fun QueryExecutor.writeGraph(recipeId: Long, write: RecipeWrite,
             sql(
                 """
                 INSERT INTO recipe_nodes (
-                  recipe_id, title, body, branch_mode, join_mode, repeat_min, repeat_max, ord
+                  recipe_id, key, title, body, branch_mode, join_mode, repeat_min, repeat_max, ord
                 ) VALUES (
-                  :recipe_id, :title, :body, :branch_mode, :join_mode, :repeat_min, :repeat_max, :ord
+                  :recipe_id, :key, :title, :body, :branch_mode, :join_mode, :repeat_min, :repeat_max, :ord
                 ) RETURNING id
                 """.trimIndent(),
                 mapOf(
                     "recipe_id" to recipeId,
+                    "key" to node.key,
                     "title" to node.title,
                     "body" to node.body,
                     "branch_mode" to node.branchMode.db(),
@@ -376,6 +489,84 @@ private suspend fun QueryExecutor.writeGraph(recipeId: Long, write: RecipeWrite,
             ),
         ),
     ).getOrThrow()
+    dropMissingComments(recipeId, write.nodes.map { it.key })
+}
+
+private suspend fun QueryExecutor.dropMissingComments(recipeId: Long, keys: List<String>) {
+    if (keys.isEmpty()) {
+        execute(sql("DELETE FROM recipe_step_comments WHERE recipe_id = :id", mapOf("id" to recipeId))).getOrThrow()
+        return
+    }
+    val binds = keys.mapIndexed { index, key -> "k$index" to key }.toMap()
+    val placeholders = binds.keys.joinToString(",") { ":$it" }
+    execute(
+        sql(
+            "DELETE FROM recipe_step_comments WHERE recipe_id = :id AND step_key NOT IN ($placeholders)",
+            mapOf("id" to recipeId) + binds,
+        ),
+    ).getOrThrow()
+}
+
+fun photoAttachForbidden(ownerId: Long, actorId: Long, attachedRecipeId: Long?, recipeId: Long): Boolean {
+    if (attachedRecipeId == recipeId) return false
+    if (ownerId != actorId) return true
+    return attachedRecipeId != null
+}
+
+private suspend fun QueryExecutor.attachPhotos(recipeId: Long, actorId: Long, photos: List<PhotoRef>): List<String> {
+    val wanted = photos.map { it.id }
+    if (wanted.size != wanted.toSet().size) {
+        throw ApiException(HttpStatusCode.BadRequest, listOf("photo ids must be unique"))
+    }
+    val current = fetchAll(
+        sql(
+            """
+            SELECT id, storage_key
+            FROM recipe_photos
+            WHERE recipe_id = :recipe_id
+            """.trimIndent(),
+            mapOf("recipe_id" to recipeId),
+        ),
+    ).getOrThrow()
+    for ((index, photo) in photos.withIndex()) {
+        val row = fetchAll(
+            sql(
+                """
+                SELECT id, recipe_id, owner_id
+                FROM recipe_photos
+                WHERE id = :id
+                """.trimIndent(),
+                mapOf("id" to photo.id),
+            ),
+        ).getOrThrow().singleOrNull() ?: throw ApiException(HttpStatusCode.BadRequest, listOf("photo not found"))
+        val ownerId = row.get("owner_id").asLong()
+        val attached = row.get("recipe_id").asLongOrNull()
+        if (photoAttachForbidden(ownerId, actorId, attached, recipeId)) {
+            throw ApiException(HttpStatusCode.Forbidden, listOf("forbidden"))
+        }
+        execute(
+            sql(
+                """
+                UPDATE recipe_photos
+                SET recipe_id = :recipe_id, ord = :ord, alt = :alt
+                WHERE id = :id
+                """.trimIndent(),
+                mapOf(
+                    "recipe_id" to recipeId,
+                    "ord" to index,
+                    "alt" to photo.alt,
+                    "id" to photo.id,
+                ),
+            ),
+        ).getOrThrow()
+    }
+    val removed = current.filter { it.get("id").asLong() !in wanted }
+    for (row in removed) {
+        execute(
+            sql("DELETE FROM recipe_photos WHERE id = :id", mapOf("id" to row.get("id").asLong())),
+        ).getOrThrow()
+    }
+    return removed.map { it.get("storage_key").asString() }
 }
 
 private fun GateMode.db(): String = when (this) {
@@ -424,6 +615,36 @@ private fun SelectPublicSummaries.toSummary() = RecipeSummary(
     handsOnMaxSeconds = hands_on_max_seconds ?: 0,
     elapsedMinSeconds = elapsed_min_seconds ?: 0,
     elapsedMaxSeconds = elapsed_max_seconds ?: 0,
+)
+
+private fun Recipe_photos.toRow() = PhotoRow(
+    id = id,
+    recipeId = recipe_id,
+    ownerId = owner_id,
+    ord = ord,
+    storageKey = storage_key,
+    contentType = content_type,
+    alt = alt,
+)
+
+private fun SelectCommentsForRecipe.toRow() = CommentRow(
+    id = id,
+    recipeId = recipe_id,
+    stepKey = step_key,
+    userId = user_id,
+    email = email,
+    body = body,
+    createdAt = created_at,
+)
+
+private fun CommentById.toRow() = CommentRow(
+    id = id,
+    recipeId = recipe_id,
+    stepKey = step_key,
+    userId = user_id,
+    email = email,
+    body = body,
+    createdAt = created_at,
 )
 
 private fun SelectVisibleSummaries.toSummary() = RecipeSummary(

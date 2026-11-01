@@ -31,48 +31,56 @@ Source: [Solid render-once model](https://github.com/solidjs/solid) and [eslint-
 - Destructure an accessor result (`const { page } = useSearch(...)()`). That copy will not update.
 - Call hooks inside `loader` or `beforeLoad`. Those are plain functions.
 
-Vite: `@tanstack/router-plugin` with `target: "solid"` comes before `vite-plugin-solid`. `tsconfig` `jsx` is `preserve`. `jsxImportSource` is `solid-js`.
+Vite+: `@tanstack/router-plugin` with `target: "solid"` comes before `vite-plugin-solid`, then `@tailwindcss/vite`. App config is `vite.config.ts` (`defineConfig` from `vite-plus`). Root `vite.config.ts` owns `lint` and `fmt`. `pnpm exec vp check` formats, lints, and typechecks. `tsconfig` `jsx` is `preserve`. `jsxImportSource` is `solid-js`. Path alias is `@/*`.
+
+API client: `pnpm --filter web generate-api` while the API is on `:8080`. Orval writes `@tanstack/solid-query` hooks under `src/generated/`. A query result is a store. Read `query.data` in JSX. Do not destructure it. `useParams` is an accessor. For a param query, call `useQuery(() => getGetRecipeQueryOptions(params().id))` so the id stays reactive. Login and logout are browser navigations to `/api/auth/login` and `POST /api/auth/logout`, not the generated functions.
+
+UI: solid-kit registry. From `apps/web`, `pnpm dlx shadcn@latest add bieniucieniu/solid-kit/<item>`. Hand-written `components.json`. Do not run `shadcn init`. Do not import `@solid-kit/ui`.
 
 <!-- intent-skills:start -->
+
 # TanStack Intent - before editing files, run the matching guidance command.
+
 tanstackIntent:
-  - id: "@tanstack/solid-router#solid-router"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/solid-router#solid-router"
-    for: "Solid bindings for TanStack Router. Hooks such as useSearch, useParams, useLoaderData, useRouterState, and useLocation return Accessor. Call the accessor. useRouter and useNavigate do not. Show, For, and createMemo around router state. Do not use @tanstack/react-router or @solidjs/router."
-  - id: "@tanstack/router-plugin#router-plugin"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-plugin#router-plugin"
-    for: "TanStack Router bundler plugin for route generation and automatic code splitting. Supports Vite, Webpack, Rspack, and esbuild. Configures autoCodeSplitting, routesDirectory, target framework, and code split groupings."
-  - id: "@tanstack/router-core#router-core"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core"
-    for: "Framework-agnostic core concepts for TanStack Router: route trees, createRouter, createRoute, createRootRoute, createRootRouteWithContext, addChildren, Register type declaration, route matching, route sorting, file naming conventions. Entry point for all router skills."
-  - id: "@tanstack/router-core#router-core/auth-and-guards"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/auth-and-guards"
-    for: "Route protection with beforeLoad, redirect()/throw redirect(), isRedirect helper, authenticated layout routes (_authenticated), non-redirect auth (inline login), RBAC with roles and permissions, auth provider integration (Auth0, Clerk, Supabase), router context for auth state."
-  - id: "@tanstack/router-core#router-core/code-splitting"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/code-splitting"
-    for: "Automatic code splitting (autoCodeSplitting), .lazy.tsx convention, createLazyFileRoute, createLazyRoute, lazyRouteComponent, getRouteApi for typed hooks in split files, codeSplitGroupings per-route override, splitBehavior programmatic config, critical vs non-critical properties."
-  - id: "@tanstack/router-core#router-core/data-loading"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/data-loading"
-    for: "Route loader option, loaderDeps for cache keys, staleTime/gcTime/ defaultPreloadStaleTime SWR caching, pendingComponent/pendingMs/ pendingMinMs, errorComponent/onError/onCatch, beforeLoad, router context and createRootRouteWithContext DI pattern, router.invalidate, Await component, deferred data loading with unawaited promises."
-  - id: "@tanstack/router-core#router-core/navigation"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/navigation"
-    for: "Link component, useNavigate, Navigate component, router.navigate, ToOptions/NavigateOptions/LinkOptions, from/to relative navigation, activeOptions/activeProps, preloading (intent/viewport/render), preloadDelay, navigation blocking (useBlocker, Block), createLink, linkOptions helper, scroll restoration, MatchRoute."
-  - id: "@tanstack/router-core#router-core/not-found-and-errors"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/not-found-and-errors"
-    for: "notFound() function, notFoundComponent, defaultNotFoundComponent, notFoundMode (fuzzy/root), errorComponent, CatchBoundary, CatchNotFound, isNotFound, NotFoundRoute (deprecated), route masking (mask option, createRouteMask, unmaskOnReload)."
-  - id: "@tanstack/router-core#router-core/path-params"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/path-params"
-    for: "Dynamic path segments ($paramName), splat routes ($ / _splat), optional params ({-$paramName}), prefix/suffix patterns ({$param}.ext), useParams, params.parse/stringify, pathParamsAllowedCharacters, i18n locale patterns."
-  - id: "@tanstack/router-core#router-core/search-params"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/search-params"
-    for: "validateSearch, search param validation with Zod/Valibot/ArkType adapters, fallback(), search middlewares (retainSearchParams, stripSearchParams), custom serialization (parseSearch, stringifySearch), search param inheritance, loaderDeps for cache keys, reading and writing search params."
-  - id: "@tanstack/router-core#router-core/ssr"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/ssr"
-    for: "Non-streaming and streaming SSR, RouterClient/RouterServer, renderRouterToString/renderRouterToStream, createRequestHandler, defaultRenderHandler/defaultStreamHandler, HeadContent/Scripts components, head route option (meta/links/styles/scripts), ScriptOnce, automatic loader dehydration/hydration, memory history on server, data serialization, document head management."
-  - id: "@tanstack/router-core#router-core/type-safety"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/type-safety"
-    for: "Full type inference philosophy (never cast, never annotate inferred values), Register module declaration, from narrowing on hooks and Link, strict:false for shared components, getRouteApi for code-split typed access, addChildren with object syntax for TS perf, LinkProps and ValidateLinkOptions type utilities, as const satisfies pattern."
-  - id: "@tanstack/virtual-file-routes#virtual-file-routes"
-    run: "pnpm dlx @tanstack/intent@latest load @tanstack/virtual-file-routes#virtual-file-routes"
-    for: "Programmatic route tree building as an alternative to filesystem conventions: rootRoute, index, route, layout, physical, defineVirtualSubtreeConfig. Use with TanStack Router plugin's virtualRouteConfig option."
+
+- id: "@tanstack/solid-router#solid-router"
+  run: "pnpm dlx @tanstack/intent@latest load @tanstack/solid-router#solid-router"
+  for: "Solid bindings for TanStack Router. Hooks such as useSearch, useParams, useLoaderData, useRouterState, and useLocation return Accessor. Call the accessor. useRouter and useNavigate do not. Show, For, and createMemo around router state. Do not use @tanstack/react-router or @solidjs/router."
+- id: "@tanstack/router-plugin#router-plugin"
+  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-plugin#router-plugin"
+  for: "TanStack Router bundler plugin for route generation and automatic code splitting. Supports Vite, Webpack, Rspack, and esbuild. Configures autoCodeSplitting, routesDirectory, target framework, and code split groupings."
+- id: "@tanstack/router-core#router-core"
+  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core"
+  for: "Framework-agnostic core concepts for TanStack Router: route trees, createRouter, createRoute, createRootRoute, createRootRouteWithContext, addChildren, Register type declaration, route matching, route sorting, file naming conventions. Entry point for all router skills."
+- id: "@tanstack/router-core#router-core/auth-and-guards"
+  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/auth-and-guards"
+  for: "Route protection with beforeLoad, redirect()/throw redirect(), isRedirect helper, authenticated layout routes (_authenticated), non-redirect auth (inline login), RBAC with roles and permissions, auth provider integration (Auth0, Clerk, Supabase), router context for auth state."
+- id: "@tanstack/router-core#router-core/code-splitting"
+  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/code-splitting"
+  for: "Automatic code splitting (autoCodeSplitting), .lazy.tsx convention, createLazyFileRoute, createLazyRoute, lazyRouteComponent, getRouteApi for typed hooks in split files, codeSplitGroupings per-route override, splitBehavior programmatic config, critical vs non-critical properties."
+- id: "@tanstack/router-core#router-core/data-loading"
+  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/data-loading"
+  for: "Route loader option, loaderDeps for cache keys, staleTime/gcTime/ defaultPreloadStaleTime SWR caching, pendingComponent/pendingMs/ pendingMinMs, errorComponent/onError/onCatch, beforeLoad, router context and createRootRouteWithContext DI pattern, router.invalidate, Await component, deferred data loading with unawaited promises."
+- id: "@tanstack/router-core#router-core/navigation"
+  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/navigation"
+  for: "Link component, useNavigate, Navigate component, router.navigate, ToOptions/NavigateOptions/LinkOptions, from/to relative navigation, activeOptions/activeProps, preloading (intent/viewport/render), preloadDelay, navigation blocking (useBlocker, Block), createLink, linkOptions helper, scroll restoration, MatchRoute."
+- id: "@tanstack/router-core#router-core/not-found-and-errors"
+  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/not-found-and-errors"
+  for: "notFound() function, notFoundComponent, defaultNotFoundComponent, notFoundMode (fuzzy/root), errorComponent, CatchBoundary, CatchNotFound, isNotFound, NotFoundRoute (deprecated), route masking (mask option, createRouteMask, unmaskOnReload)."
+- id: "@tanstack/router-core#router-core/path-params"
+  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/path-params"
+  for: "Dynamic path segments ($paramName), splat routes ($ / _splat), optional params ({-$paramName}), prefix/suffix patterns ({$param}.ext), useParams, params.parse/stringify, pathParamsAllowedCharacters, i18n locale patterns."
+- id: "@tanstack/router-core#router-core/search-params"
+  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/search-params"
+  for: "validateSearch, search param validation with Zod/Valibot/ArkType adapters, fallback(), search middlewares (retainSearchParams, stripSearchParams), custom serialization (parseSearch, stringifySearch), search param inheritance, loaderDeps for cache keys, reading and writing search params."
+- id: "@tanstack/router-core#router-core/ssr"
+  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/ssr"
+  for: "Non-streaming and streaming SSR, RouterClient/RouterServer, renderRouterToString/renderRouterToStream, createRequestHandler, defaultRenderHandler/defaultStreamHandler, HeadContent/Scripts components, head route option (meta/links/styles/scripts), ScriptOnce, automatic loader dehydration/hydration, memory history on server, data serialization, document head management."
+- id: "@tanstack/router-core#router-core/type-safety"
+  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/type-safety"
+  for: "Full type inference philosophy (never cast, never annotate inferred values), Register module declaration, from narrowing on hooks and Link, strict:false for shared components, getRouteApi for code-split typed access, addChildren with object syntax for TS perf, LinkProps and ValidateLinkOptions type utilities, as const satisfies pattern."
+- id: "@tanstack/virtual-file-routes#virtual-file-routes"
+  run: "pnpm dlx @tanstack/intent@latest load @tanstack/virtual-file-routes#virtual-file-routes"
+  for: "Programmatic route tree building as an alternative to filesystem conventions: rootRoute, index, route, layout, physical, defineVirtualSubtreeConfig. Use with TanStack Router plugin's virtualRouteConfig option."
+
 <!-- intent-skills:end -->

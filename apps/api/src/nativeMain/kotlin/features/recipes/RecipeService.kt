@@ -3,6 +3,8 @@ package com.bieniucieniu.cookbook.features.recipes
 import com.bieniucieniu.cookbook.core.http.ApiException
 import com.bieniucieniu.cookbook.features.catalog.CatalogRepository
 import com.bieniucieniu.cookbook.features.catalog.unknownIds
+import com.bieniucieniu.cookbook.features.recipes.domain.CommentResponse
+import com.bieniucieniu.cookbook.features.recipes.domain.CommentWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.EdgeResponse
 import com.bieniucieniu.cookbook.features.recipes.domain.GateMode
 import com.bieniucieniu.cookbook.features.recipes.domain.IngredientAltResponse
@@ -10,6 +12,7 @@ import com.bieniucieniu.cookbook.features.recipes.domain.IngredientAltWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.IngredientFactResponse
 import com.bieniucieniu.cookbook.features.recipes.domain.IngredientUse
 import com.bieniucieniu.cookbook.features.recipes.domain.NodeIngredientResponse
+import com.bieniucieniu.cookbook.features.recipes.domain.PhotoRef
 import com.bieniucieniu.cookbook.features.recipes.domain.NodeResponse
 import com.bieniucieniu.cookbook.features.recipes.domain.NodeToolResponse
 import com.bieniucieniu.cookbook.features.recipes.domain.ParallelPair
@@ -44,6 +47,9 @@ import com.bieniucieniu.cookbook.features.recipes.graph.SearchToolAlt
 import com.bieniucieniu.cookbook.features.recipes.graph.analyze
 import com.bieniucieniu.cookbook.features.recipes.graph.avoidNodes
 import com.bieniucieniu.cookbook.features.recipes.graph.search
+import com.bieniucieniu.cookbook.s3.DeleteObjectRequest
+import com.bieniucieniu.cookbook.s3.S3Client
+import com.bieniucieniu.cookbook.s3.S3Exception
 import io.ktor.http.HttpStatusCode
 import com.bieniucieniu.cookbook.features.recipes.graph.GateMode as GraphGate
 import com.bieniucieniu.cookbook.features.recipes.graph.Presence as GraphPresence
@@ -54,6 +60,8 @@ class RecipeService(
     private val recipes: RecipeRepository,
     private val catalog: CatalogRepository,
     private val users: AuthRepository,
+    private val storage: S3Client,
+    private val bucket: String,
 ) {
     suspend fun list(actorId: Long?, query: SearchQuery): List<RecipeListItem> {
         val allergens = catalog.allergensByIngredient().mapValues { (_, ids) -> ids.toSet() }
@@ -110,6 +118,8 @@ class RecipeService(
     suspend fun get(actorId: Long?, id: Long, query: SearchQuery): RecipeDetail {
         val recipe = recipes.recipe(id) ?: throw ApiException(HttpStatusCode.NotFound, listOf("recipe not found"))
         require(actorId, recipe, RecipeAction.Read)
+        val photos = recipes.photos(id).map { PhotoRef(it.id, it.alt) }
+        val comments = recipes.comments(id).map { it.toResponse() }
         val nodes = recipes.nodes(id)
         val ingredientRows = recipes.nodeIngredients(id)
         val toolRows = recipes.nodeTools(id)
@@ -125,6 +135,8 @@ class RecipeService(
             return RecipeDetail(
                 id = recipe.id,
                 title = recipe.title,
+                description = recipe.description,
+                notes = recipe.notes,
                 cooks = recipe.cooks,
                 ownerId = recipe.ownerId,
                 visibility = visibility(recipe.visibility),
@@ -140,6 +152,8 @@ class RecipeService(
                 toolFacts = emptyList(),
                 parallelPairs = emptyList(),
                 avoidNodeIds = emptyList(),
+                photos = photos,
+                comments = comments,
             )
         }
         val analysis = try {
@@ -166,6 +180,8 @@ class RecipeService(
         return RecipeDetail(
             id = recipe.id,
             title = recipe.title,
+            description = recipe.description,
+            notes = recipe.notes,
             cooks = recipe.cooks,
             ownerId = recipe.ownerId,
             visibility = visibility(recipe.visibility),
@@ -178,6 +194,7 @@ class RecipeService(
                 val tools = toolRows.filter { it.node_id == node.id }
                 NodeResponse(
                     id = node.id,
+                    key = node.key,
                     title = node.title,
                     body = node.body,
                     branchMode = gate(node.branch_mode),
@@ -216,13 +233,16 @@ class RecipeService(
                 ParallelPair(left.toLong(), right.toLong())
             }.sortedWith(compareBy({ it.nodeId }, { it.otherNodeId })),
             avoidNodeIds = avoid,
+            photos = photos,
+            comments = comments,
         )
     }
 
-    suspend fun create(actor: Actor, write: RecipeWrite): RecipeDetail {
+    suspend fun create(actor: Actor, write: RecipeWrite, ownerId: Long? = actor.userId): RecipeDetail {
         val analysis = prepare(write)
-        val id = recipes.insert(write, analysis, actor.userId)
-        return get(actor.userId, id, SearchQuery())
+        val saved = recipes.insert(write, analysis, ownerId, actor.userId)
+        deleteObjects(saved.removedPhotoKeys)
+        return get(actor.userId, saved.id, SearchQuery())
     }
 
     suspend fun update(actor: Actor, id: Long, write: RecipeWrite): RecipeDetail {
@@ -232,14 +252,45 @@ class RecipeService(
             require(actor.userId, current, RecipeAction.ChangeVisibility)
         }
         val analysis = prepare(write)
-        recipes.replace(id, write, analysis, actor.userId)
+        val removed = recipes.replace(id, write, analysis, actor.userId)
+        deleteObjects(removed)
         return get(actor.userId, id, SearchQuery())
     }
 
     suspend fun delete(actor: Actor, id: Long) {
         val current = recipes.recipe(id) ?: throw ApiException(HttpStatusCode.NotFound, listOf("recipe not found"))
         require(actor.userId, current, RecipeAction.Delete)
+        val keys = recipes.photos(id).map { it.storageKey }
         if (!recipes.delete(id)) throw ApiException(HttpStatusCode.NotFound, listOf("recipe not found"))
+        deleteObjects(keys)
+    }
+
+    suspend fun comment(actor: Actor, id: Long, write: CommentWrite): CommentResponse {
+        val current = recipes.recipe(id) ?: throw ApiException(HttpStatusCode.NotFound, listOf("recipe not found"))
+        require(actor.userId, current, RecipeAction.Read)
+        val errors = mutableListOf<String>()
+        if (write.stepKey.isBlank()) errors += "stepKey must not be blank"
+        if (write.body.isBlank()) errors += "body must not be blank"
+        if (errors.isNotEmpty()) throw ApiException(HttpStatusCode.BadRequest, errors)
+        val keys = recipes.nodes(id).map { it.key }.toSet()
+        if (write.stepKey !in keys) throw ApiException(HttpStatusCode.BadRequest, listOf("unknown step ${write.stepKey}"))
+        val user = users.userById(actor.userId) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val createdAt = com.bieniucieniu.cookbook.features.auth.nowSeconds()
+        val commentId = recipes.insertComment(id, write.stepKey, actor.userId, write.body, createdAt)
+        return CommentResponse(commentId, write.stepKey, actor.userId, user.email, write.body, createdAt)
+    }
+
+    suspend fun deleteComment(actor: Actor, id: Long, commentId: Long) {
+        val current = recipes.recipe(id) ?: throw ApiException(HttpStatusCode.NotFound, listOf("recipe not found"))
+        val comment = recipes.comment(id, commentId) ?: throw ApiException(HttpStatusCode.NotFound, listOf("comment not found"))
+        val allowed = comment.userId == actor.userId || (current.ownerId != null && current.ownerId == actor.userId)
+        if (!allowed) {
+            require(actor.userId, current, RecipeAction.Read)
+            throw ApiException(HttpStatusCode.Forbidden, listOf("forbidden"))
+        }
+        if (!recipes.deleteComment(id, commentId)) {
+            throw ApiException(HttpStatusCode.NotFound, listOf("comment not found"))
+        }
     }
 
     suspend fun grants(actor: Actor, id: Long): List<RecipeGrant> {
@@ -281,6 +332,10 @@ class RecipeService(
     private suspend fun prepare(write: RecipeWrite): Analysis {
         val errors = mutableListOf<String>()
         if (write.title.isBlank()) errors += "title must not be blank"
+        if (write.nodes.any { it.key.isBlank() }) errors += "step key must not be blank"
+        if (write.nodes.map { it.key }.size != write.nodes.map { it.key }.toSet().size) {
+            errors += "step keys must be unique"
+        }
         if (write.nodes.any { it.title.isBlank() }) errors += "step title must not be blank"
         if (write.nodes.any { node -> node.ingredients.any { it.qty != null && it.qty < 0.0 } }) {
             errors += "ingredient qty must be >= 0"
@@ -302,7 +357,27 @@ class RecipeService(
         unknownIds("tool", toolIds, catalog.toolIds())
         return analysis
     }
+
+    private suspend fun deleteObjects(storageKeys: List<String>) {
+        for (storageKey in storageKeys) {
+            try {
+                storage.deleteObject(DeleteObjectRequest(bucket, photoObjectKey(storageKey)))
+            } catch (error: S3Exception) {
+                if (error.status == 404) continue
+                throw ApiException(HttpStatusCode.BadGateway, listOf("photo storage failed"))
+            }
+        }
+    }
 }
+
+private fun CommentRow.toResponse() = CommentResponse(
+    id = id,
+    stepKey = stepKey,
+    userId = userId,
+    email = email,
+    body = body,
+    createdAt = createdAt,
+)
 
 private fun altErrors(
     ingredientAlts: List<IngredientAltWrite>,
@@ -379,7 +454,7 @@ private fun GateMode.toGraph(): GraphGate = when (this) {
     GateMode.Xor -> GraphGate.Xor
 }
 
-private fun visibility(value: String): RecipeVisibility = when (value) {
+internal fun visibility(value: String): RecipeVisibility = when (value) {
     "private" -> RecipeVisibility.Private
     else -> RecipeVisibility.Public
 }

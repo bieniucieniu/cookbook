@@ -64,6 +64,16 @@ class ApplicationTest {
         assertEquals(true, body.contains("listAllergens"))
         assertEquals(true, body.contains("\"/auth/login\""))
         assertEquals(true, body.contains("\"/recipes/{id}/grants\""))
+        assertEquals(true, body.contains("\"/photos\""))
+        assertEquals(true, body.contains("\"/recipes/{id}/comments\""))
+        assertEquals(true, body.contains("RecipeWrite"))
+        assertEquals(true, body.contains("GrantWrite"))
+        assertEquals(true, body.contains("NamedWrite"))
+        assertEquals(true, body.contains("AllergenSet"))
+        assertEquals(true, body.contains("IngredientAltSet"))
+        assertEquals(true, body.contains("ToolAltSet"))
+        assertEquals(true, body.contains("CommentWrite"))
+        assertEquals(true, body.contains("PhotoUpload"))
         assertEquals(false, body.contains("documentation.json"))
     }
 

@@ -2,7 +2,7 @@ Gradle multi-project + pnpm workspace. Tooling via [devenv](https://devenv.sh).
 
 ```
 apps/api       Kotlin/Native Ktor (CIO) + sqlx4k Postgres + SQLDelight
-apps/web       Solid + TanStack Router (Vite) on :3000, proxies /api → :8080
+apps/web       Solid + TanStack Router + Query (Vite+) on :3000, proxies /api → :8080
 packages/core  Kotlin/Native shared lib
 packages/workos  WorkOS client shaped like the official SDK. Ktor engine is passed in by the app.
 ```
@@ -27,6 +27,8 @@ Login uses WorkOS AuthKit when `WORKOS_CLIENT_ID` and `WORKOS_API_KEY` are set. 
 
 - Server: `devenv --profile server up` or `gradle :apps:api:runDebugExecutableNative`
 - Web: `devenv --profile web up` or `pnpm --filter web dev`
+- JS check: `pnpm exec vp check`
+- API client: `pnpm --filter web generate-api` (API on `:8080`)
 - Tests: `gradle test`
 
 See [docs/AGENTS.md](docs/AGENTS.md).

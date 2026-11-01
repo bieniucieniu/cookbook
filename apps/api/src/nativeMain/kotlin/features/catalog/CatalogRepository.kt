@@ -206,6 +206,47 @@ class CatalogRepository(
     suspend fun toolIds(): Set<Long> =
         database.toolsQueries.selectToolIds().awaitAsList().map { it }.toSet()
 
+    suspend fun upsertAllergen(slug: String, name: String): Long = insertReturning(
+        """
+        INSERT INTO allergens (slug, name)
+        VALUES (:slug, :name)
+        ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
+        RETURNING id
+        """.trimIndent(),
+        mapOf("slug" to slug, "name" to name),
+    )
+
+    suspend fun upsertIngredient(slug: String, name: String): Long = insertReturning(
+        """
+        INSERT INTO ingredients (slug, name)
+        VALUES (:slug, :name)
+        ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
+        RETURNING id
+        """.trimIndent(),
+        mapOf("slug" to slug, "name" to name),
+    )
+
+    suspend fun upsertTool(slug: String, name: String): Long = insertReturning(
+        """
+        INSERT INTO tools (slug, name)
+        VALUES (:slug, :name)
+        ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
+        RETURNING id
+        """.trimIndent(),
+        mapOf("slug" to slug, "name" to name),
+    )
+
+    suspend fun linkIngredientAllergen(ingredientId: Long, allergenId: Long) {
+        execute(
+            """
+            INSERT INTO ingredient_allergens (ingredient_id, allergen_id)
+            VALUES (:ingredient_id, :allergen_id)
+            ON CONFLICT DO NOTHING
+            """.trimIndent(),
+            mapOf("ingredient_id" to ingredientId, "allergen_id" to allergenId),
+        )
+    }
+
     suspend fun allergenIds(): Set<Long> =
         database.allergensQueries.selectAllergenIds().awaitAsList().map { it }.toSet()
 

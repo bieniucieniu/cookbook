@@ -1,8 +1,6 @@
 package com.bieniucieniu.cookbook.workos
 
 import io.ktor.client.HttpClient
-import io.ktor.client.engine.HttpClientEngine
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.delete
 import io.ktor.client.request.get
 import io.ktor.client.request.header
@@ -16,7 +14,6 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.URLBuilder
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
-import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -28,20 +25,12 @@ import kotlinx.serialization.json.put
 
 internal class WorkOsHttp(
     val baseUrl: String,
-    engine: HttpClientEngine,
+    private val client: HttpClient,
     private val apiKey: String?,
 ) {
     val json: Json = Json {
         ignoreUnknownKeys = true
         explicitNulls = false
-    }
-
-    private val client = HttpClient(engine) {
-        install(ContentNegotiation) { json(json) }
-    }
-
-    fun close() {
-        client.close()
     }
 
     suspend fun post(

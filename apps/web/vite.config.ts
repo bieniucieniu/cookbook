@@ -1,10 +1,15 @@
-import { tanstackRouter } from "@tanstack/router-plugin/vite"
-import { defineConfig } from "vite"
-import solid from "vite-plugin-solid"
+import tailwindcss from "@tailwindcss/vite";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import { defineConfig, lazyPlugins } from "vite-plus";
+import solid from "vite-plugin-solid";
 
 const config = defineConfig({
   resolve: { tsconfigPaths: true },
-  plugins: [tanstackRouter({ target: "solid", autoCodeSplitting: true }), solid()],
+  plugins: lazyPlugins(() => [
+    tanstackRouter({ target: "solid", autoCodeSplitting: true }),
+    solid(),
+    tailwindcss(),
+  ]),
   server: {
     port: 3000,
     host: true,
@@ -28,6 +33,6 @@ const config = defineConfig({
       },
     },
   },
-})
+});
 
-export default config
+export default config;

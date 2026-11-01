@@ -13,5 +13,5 @@
   "routerOnly": true,
   "version": 1,
   "framework": "solid",
-  "chosenAddOns": ["biome"]
+  "chosenAddOns": []
 }

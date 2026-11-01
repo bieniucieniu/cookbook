@@ -43,14 +43,14 @@ Search, allergy, dislike, and pantry join on dictionary ids. A step requirement 
 { "egg": { "qty": 4, "unit": "pcs", "id": 18 } }
 ```
 
-| Table | Holds |
-| --- | --- |
-| `allergens` | `id`, `slug`, `name` |
-| `ingredients` | `id`, `slug`, `name` |
-| `ingredient_allergens` | ingredient ↔ allergen |
-| `tools` | `id`, `slug`, `name` |
-| `node_ingredients` | step → ingredient, `qty`, `unit`, `optional` |
-| `node_tools` | step → tool, `optional`, `hold` |
+| Table                  | Holds                                        |
+| ---------------------- | -------------------------------------------- |
+| `allergens`            | `id`, `slug`, `name`                         |
+| `ingredients`          | `id`, `slug`, `name`                         |
+| `ingredient_allergens` | ingredient ↔ allergen                        |
+| `tools`                | `id`, `slug`, `name`                         |
+| `node_ingredients`     | step → ingredient, `qty`, `unit`, `optional` |
+| `node_tools`           | step → tool, `optional`, `hold`              |
 
 `optional` requirements stay out of the facts table. `unit` is free text. Comparing pantry quantities needs a unit table later. Identity is enough for allergy and for “I have this.”
 
@@ -73,19 +73,19 @@ Steps 1 and 2 change whether a recipe survives a hard filter. A dictionary alt d
 
 Rebuilt on save.
 
-| Presence | Meaning |
-| --- | --- |
-| `all_paths` | every valid walk needs it |
-| `some_paths` | one arm needs it |
+| Presence     | Meaning                   |
+| ------------ | ------------------------- |
+| `all_paths`  | every valid walk needs it |
+| `some_paths` | one arm needs it          |
 
 Walk regions to fill `recipe_ingredient_facts` and `recipe_tool_facts`. An `and` region puts arm requirements into every configuration. An `xor` region keeps one configuration per arm. An ingredient in every configuration is `all_paths`. An ingredient in at least one is `some_paths`.
 
 For the graph above:
 
-| Thing | Presence | Why |
-| --- | --- | --- |
-| tomato, garlic, cumin, bread, egg, skillet | `all_paths` | on the `and` arms or after the `and` join |
-| oven | `some_paths` | broil arm only |
+| Thing                                      | Presence     | Why                                       |
+| ------------------------------------------ | ------------ | ----------------------------------------- |
+| tomato, garlic, cumin, bread, egg, skillet | `all_paths`  | on the `and` arms or after the `and` join |
+| oven                                       | `some_paths` | broil arm only                            |
 
 Hard exclude (allergy) hits `all_paths` and every recipe alt is also excluded: hide the recipe. The same hit on `some_paths`: keep the recipe and force the other arm. Dislike uses the same match as a rank penalty. Pantry miss count starts at `all_paths` ids the user does not own. A recipe alt the user owns clears that id.
 
@@ -338,12 +338,12 @@ create table if not exists recipe_time
 
 ## Rejected shapes
 
-| Shape | Branch | Join later |
-| --- | --- | --- |
-| `next_step_id` list | no | no |
-| `parent_id` tree | yes | siblings never meet |
-| nested blocks only | yes | only at the block end |
-| split/join gateway nodes | yes | yes; an empty step with a label covers a decision that has no instruction |
-| modes on the step | yes | yes |
+| Shape                    | Branch | Join later                                                                |
+| ------------------------ | ------ | ------------------------------------------------------------------------- |
+| `next_step_id` list      | no     | no                                                                        |
+| `parent_id` tree         | yes    | siblings never meet                                                       |
+| nested blocks only       | yes    | only at the block end                                                     |
+| split/join gateway nodes | yes    | yes; an empty step with a label covers a decision that has no instruction |
+| modes on the step        | yes    | yes                                                                       |
 
 Modes on the step are the shape above. A JSONB requirement blob drops the foreign key allergy and pantry joins need.

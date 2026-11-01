@@ -22,7 +22,6 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation(libs.ktor.clientCore)
-                implementation(libs.ktor.clientContentNegotiation)
                 implementation(libs.ktor.serializationKotlinxJson)
                 implementation(libs.kotlincrypto.sha2)
             }
@@ -36,6 +35,8 @@ kotlin {
             dependencies {
                 implementation(libs.kotlin.test)
                 implementation(libs.ktor.clientMock)
+                implementation(libs.ktor.clientContentNegotiation)
+                implementation(libs.ktor.serializationKotlinxJson)
             }
         }
     }

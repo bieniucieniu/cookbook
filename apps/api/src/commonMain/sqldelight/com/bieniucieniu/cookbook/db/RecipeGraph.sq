@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS recipe_nodes (
   id BIGSERIAL PRIMARY KEY NOT NULL,
   recipe_id BIGINT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  key TEXT NOT NULL,
   title TEXT NOT NULL,
   body TEXT NOT NULL DEFAULT '',
   branch_mode TEXT NOT NULL DEFAULT 'none',
@@ -11,7 +12,28 @@ CREATE TABLE IF NOT EXISTS recipe_nodes (
   CONSTRAINT recipe_nodes_branch_mode CHECK (branch_mode IN ('none', 'and', 'xor')),
   CONSTRAINT recipe_nodes_join_mode CHECK (join_mode IN ('none', 'and', 'xor')),
   CONSTRAINT recipe_nodes_repeat CHECK (repeat_min >= 1 AND repeat_max >= repeat_min),
-  CONSTRAINT recipe_nodes_id_recipe UNIQUE (id, recipe_id)
+  CONSTRAINT recipe_nodes_id_recipe UNIQUE (id, recipe_id),
+  CONSTRAINT recipe_nodes_recipe_key UNIQUE (recipe_id, key)
+);
+
+CREATE TABLE IF NOT EXISTS recipe_photos (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  recipe_id BIGINT REFERENCES recipes(id) ON DELETE CASCADE,
+  owner_id BIGINT NOT NULL REFERENCES users(id),
+  ord INTEGER NOT NULL DEFAULT 0,
+  storage_key TEXT NOT NULL,
+  content_type TEXT NOT NULL,
+  alt TEXT NOT NULL DEFAULT '',
+  created_at BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS recipe_step_comments (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  recipe_id BIGINT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
+  step_key TEXT NOT NULL,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  body TEXT NOT NULL,
+  created_at BIGINT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS recipe_edges (
@@ -113,7 +135,7 @@ CREATE TABLE IF NOT EXISTS recipe_time (
 );
 
 selectNodes:
-SELECT id, recipe_id, title, body, branch_mode, join_mode, repeat_min, repeat_max, ord
+SELECT id, recipe_id, key, title, body, branch_mode, join_mode, repeat_min, repeat_max, ord
 FROM recipe_nodes
 WHERE recipe_id = :recipe_id
 ORDER BY ord, id;
@@ -190,3 +212,27 @@ SELECT recipe_id, tool_id, presence
 FROM recipe_tool_facts
 WHERE recipe_id = :recipe_id
 ORDER BY tool_id;
+
+selectPhotosForRecipe:
+SELECT id, recipe_id, owner_id, ord, storage_key, content_type, alt, created_at
+FROM recipe_photos
+WHERE recipe_id = :recipe_id
+ORDER BY ord, id;
+
+photoById:
+SELECT id, recipe_id, owner_id, ord, storage_key, content_type, alt, created_at
+FROM recipe_photos
+WHERE id = :id;
+
+selectCommentsForRecipe:
+SELECT c.id, c.recipe_id, c.step_key, c.user_id, u.email, c.body, c.created_at
+FROM recipe_step_comments c
+JOIN users u ON u.id = c.user_id
+WHERE c.recipe_id = :recipe_id
+ORDER BY c.created_at, c.id;
+
+commentById:
+SELECT c.id, c.recipe_id, c.step_key, c.user_id, u.email, c.body, c.created_at
+FROM recipe_step_comments c
+JOIN users u ON u.id = c.user_id
+WHERE c.id = :id AND c.recipe_id = :recipe_id;

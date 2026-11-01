@@ -39,7 +39,9 @@ kotlin {
         nativeMain.dependencies {
             implementation(project(":packages:core"))
             implementation(project(":packages:workos"))
-            implementation(libs.ktor.clientCio)
+            implementation(project(":packages:s3"))
+            implementation(libs.ktor.clientCurl)
+            implementation(libs.ktor.clientContentNegotiation)
             implementation(libs.ktor.serverCore)
             implementation(libs.ktor.serverStatusPages)
             implementation(libs.ktor.serverCio)
@@ -56,6 +58,18 @@ kotlin {
             implementation(libs.ktor.serverTestHost)
         }
     }
+}
+
+tasks.register<Exec>("seed") {
+    group = "application"
+    description = "Load the Eggs on toast sample"
+    val debugExecutable = (kotlin.targets.getByName("native") as org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget)
+        .binaries
+        .getExecutable(org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType.DEBUG)
+    dependsOn(debugExecutable.linkTaskProvider)
+    executable(debugExecutable.outputFile.absolutePath)
+    args("seed")
+    workingDir(rootProject.projectDir)
 }
 
 sqldelight {

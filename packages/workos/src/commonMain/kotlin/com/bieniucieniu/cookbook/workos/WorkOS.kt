@@ -1,20 +1,20 @@
 package com.bieniucieniu.cookbook.workos
 
-import io.ktor.client.engine.HttpClientEngine
+import io.ktor.client.HttpClient
 import io.ktor.http.URLBuilder
 
 /**
  * Native stand-in for the official `com.workos.WorkOS` client.
  * The official SDK is JVM, OkHttp, and generated from the full OpenAPI document.
- * This client takes a Ktor [HttpClientEngine] from the caller and keeps the same
+ * This client takes a caller-owned Ktor [HttpClient] and keeps the same
  * service and method names for the AuthKit, organization, SSO, event, audit-log,
  * and webhook calls that fit Kotlin/Native. Methods are suspend. There is no
- * blocking twin and no `*Suspend` suffix.
+ * blocking twin and no `*Suspend` suffix. [close] does not close [httpClient].
  */
 class WorkOS(
     val apiKey: String? = null,
     val clientId: String? = null,
-    httpClientEngine: HttpClientEngine,
+    httpClient: HttpClient,
     val apiBaseUrl: String = "https://api.workos.com",
     private val secureBytes: SecureBytes,
 ) {
@@ -24,7 +24,7 @@ class WorkOS(
         }
     }
 
-    internal val http = WorkOsHttp(apiBaseUrl, httpClientEngine, apiKey)
+    internal val http = WorkOsHttp(apiBaseUrl, httpClient, apiKey)
 
     val userManagement: UserManagement = UserManagement(this)
     val organizations: Organizations = Organizations(this)
@@ -35,9 +35,7 @@ class WorkOS(
 
     fun randomToken(bytes: Int = 32): String = base64Url(secureBytes.nextBytes(bytes))
 
-    fun close() {
-        http.close()
-    }
+    fun close() = Unit
 
     internal fun requireClientId(): String =
         clientId?.takeIf { it.isNotBlank() } ?: throw IllegalStateException("WorkOS clientId is required")

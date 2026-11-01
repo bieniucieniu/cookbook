@@ -4,10 +4,13 @@ let
   jdkPackage = pkgs.zulu25;
 in
 {
+  dotenv.enable = true;
+
   packages = [
     pkgs.git
     pkgs.kotlin
     pkgs.kotlin-language-server
+    pkgs.seaweedfs
   ];
 
   languages.java = {
@@ -27,6 +30,37 @@ in
       enable = true;
       package = pkgs.pnpm;
       install.enable = true;
+    };
+  };
+
+  processes.seaweed = {
+    exec = ''
+      set -eu
+      dir="${root}/.devenv/state/seaweed"
+      mkdir -p "$dir"
+      cat > "$dir/s3.json" <<'EOF'
+      {
+        "identities": [
+          {
+            "name": "cookbook",
+            "credentials": [
+              {
+                "accessKey": "cookbook",
+                "secretKey": "cookbook"
+              }
+            ],
+            "actions": ["Admin", "Read", "Write", "List", "Tagging"]
+          }
+        ]
+      }
+      EOF
+      exec weed mini -dir "$dir" -volume.port 8081 -s3.port 8333 -s3.config "$dir/s3.json"
+    '';
+    ready = {
+      http.get = {
+        port = 9333;
+        path = "/cluster/status";
+      };
     };
   };
 
@@ -65,7 +99,7 @@ in
     server = {
       module = {
         processes.server = {
-          after = [ "devenv:processes:postgres" ];
+          after = [ "devenv:processes:postgres" "devenv:processes:seaweed" ];
           exec = ''
             set -eu
             unset DEVELOPER_DIR

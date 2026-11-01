@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "cookbook": {
+      "command": "${workspaceFolder}/.devenv/profile/bin/node",
+      "args": ["${workspaceFolder}/apps/mcp/src/index.ts"],
+      "envFile": "${workspaceFolder}/.env",
+      "env": {
+        "COOKBOOK_API_URL": "${env:COOKBOOK_API_URL}",
+        "AGENT_TOKEN": "${env:AGENT_TOKEN}"
+      }
+    }
+  }
+}

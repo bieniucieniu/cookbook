@@ -1,19 +1,32 @@
 package com.bieniucieniu.cookbook.workos
 
+import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.TextContent
 import io.ktor.http.headersOf
+import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonPrimitive
+import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class WorkOSTest {
+    private val clients = mutableListOf<HttpClient>()
+
+    @AfterTest
+    fun closeClients() {
+        clients.forEach { it.close() }
+        clients.clear()
+    }
+
     @Test
     fun pkceChallengeMatchesRfc7636() {
         assertEquals(
@@ -155,13 +168,23 @@ class WorkOSTest {
 
     private fun client(
         handler: suspend io.ktor.client.engine.mock.MockRequestHandleScope.(io.ktor.client.request.HttpRequestData) -> io.ktor.client.request.HttpResponseData,
-    ): WorkOS =
-        WorkOS(
+    ): WorkOS {
+        val http = HttpClient(MockEngine(handler)) {
+            install(ContentNegotiation) {
+                json(Json {
+                    ignoreUnknownKeys = true
+                    explicitNulls = false
+                })
+            }
+        }
+        clients += http
+        return WorkOS(
             apiKey = "sk_test",
             clientId = "client_test",
-            httpClientEngine = MockEngine(handler),
+            httpClient = http,
             secureBytes = SecureBytes { size -> ByteArray(size) { 7 } },
         )
+    }
 
     private fun payload(): String = base64Url("""{"sid":"session_1"}""".encodeToByteArray())
 }

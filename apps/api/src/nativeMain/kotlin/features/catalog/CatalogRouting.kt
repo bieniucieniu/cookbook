@@ -48,6 +48,11 @@ fun Route.configureCatalogRouting() {
     }.describe {
         operationId = "createAllergen"
         tag("allergens")
+        requestBody {
+            required = true
+            description = "Allergen"
+            schema = jsonSchema<NamedWrite>()
+        }
         responses {
             HttpStatusCode.Created {
                 description = "Created allergen"
@@ -81,6 +86,11 @@ fun Route.configureCatalogRouting() {
     }.describe {
         operationId = "updateAllergen"
         tag("allergens")
+        requestBody {
+            required = true
+            description = "Allergen"
+            schema = jsonSchema<NamedWrite>()
+        }
         responses {
             HttpStatusCode.OK { description = "Updated allergen"; schema = jsonSchema<Allergen>() }
         }
@@ -115,6 +125,11 @@ fun Route.configureCatalogRouting() {
     }.describe {
         operationId = "createIngredient"
         tag("ingredients")
+        requestBody {
+            required = true
+            description = "Ingredient"
+            schema = jsonSchema<NamedWrite>()
+        }
         responses {
             HttpStatusCode.Created { description = "Created ingredient"; schema = jsonSchema<Ingredient>() }
         }
@@ -142,6 +157,11 @@ fun Route.configureCatalogRouting() {
     }.describe {
         operationId = "updateIngredient"
         tag("ingredients")
+        requestBody {
+            required = true
+            description = "Ingredient"
+            schema = jsonSchema<NamedWrite>()
+        }
         responses {
             HttpStatusCode.OK { description = "Updated ingredient"; schema = jsonSchema<Ingredient>() }
         }
@@ -169,6 +189,11 @@ fun Route.configureCatalogRouting() {
     }.describe {
         operationId = "replaceIngredientAllergens"
         tag("ingredients")
+        requestBody {
+            required = true
+            description = "Allergen ids"
+            schema = jsonSchema<AllergenSet>()
+        }
         responses {
             HttpStatusCode.OK { description = "Ingredient with replaced allergens"; schema = jsonSchema<Ingredient>() }
         }
@@ -192,6 +217,11 @@ fun Route.configureCatalogRouting() {
     }.describe {
         operationId = "replaceIngredientAlts"
         tag("ingredients")
+        requestBody {
+            required = true
+            description = "Ingredient alternatives"
+            schema = jsonSchema<IngredientAltSet>()
+        }
         responses {
             HttpStatusCode.OK { description = "Ingredient with replaced alternatives"; schema = jsonSchema<Ingredient>() }
         }
@@ -214,6 +244,11 @@ fun Route.configureCatalogRouting() {
     }.describe {
         operationId = "createTool"
         tag("tools")
+        requestBody {
+            required = true
+            description = "Tool"
+            schema = jsonSchema<NamedWrite>()
+        }
         responses {
             HttpStatusCode.Created { description = "Created tool"; schema = jsonSchema<Tool>() }
         }
@@ -241,6 +276,11 @@ fun Route.configureCatalogRouting() {
     }.describe {
         operationId = "updateTool"
         tag("tools")
+        requestBody {
+            required = true
+            description = "Tool"
+            schema = jsonSchema<NamedWrite>()
+        }
         responses {
             HttpStatusCode.OK { description = "Updated tool"; schema = jsonSchema<Tool>() }
         }
@@ -273,6 +313,11 @@ fun Route.configureCatalogRouting() {
     }.describe {
         operationId = "replaceToolAlts"
         tag("tools")
+        requestBody {
+            required = true
+            description = "Tool alternatives"
+            schema = jsonSchema<ToolAltSet>()
+        }
         responses {
             HttpStatusCode.OK { description = "Tool with replaced alternatives"; schema = jsonSchema<Tool>() }
         }

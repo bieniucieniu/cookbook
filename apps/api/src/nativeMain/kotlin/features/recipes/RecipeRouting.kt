@@ -3,6 +3,8 @@ package com.bieniucieniu.cookbook.features.recipes
 import com.bieniucieniu.cookbook.core.http.ApiException
 import com.bieniucieniu.cookbook.core.http.ErrorBody
 import com.bieniucieniu.cookbook.features.auth.SessionReader
+import com.bieniucieniu.cookbook.features.recipes.domain.CommentResponse
+import com.bieniucieniu.cookbook.features.recipes.domain.CommentWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.GrantWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeDetail
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeGrant
@@ -50,6 +52,11 @@ fun Route.configureRecipeRouting() {
     }.describe {
         operationId = "createRecipe"
         tag("recipes")
+        requestBody {
+            required = true
+            description = "Recipe"
+            schema = jsonSchema<RecipeWrite>()
+        }
         responses {
             HttpStatusCode.Created { description = "Created recipe"; schema = jsonSchema<RecipeDetail>() }
             HttpStatusCode.BadRequest { description = "Invalid recipe"; schema = jsonSchema<ErrorBody>() }
@@ -79,6 +86,11 @@ fun Route.configureRecipeRouting() {
     }.describe {
         operationId = "updateRecipe"
         tag("recipes")
+        requestBody {
+            required = true
+            description = "Recipe"
+            schema = jsonSchema<RecipeWrite>()
+        }
         responses {
             HttpStatusCode.OK { description = "Updated recipe"; schema = jsonSchema<RecipeDetail>() }
             HttpStatusCode.BadRequest { description = "Invalid recipe"; schema = jsonSchema<ErrorBody>() }
@@ -128,6 +140,11 @@ fun Route.configureRecipeRouting() {
     }.describe {
         operationId = "upsertRecipeGrant"
         tag("recipes")
+        requestBody {
+            required = true
+            description = "Grant"
+            schema = jsonSchema<GrantWrite>()
+        }
         responses {
             HttpStatusCode.OK { description = "Grants"; schema = jsonSchema<List<RecipeGrant>>() }
             HttpStatusCode.BadRequest { description = "Invalid grant"; schema = jsonSchema<ErrorBody>() }
@@ -151,6 +168,44 @@ fun Route.configureRecipeRouting() {
             HttpStatusCode.Unauthorized { description = "Login required"; schema = jsonSchema<ErrorBody>() }
             HttpStatusCode.Forbidden { description = "Not the owner"; schema = jsonSchema<ErrorBody>() }
             HttpStatusCode.NotFound { description = "Missing recipe"; schema = jsonSchema<ErrorBody>() }
+        }
+    }
+
+    post("/recipes/{id}/comments") {
+        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val id = call.longParam("id")
+        val body = call.receive<CommentWrite>()
+        call.respond(HttpStatusCode.Created, service.comment(actor, id, body))
+    }.describe {
+        operationId = "createRecipeComment"
+        tag("recipes")
+        requestBody {
+            required = true
+            description = "Step comment"
+            schema = jsonSchema<CommentWrite>()
+        }
+        responses {
+            HttpStatusCode.Created { description = "Created comment"; schema = jsonSchema<CommentResponse>() }
+            HttpStatusCode.BadRequest { description = "Invalid comment"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.Unauthorized { description = "Login required"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.NotFound { description = "Missing recipe"; schema = jsonSchema<ErrorBody>() }
+        }
+    }
+
+    delete("/recipes/{id}/comments/{commentId}") {
+        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val id = call.longParam("id")
+        val commentId = call.longParam("commentId")
+        service.deleteComment(actor, id, commentId)
+        call.respond(HttpStatusCode.NoContent)
+    }.describe {
+        operationId = "deleteRecipeComment"
+        tag("recipes")
+        responses {
+            HttpStatusCode.NoContent { description = "Deleted comment" }
+            HttpStatusCode.Unauthorized { description = "Login required"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.Forbidden { description = "Not the author or owner"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.NotFound { description = "Missing comment"; schema = jsonSchema<ErrorBody>() }
         }
     }
 }

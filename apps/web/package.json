@@ -2,29 +2,30 @@
   "name": "web",
   "private": true,
   "type": "module",
-  "imports": {
-    "#/*": "./src/*"
-  },
   "scripts": {
-    "dev": "vite dev --port 3000",
-    "generate-routes": "tsr generate",
-    "build": "vite build",
-    "preview": "vite preview",
-    "format": "biome format",
-    "lint": "biome lint",
-    "check": "biome check"
+    "dev": "vp dev --port 3000",
+    "generate-api": "orval --config orval.config.ts",
+    "build": "vp build",
+    "preview": "vp preview"
   },
   "dependencies": {
+    "@kobalte/core": "catalog:",
+    "@tanstack/solid-query": "catalog:",
     "@tanstack/solid-router": "catalog:",
     "@tanstack/solid-router-devtools": "catalog:",
-    "solid-js": "catalog:"
+    "@xyflow/system": "catalog:",
+    "clsx": "catalog:",
+    "solid-js": "catalog:",
+    "tailwind-merge": "catalog:"
   },
   "devDependencies": {
-    "@biomejs/biome": "catalog:",
-    "@tanstack/router-cli": "catalog:",
+    "@tailwindcss/vite": "catalog:",
     "@tanstack/router-plugin": "catalog:",
+    "orval": "catalog:",
+    "tailwindcss": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
-    "vite-plugin-solid": "catalog:"
+    "vite-plugin-solid": "catalog:",
+    "vite-plus": "catalog:"
   }
 }

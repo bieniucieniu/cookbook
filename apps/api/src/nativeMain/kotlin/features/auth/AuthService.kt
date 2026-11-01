@@ -1,15 +1,12 @@
 package com.bieniucieniu.cookbook.features.auth
 
 import com.bieniucieniu.cookbook.core.http.ApiException
-import com.bieniucieniu.cookbook.lib.utils.randomBytes
 import com.bieniucieniu.cookbook.workos.AuthorizationUrlOptions
 import com.bieniucieniu.cookbook.workos.LogoutUrlOptions
-import com.bieniucieniu.cookbook.workos.SecureBytes
 import com.bieniucieniu.cookbook.workos.WorkOS
 import com.bieniucieniu.cookbook.workos.WorkOSException
 import com.bieniucieniu.cookbook.workos.sessionIdFromAccessToken
 import com.bieniucieniu.cookbook.workos.sha256Hex
-import io.ktor.client.engine.cio.CIO
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.userAgent
@@ -29,10 +26,6 @@ class AuthService(
     workos: WorkOS?,
 ) {
     val workos: WorkOS? = workos
-
-    fun close() {
-        workos?.close()
-    }
 
     suspend fun loginUrl(): String {
         val client = workos ?: throw ApiException(HttpStatusCode.ServiceUnavailable, listOf("workos is not configured"))
@@ -109,19 +102,6 @@ class AuthService(
             call.redirect(client.userManagement.getLogoutUrl(LogoutUrlOptions(sid, config.logoutReturnTo)))
         } else {
             call.redirect("/")
-        }
-    }
-
-    companion object {
-        fun client(config: AuthConfig): WorkOS? {
-            if (!config.configured) return null
-            return WorkOS(
-                apiKey = config.apiKey,
-                clientId = config.clientId,
-                httpClientEngine = CIO.create(),
-                apiBaseUrl = config.apiBaseUrl,
-                secureBytes = SecureBytes { randomBytes(it) },
-            )
         }
     }
 }

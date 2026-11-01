@@ -9,6 +9,7 @@ data class AuthConfig(
     val logoutReturnTo: String,
     val apiBaseUrl: String,
     val sessionTtlSeconds: Long,
+    val agentToken: String?,
 ) {
     val configured: Boolean
         get() = !clientId.isNullOrBlank() && !apiKey.isNullOrBlank()
@@ -21,6 +22,7 @@ data class AuthConfig(
             logoutReturnTo = env("WORKOS_LOGOUT_RETURN_TO") ?: "http://localhost:3000/",
             apiBaseUrl = env("WORKOS_API_BASE_URL") ?: "https://api.workos.com",
             sessionTtlSeconds = env("SESSION_TTL_SECONDS")?.toLongOrNull() ?: 604800L,
+            agentToken = env("AGENT_TOKEN"),
         )
     }
 }
