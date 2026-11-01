@@ -4,5 +4,5 @@ import org.koin.dsl.module
 
 val recipeModule = module {
     single { RecipeRepository(get(), get()) }
-    single { RecipeService(get(), get()) }
+    single { RecipeService(get(), get(), get()) }
 }

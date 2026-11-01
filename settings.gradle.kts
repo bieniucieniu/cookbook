@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 
 include(":apps:api")
 include(":packages:core")
+include(":packages:workos")

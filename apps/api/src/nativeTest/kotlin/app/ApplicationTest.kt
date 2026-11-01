@@ -2,13 +2,21 @@ package com.bieniucieniu.cookbook.app
 
 import com.bieniucieniu.cookbook.core.health.configureHealth
 import com.bieniucieniu.cookbook.core.http.configureSerialization
+import com.bieniucieniu.cookbook.core.http.configureStatusPages
 import com.bieniucieniu.cookbook.core.openapi.configureOpenApi
+import com.bieniucieniu.cookbook.features.auth.SessionReader
+import com.bieniucieniu.cookbook.features.recipes.configureRecipeRouting
 import io.ktor.client.request.get
+import io.ktor.server.application.install
+import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import org.koin.dsl.module
+import org.koin.ktor.plugin.Koin
 
 class ApplicationTest {
 
@@ -54,6 +62,27 @@ class ApplicationTest {
         assertEquals(true, body.contains("listIngredients"))
         assertEquals(true, body.contains("listTools"))
         assertEquals(true, body.contains("listAllergens"))
+        assertEquals(true, body.contains("\"/auth/login\""))
+        assertEquals(true, body.contains("\"/recipes/{id}/grants\""))
         assertEquals(false, body.contains("documentation.json"))
+    }
+
+    @Test
+    fun postRecipeWithoutSessionIsUnauthorized() = testApplication {
+        application {
+            val app = this
+            configureSerialization()
+            configureStatusPages()
+            app.install(Koin) {
+                modules(module {
+                    single<SessionReader> { SessionReader { null } }
+                })
+            }
+            routing {
+                configureRecipeRouting()
+            }
+        }
+        val response = client.post("/recipes")
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
 }

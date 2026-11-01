@@ -1,0 +1,49 @@
+CREATE TABLE IF NOT EXISTS users (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  workos_user_id TEXT NOT NULL UNIQUE,
+  email TEXT NOT NULL,
+  first_name TEXT NOT NULL DEFAULT '',
+  last_name TEXT NOT NULL DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id BIGSERIAL PRIMARY KEY NOT NULL,
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  token_hash TEXT NOT NULL UNIQUE,
+  workos_session_id TEXT,
+  expires_at BIGINT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS auth_attempts (
+  state TEXT PRIMARY KEY NOT NULL,
+  code_verifier TEXT NOT NULL,
+  expires_at BIGINT NOT NULL
+);
+
+userByEmail:
+SELECT id, workos_user_id, email, first_name, last_name
+FROM users
+WHERE lower(email) = lower(CAST(:email AS TEXT));
+
+userById:
+SELECT id, workos_user_id, email, first_name, last_name
+FROM users
+WHERE id = :id;
+
+sessionByHash:
+SELECT user_id, expires_at, workos_session_id
+FROM sessions
+WHERE token_hash = :token_hash;
+
+deleteSession:
+DELETE FROM sessions
+WHERE token_hash = :token_hash;
+
+attemptByState:
+SELECT state, code_verifier, expires_at
+FROM auth_attempts
+WHERE state = :state;
+
+deleteAttempt:
+DELETE FROM auth_attempts
+WHERE state = :state;

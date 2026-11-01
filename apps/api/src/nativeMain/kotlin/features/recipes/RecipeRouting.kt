@@ -2,7 +2,10 @@ package com.bieniucieniu.cookbook.features.recipes
 
 import com.bieniucieniu.cookbook.core.http.ApiException
 import com.bieniucieniu.cookbook.core.http.ErrorBody
+import com.bieniucieniu.cookbook.features.auth.SessionReader
+import com.bieniucieniu.cookbook.features.recipes.domain.GrantWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeDetail
+import com.bieniucieniu.cookbook.features.recipes.domain.RecipeGrant
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeListItem
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeWrite
 import com.bieniucieniu.cookbook.features.recipes.graph.SearchQuery
@@ -23,9 +26,10 @@ import org.koin.ktor.ext.inject
 @OptIn(ExperimentalKtorApi::class)
 fun Route.configureRecipeRouting() {
     val service: RecipeService by inject()
+    val sessions: SessionReader by inject()
 
     get("/recipes") {
-        call.respond(service.list(call.searchQuery()))
+        call.respond(service.list(sessions.actor(call)?.userId, call.searchQuery()))
     }.describe {
         operationId = "listRecipes"
         tag("recipes")
@@ -40,21 +44,23 @@ fun Route.configureRecipeRouting() {
     }
 
     post("/recipes") {
+        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
         val body = call.receive<RecipeWrite>()
-        call.respond(HttpStatusCode.Created, service.create(body))
+        call.respond(HttpStatusCode.Created, service.create(actor, body))
     }.describe {
         operationId = "createRecipe"
         tag("recipes")
         responses {
             HttpStatusCode.Created { description = "Created recipe"; schema = jsonSchema<RecipeDetail>() }
             HttpStatusCode.BadRequest { description = "Invalid recipe"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.Unauthorized { description = "Login required"; schema = jsonSchema<ErrorBody>() }
             HttpStatusCode.Conflict { description = "Unknown ingredient or tool"; schema = jsonSchema<ErrorBody>() }
         }
     }
 
     get("/recipes/{id}") {
         val id = call.longParam("id")
-        call.respond(service.get(id, call.searchQuery()))
+        call.respond(service.get(sessions.actor(call)?.userId, id, call.searchQuery()))
     }.describe {
         operationId = "getRecipe"
         tag("recipes")
@@ -66,29 +72,84 @@ fun Route.configureRecipeRouting() {
     }
 
     put("/recipes/{id}") {
+        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
         val id = call.longParam("id")
         val body = call.receive<RecipeWrite>()
-        call.respond(service.update(id, body))
+        call.respond(service.update(actor, id, body))
     }.describe {
         operationId = "updateRecipe"
         tag("recipes")
         responses {
             HttpStatusCode.OK { description = "Updated recipe"; schema = jsonSchema<RecipeDetail>() }
             HttpStatusCode.BadRequest { description = "Invalid recipe"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.Unauthorized { description = "Login required"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.Forbidden { description = "Not allowed"; schema = jsonSchema<ErrorBody>() }
             HttpStatusCode.NotFound { description = "Missing recipe"; schema = jsonSchema<ErrorBody>() }
             HttpStatusCode.Conflict { description = "Unknown ingredient or tool"; schema = jsonSchema<ErrorBody>() }
         }
     }
 
     delete("/recipes/{id}") {
+        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
         val id = call.longParam("id")
-        service.delete(id)
+        service.delete(actor, id)
         call.respond(HttpStatusCode.NoContent)
     }.describe {
         operationId = "deleteRecipe"
         tag("recipes")
         responses {
             HttpStatusCode.NoContent { description = "Deleted recipe" }
+            HttpStatusCode.Unauthorized { description = "Login required"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.Forbidden { description = "Not allowed"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.NotFound { description = "Missing recipe"; schema = jsonSchema<ErrorBody>() }
+        }
+    }
+
+    get("/recipes/{id}/grants") {
+        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val id = call.longParam("id")
+        call.respond(service.grants(actor, id))
+    }.describe {
+        operationId = "listRecipeGrants"
+        tag("recipes")
+        responses {
+            HttpStatusCode.OK { description = "Grants"; schema = jsonSchema<List<RecipeGrant>>() }
+            HttpStatusCode.Unauthorized { description = "Login required"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.Forbidden { description = "Not the owner"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.NotFound { description = "Missing recipe"; schema = jsonSchema<ErrorBody>() }
+        }
+    }
+
+    put("/recipes/{id}/grants") {
+        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val id = call.longParam("id")
+        val body = call.receive<GrantWrite>()
+        call.respond(service.grant(actor, id, body))
+    }.describe {
+        operationId = "upsertRecipeGrant"
+        tag("recipes")
+        responses {
+            HttpStatusCode.OK { description = "Grants"; schema = jsonSchema<List<RecipeGrant>>() }
+            HttpStatusCode.BadRequest { description = "Invalid grant"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.Unauthorized { description = "Login required"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.Forbidden { description = "Not the owner"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.NotFound { description = "Missing user or recipe"; schema = jsonSchema<ErrorBody>() }
+        }
+    }
+
+    delete("/recipes/{id}/grants/{userId}") {
+        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val id = call.longParam("id")
+        val userId = call.longParam("userId")
+        service.revoke(actor, id, userId)
+        call.respond(HttpStatusCode.NoContent)
+    }.describe {
+        operationId = "deleteRecipeGrant"
+        tag("recipes")
+        responses {
+            HttpStatusCode.NoContent { description = "Grant removed" }
+            HttpStatusCode.Unauthorized { description = "Login required"; schema = jsonSchema<ErrorBody>() }
+            HttpStatusCode.Forbidden { description = "Not the owner"; schema = jsonSchema<ErrorBody>() }
             HttpStatusCode.NotFound { description = "Missing recipe"; schema = jsonSchema<ErrorBody>() }
         }
     }
