@@ -2,22 +2,87 @@ CREATE TABLE IF NOT EXISTS recipes (
   id BIGSERIAL PRIMARY KEY NOT NULL,
   title TEXT NOT NULL,
   cooks INTEGER NOT NULL DEFAULT 1,
+  owner_id BIGINT,
+  visibility TEXT NOT NULL DEFAULT 'public',
   CONSTRAINT recipes_cooks CHECK (cooks >= 1)
 );
 
-selectSummaries:
+CREATE TABLE IF NOT EXISTS recipe_grants (
+  recipe_id BIGINT NOT NULL REFERENCES recipes(id),
+  user_id BIGINT NOT NULL REFERENCES users(id),
+  permission TEXT NOT NULL,
+  granted_by BIGINT NOT NULL REFERENCES users(id),
+  PRIMARY KEY (recipe_id, user_id)
+);
+
+selectPublicSummaries:
 SELECT r.id,
        r.title,
        r.cooks,
+       r.owner_id,
+       r.visibility,
        t.hands_on_min_seconds,
        t.hands_on_max_seconds,
        t.elapsed_min_seconds,
        t.elapsed_max_seconds
 FROM recipes r
 LEFT JOIN recipe_time t ON t.recipe_id = r.id
+WHERE r.visibility = 'public'
+ORDER BY r.id;
+
+selectVisibleSummaries:
+SELECT r.id,
+       r.title,
+       r.cooks,
+       r.owner_id,
+       r.visibility,
+       t.hands_on_min_seconds,
+       t.hands_on_max_seconds,
+       t.elapsed_min_seconds,
+       t.elapsed_max_seconds
+FROM recipes r
+LEFT JOIN recipe_time t ON t.recipe_id = r.id
+WHERE r.visibility = 'public'
+   OR r.owner_id = :userId
+   OR EXISTS (
+        SELECT 1 FROM recipe_grants g
+        WHERE g.recipe_id = r.id AND g.user_id = :userId
+   )
 ORDER BY r.id;
 
 recipeById:
-SELECT id, title, cooks
-FROM recipes
-WHERE id = :id;
+SELECT r.id,
+       r.title,
+       r.cooks,
+       r.owner_id,
+       r.visibility,
+       t.hands_on_min_seconds,
+       t.hands_on_max_seconds,
+       t.elapsed_min_seconds,
+       t.elapsed_max_seconds
+FROM recipes r
+LEFT JOIN recipe_time t ON t.recipe_id = r.id
+WHERE r.id = :id;
+
+grantForUser:
+SELECT permission
+FROM recipe_grants
+WHERE recipe_id = :recipeId AND user_id = :userId;
+
+grantsForRecipe:
+SELECT g.user_id, u.email, g.permission
+FROM recipe_grants g
+JOIN users u ON u.id = g.user_id
+WHERE g.recipe_id = :recipeId
+ORDER BY u.email;
+
+upsertGrant:
+INSERT INTO recipe_grants (recipe_id, user_id, permission, granted_by)
+VALUES (:recipeId, :userId, :permission, :grantedBy)
+ON CONFLICT (recipe_id, user_id) DO UPDATE SET
+  permission = EXCLUDED.permission,
+  granted_by = EXCLUDED.granted_by;
+
+deleteGrant:
+DELETE FROM recipe_grants
+WHERE recipe_id = :recipeId AND user_id = :userId;

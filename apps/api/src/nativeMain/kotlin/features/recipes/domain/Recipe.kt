@@ -82,13 +82,39 @@ data class ToolAltWrite(
 )
 
 @Serializable
+enum class RecipeVisibility {
+    @SerialName("public") Public,
+    @SerialName("private") Private,
+}
+
+@Serializable
+enum class RecipePermission {
+    @SerialName("read") Read,
+    @SerialName("write") Write,
+}
+
+@Serializable
 data class RecipeWrite(
     val title: String,
     val cooks: Int = 1,
+    val visibility: RecipeVisibility = RecipeVisibility.Public,
     val nodes: List<NodeWrite>,
     val edges: List<EdgeWrite> = emptyList(),
     val ingredientAlts: List<IngredientAltWrite> = emptyList(),
     val toolAlts: List<ToolAltWrite> = emptyList(),
+)
+
+@Serializable
+data class RecipeGrant(
+    val userId: Long,
+    val email: String,
+    val permission: RecipePermission,
+)
+
+@Serializable
+data class GrantWrite(
+    val email: String,
+    val permission: RecipePermission,
 )
 
 @Serializable
@@ -169,6 +195,8 @@ data class RecipeListItem(
     val id: Long,
     val title: String,
     val cooks: Int,
+    val ownerId: Long?,
+    val visibility: RecipeVisibility,
     val handsOnMinSeconds: Int,
     val handsOnMaxSeconds: Int,
     val elapsedMinSeconds: Int,
@@ -182,6 +210,8 @@ data class RecipeDetail(
     val id: Long,
     val title: String,
     val cooks: Int,
+    val ownerId: Long?,
+    val visibility: RecipeVisibility,
     val handsOnMinSeconds: Int,
     val handsOnMaxSeconds: Int,
     val elapsedMinSeconds: Int,

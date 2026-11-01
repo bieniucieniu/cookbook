@@ -13,13 +13,16 @@ import com.bieniucieniu.cookbook.db.Recipe_node_spans
 import com.bieniucieniu.cookbook.db.Recipe_nodes
 import com.bieniucieniu.cookbook.db.Recipe_tool_alts
 import com.bieniucieniu.cookbook.db.Recipe_tool_facts
-import com.bieniucieniu.cookbook.db.Recipes
 import com.bieniucieniu.cookbook.db.SelectAllRecipeIngredientAlts
 import com.bieniucieniu.cookbook.db.SelectAllRecipeToolAlts
 import com.bieniucieniu.cookbook.db.SelectNodeIngredients
 import com.bieniucieniu.cookbook.db.SelectNodeTools
-import com.bieniucieniu.cookbook.db.SelectSummaries
+import com.bieniucieniu.cookbook.db.SelectPublicSummaries
+import com.bieniucieniu.cookbook.db.SelectVisibleSummaries
 import com.bieniucieniu.cookbook.features.recipes.domain.GateMode
+import com.bieniucieniu.cookbook.features.recipes.domain.RecipeGrant
+import com.bieniucieniu.cookbook.features.recipes.domain.RecipePermission
+import com.bieniucieniu.cookbook.features.recipes.domain.RecipeVisibility
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.SpanKind
 import com.bieniucieniu.cookbook.features.recipes.domain.ToolHold
@@ -30,15 +33,71 @@ import io.github.smyrgeorge.sqlx4k.impl.extensions.asLong
 import io.github.smyrgeorge.sqlx4k.postgres.IPostgresSQL
 import io.ktor.http.HttpStatusCode
 
+data class RecipeHead(
+    val id: Long,
+    val title: String,
+    val cooks: Int,
+    val ownerId: Long?,
+    val visibility: String,
+    val handsOnMinSeconds: Int,
+    val handsOnMaxSeconds: Int,
+    val elapsedMinSeconds: Int,
+    val elapsedMaxSeconds: Int,
+)
+
+data class RecipeSummary(
+    val id: Long,
+    val title: String,
+    val cooks: Int,
+    val ownerId: Long?,
+    val visibility: String,
+    val handsOnMinSeconds: Int,
+    val handsOnMaxSeconds: Int,
+    val elapsedMinSeconds: Int,
+    val elapsedMaxSeconds: Int,
+)
+
 class RecipeRepository(
     private val database: CookbookDatabase,
     private val postgres: IPostgresSQL,
 ) {
-    suspend fun summaries(): List<SelectSummaries> =
-        database.recipesQueries.selectSummaries().awaitAsList()
+    suspend fun visibleSummaries(userId: Long?): List<RecipeSummary> =
+        if (userId == null) {
+            database.recipesQueries.selectPublicSummaries().awaitAsList().map { it.toSummary() }
+        } else {
+            database.recipesQueries.selectVisibleSummaries(userId).awaitAsList().map { it.toSummary() }
+        }
 
-    suspend fun recipe(id: Long): Recipes? =
-        database.recipesQueries.recipeById(id).awaitAsOneOrNull()
+    suspend fun recipe(id: Long): RecipeHead? =
+        database.recipesQueries.recipeById(id).awaitAsOneOrNull()?.let {
+            RecipeHead(
+                id = it.id,
+                title = it.title,
+                cooks = it.cooks,
+                ownerId = it.owner_id,
+                visibility = it.visibility,
+                handsOnMinSeconds = it.hands_on_min_seconds ?: 0,
+                handsOnMaxSeconds = it.hands_on_max_seconds ?: 0,
+                elapsedMinSeconds = it.elapsed_min_seconds ?: 0,
+                elapsedMaxSeconds = it.elapsed_max_seconds ?: 0,
+            )
+        }
+
+    suspend fun grantFor(recipeId: Long, userId: Long): RecipePermission? =
+        database.recipesQueries.grantForUser(recipeId, userId).awaitAsOneOrNull()?.let { permission(it) }
+
+    suspend fun grants(recipeId: Long): List<RecipeGrant> =
+        database.recipesQueries.grantsForRecipe(recipeId).awaitAsList().map {
+            RecipeGrant(it.user_id, it.email, permission(it.permission))
+        }
+
+    suspend fun upsertGrant(recipeId: Long, userId: Long, permission: RecipePermission, grantedBy: Long) {
+        database.recipesQueries.upsertGrant(recipeId, userId, permission.wire(), grantedBy)
+    }
+
+    suspend fun deleteGrant(recipeId: Long, userId: Long) {
+        database.recipesQueries.deleteGrant(recipeId, userId)
+    }
 
     suspend fun nodes(recipeId: Long): List<Recipe_nodes> =
         database.recipeGraphQueries.selectNodes(recipeId).awaitAsList()
@@ -79,23 +138,45 @@ class RecipeRepository(
     suspend fun allToolAlts(): List<SelectAllRecipeToolAlts> =
         database.recipeGraphQueries.selectAllRecipeToolAlts().awaitAsList()
 
-    suspend fun insert(write: RecipeWrite, analysis: Analysis): Long = postgres.tx {
+    suspend fun insert(write: RecipeWrite, analysis: Analysis, ownerId: Long): Long = postgres.tx {
         val id = fetchAll(
             sql(
-                "INSERT INTO recipes (title, cooks) VALUES (:title, :cooks) RETURNING id",
-                mapOf("title" to write.title, "cooks" to write.cooks),
+                """
+                INSERT INTO recipes (title, cooks, owner_id, visibility)
+                VALUES (:title, :cooks, :owner_id, :visibility)
+                RETURNING id
+                """.trimIndent(),
+                mapOf(
+                    "title" to write.title,
+                    "cooks" to write.cooks,
+                    "owner_id" to ownerId,
+                    "visibility" to write.visibility.wire(),
+                ),
             ),
         ).getOrThrow().single().get("id").asLong()
         writeGraph(id, write, analysis)
         id
     }
 
-    suspend fun replace(id: Long, write: RecipeWrite, analysis: Analysis) {
+    suspend fun replace(id: Long, write: RecipeWrite, analysis: Analysis, actorId: Long) {
         postgres.tx {
             val updated = execute(
                 sql(
-                    "UPDATE recipes SET title = :title, cooks = :cooks WHERE id = :id",
-                    mapOf("id" to id, "title" to write.title, "cooks" to write.cooks),
+                    """
+                    UPDATE recipes
+                    SET title = :title,
+                        cooks = :cooks,
+                        visibility = :visibility,
+                        owner_id = COALESCE(owner_id, :actor_id)
+                    WHERE id = :id
+                    """.trimIndent(),
+                    mapOf(
+                        "id" to id,
+                        "title" to write.title,
+                        "cooks" to write.cooks,
+                        "visibility" to write.visibility.wire(),
+                        "actor_id" to actorId,
+                    ),
                 ),
             ).getOrThrow()
             if (updated == 0L) throw ApiException(HttpStatusCode.NotFound, listOf("recipe not found"))
@@ -317,3 +398,42 @@ private fun Presence.db(): String = when (this) {
     Presence.AllPaths -> "all_paths"
     Presence.SomePaths -> "some_paths"
 }
+
+private fun RecipeVisibility.wire(): String = when (this) {
+    RecipeVisibility.Public -> "public"
+    RecipeVisibility.Private -> "private"
+}
+
+private fun RecipePermission.wire(): String = when (this) {
+    RecipePermission.Read -> "read"
+    RecipePermission.Write -> "write"
+}
+
+private fun permission(value: String): RecipePermission = when (value) {
+    "write" -> RecipePermission.Write
+    else -> RecipePermission.Read
+}
+
+private fun SelectPublicSummaries.toSummary() = RecipeSummary(
+    id = id,
+    title = title,
+    cooks = cooks,
+    ownerId = owner_id,
+    visibility = visibility,
+    handsOnMinSeconds = hands_on_min_seconds ?: 0,
+    handsOnMaxSeconds = hands_on_max_seconds ?: 0,
+    elapsedMinSeconds = elapsed_min_seconds ?: 0,
+    elapsedMaxSeconds = elapsed_max_seconds ?: 0,
+)
+
+private fun SelectVisibleSummaries.toSummary() = RecipeSummary(
+    id = id,
+    title = title,
+    cooks = cooks,
+    ownerId = owner_id,
+    visibility = visibility,
+    handsOnMinSeconds = hands_on_min_seconds ?: 0,
+    handsOnMaxSeconds = hands_on_max_seconds ?: 0,
+    elapsedMinSeconds = elapsed_min_seconds ?: 0,
+    elapsedMaxSeconds = elapsed_max_seconds ?: 0,
+)

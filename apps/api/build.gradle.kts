@@ -38,6 +38,8 @@ kotlin {
         }
         nativeMain.dependencies {
             implementation(project(":packages:core"))
+            implementation(project(":packages:workos"))
+            implementation(libs.ktor.clientCio)
             implementation(libs.ktor.serverCore)
             implementation(libs.ktor.serverStatusPages)
             implementation(libs.ktor.serverCio)

@@ -14,8 +14,14 @@ import com.bieniucieniu.cookbook.features.recipes.domain.NodeResponse
 import com.bieniucieniu.cookbook.features.recipes.domain.NodeToolResponse
 import com.bieniucieniu.cookbook.features.recipes.domain.ParallelPair
 import com.bieniucieniu.cookbook.features.recipes.domain.Presence
+import com.bieniucieniu.cookbook.features.auth.Actor
+import com.bieniucieniu.cookbook.features.auth.AuthRepository
+import com.bieniucieniu.cookbook.features.recipes.domain.GrantWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeDetail
+import com.bieniucieniu.cookbook.features.recipes.domain.RecipeGrant
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeListItem
+import com.bieniucieniu.cookbook.features.recipes.domain.RecipePermission
+import com.bieniucieniu.cookbook.features.recipes.domain.RecipeVisibility
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.SpanKind
 import com.bieniucieniu.cookbook.features.recipes.domain.SpanResponse
@@ -47,22 +53,26 @@ import com.bieniucieniu.cookbook.features.recipes.graph.ToolHold as GraphHold
 class RecipeService(
     private val recipes: RecipeRepository,
     private val catalog: CatalogRepository,
+    private val users: AuthRepository,
 ) {
-    suspend fun list(query: SearchQuery): List<RecipeListItem> {
+    suspend fun list(actorId: Long?, query: SearchQuery): List<RecipeListItem> {
         val allergens = catalog.allergensByIngredient().mapValues { (_, ids) -> ids.toSet() }
-        val ingredientFacts = recipes.allIngredientFacts().groupBy { it.recipe_id }
-        val toolFacts = recipes.allToolFacts().groupBy { it.recipe_id }
-        val ingredientAlts = recipes.allIngredientAlts().groupBy { it.recipe_id }
-        val toolAlts = recipes.allToolAlts().groupBy { it.recipe_id }
-        val rows = recipes.summaries().map { row ->
+        val visible = recipes.visibleSummaries(actorId)
+        val ids = visible.map { it.id }.toSet()
+        val ingredientFacts = recipes.allIngredientFacts().filter { it.recipe_id in ids }.groupBy { it.recipe_id }
+        val toolFacts = recipes.allToolFacts().filter { it.recipe_id in ids }.groupBy { it.recipe_id }
+        val ingredientAlts = recipes.allIngredientAlts().filter { it.recipe_id in ids }.groupBy { it.recipe_id }
+        val toolAlts = recipes.allToolAlts().filter { it.recipe_id in ids }.groupBy { it.recipe_id }
+        val meta = visible.associateBy { it.id }
+        val rows = visible.map { row ->
             SearchRecipe(
                 id = row.id,
                 title = row.title,
                 cooks = row.cooks,
-                handsOnMinSeconds = row.hands_on_min_seconds ?: 0,
-                handsOnMaxSeconds = row.hands_on_max_seconds ?: 0,
-                elapsedMinSeconds = row.elapsed_min_seconds ?: 0,
-                elapsedMaxSeconds = row.elapsed_max_seconds ?: 0,
+                handsOnMinSeconds = row.handsOnMinSeconds,
+                handsOnMaxSeconds = row.handsOnMaxSeconds,
+                elapsedMinSeconds = row.elapsedMinSeconds,
+                elapsedMaxSeconds = row.elapsedMaxSeconds,
                 ingredientFacts = ingredientFacts[row.id].orEmpty().associate {
                     it.ingredient_id to graphPresence(it.presence)
                 },
@@ -80,10 +90,13 @@ class RecipeService(
         }
         return search(rows, query).map { hit ->
             val recipe = hit.recipe
+            val summary = meta.getValue(recipe.id)
             RecipeListItem(
                 id = recipe.id,
                 title = recipe.title,
                 cooks = recipe.cooks,
+                ownerId = summary.ownerId,
+                visibility = visibility(summary.visibility),
                 handsOnMinSeconds = recipe.handsOnMinSeconds,
                 handsOnMaxSeconds = recipe.handsOnMaxSeconds,
                 elapsedMinSeconds = recipe.elapsedMinSeconds,
@@ -94,25 +107,27 @@ class RecipeService(
         }
     }
 
-    suspend fun get(id: Long, query: SearchQuery): RecipeDetail {
+    suspend fun get(actorId: Long?, id: Long, query: SearchQuery): RecipeDetail {
         val recipe = recipes.recipe(id) ?: throw ApiException(HttpStatusCode.NotFound, listOf("recipe not found"))
+        require(actorId, recipe, RecipeAction.Read)
         val nodes = recipes.nodes(id)
-        val summary = recipes.summaries().firstOrNull { it.id == id }
         val ingredientRows = recipes.nodeIngredients(id)
         val toolRows = recipes.nodeTools(id)
         val spanRows = recipes.spans(id)
         val edgeRows = recipes.edges(id)
         val ingredientAlts = recipes.ingredientAlts(id)
         val toolAlts = recipes.toolAlts(id)
-        val timeHandsMin = summary?.hands_on_min_seconds ?: 0
-        val timeHandsMax = summary?.hands_on_max_seconds ?: 0
-        val timeElapsedMin = summary?.elapsed_min_seconds ?: 0
-        val timeElapsedMax = summary?.elapsed_max_seconds ?: 0
+        val timeHandsMin = recipe.handsOnMinSeconds
+        val timeHandsMax = recipe.handsOnMaxSeconds
+        val timeElapsedMin = recipe.elapsedMinSeconds
+        val timeElapsedMax = recipe.elapsedMaxSeconds
         if (nodes.isEmpty()) {
             return RecipeDetail(
                 id = recipe.id,
                 title = recipe.title,
                 cooks = recipe.cooks,
+                ownerId = recipe.ownerId,
+                visibility = visibility(recipe.visibility),
                 handsOnMinSeconds = timeHandsMin,
                 handsOnMaxSeconds = timeHandsMax,
                 elapsedMinSeconds = timeElapsedMin,
@@ -152,6 +167,8 @@ class RecipeService(
             id = recipe.id,
             title = recipe.title,
             cooks = recipe.cooks,
+            ownerId = recipe.ownerId,
+            visibility = visibility(recipe.visibility),
             handsOnMinSeconds = timeHandsMin,
             handsOnMaxSeconds = timeHandsMax,
             elapsedMinSeconds = timeElapsedMin,
@@ -202,21 +219,63 @@ class RecipeService(
         )
     }
 
-    suspend fun create(write: RecipeWrite): RecipeDetail {
+    suspend fun create(actor: Actor, write: RecipeWrite): RecipeDetail {
         val analysis = prepare(write)
-        val id = recipes.insert(write, analysis)
-        return get(id, SearchQuery())
+        val id = recipes.insert(write, analysis, actor.userId)
+        return get(actor.userId, id, SearchQuery())
     }
 
-    suspend fun update(id: Long, write: RecipeWrite): RecipeDetail {
-        if (recipes.recipe(id) == null) throw ApiException(HttpStatusCode.NotFound, listOf("recipe not found"))
+    suspend fun update(actor: Actor, id: Long, write: RecipeWrite): RecipeDetail {
+        val current = recipes.recipe(id) ?: throw ApiException(HttpStatusCode.NotFound, listOf("recipe not found"))
+        require(actor.userId, current, RecipeAction.Update)
+        if (visibility(current.visibility) != write.visibility) {
+            require(actor.userId, current, RecipeAction.ChangeVisibility)
+        }
         val analysis = prepare(write)
-        recipes.replace(id, write, analysis)
-        return get(id, SearchQuery())
+        recipes.replace(id, write, analysis, actor.userId)
+        return get(actor.userId, id, SearchQuery())
     }
 
-    suspend fun delete(id: Long) {
+    suspend fun delete(actor: Actor, id: Long) {
+        val current = recipes.recipe(id) ?: throw ApiException(HttpStatusCode.NotFound, listOf("recipe not found"))
+        require(actor.userId, current, RecipeAction.Delete)
         if (!recipes.delete(id)) throw ApiException(HttpStatusCode.NotFound, listOf("recipe not found"))
+    }
+
+    suspend fun grants(actor: Actor, id: Long): List<RecipeGrant> {
+        val current = loadOwned(actor, id)
+        return recipes.grants(current.id)
+    }
+
+    suspend fun grant(actor: Actor, id: Long, write: GrantWrite): List<RecipeGrant> {
+        val current = loadOwned(actor, id)
+        if (write.email.isBlank()) throw ApiException(HttpStatusCode.BadRequest, listOf("email is required"))
+        val user = users.userByEmail(write.email)
+            ?: throw ApiException(HttpStatusCode.NotFound, listOf("user not found"))
+        if (user.id == current.ownerId) throw ApiException(HttpStatusCode.BadRequest, listOf("owner already has access"))
+        recipes.upsertGrant(id, user.id, write.permission, actor.userId)
+        return recipes.grants(id)
+    }
+
+    suspend fun revoke(actor: Actor, id: Long, userId: Long) {
+        loadOwned(actor, id)
+        recipes.deleteGrant(id, userId)
+    }
+
+    private suspend fun loadOwned(actor: Actor, id: Long): RecipeHead {
+        val current = recipes.recipe(id) ?: throw ApiException(HttpStatusCode.NotFound, listOf("recipe not found"))
+        require(actor.userId, current, RecipeAction.Grant)
+        return current
+    }
+
+    private suspend fun require(actorId: Long?, recipe: RecipeHead, action: RecipeAction) {
+        val grant = if (actorId == null) null else recipes.grantFor(recipe.id, actorId)
+        val denied = decide(
+            actorId,
+            RecipeAcl(recipe.ownerId, visibility(recipe.visibility), grant),
+            action,
+        )
+        if (denied != null) throw ApiException(denied, listOf(if (denied == HttpStatusCode.NotFound) "recipe not found" else "forbidden"))
     }
 
     private suspend fun prepare(write: RecipeWrite): Analysis {
@@ -318,6 +377,11 @@ private fun GateMode.toGraph(): GraphGate = when (this) {
     GateMode.None -> GraphGate.None
     GateMode.And -> GraphGate.And
     GateMode.Xor -> GraphGate.Xor
+}
+
+private fun visibility(value: String): RecipeVisibility = when (value) {
+    "private" -> RecipeVisibility.Private
+    else -> RecipeVisibility.Public
 }
 
 private fun SpanKind.toGraph(): GraphSpan = when (this) {
