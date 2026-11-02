@@ -29,6 +29,9 @@ kotlin {
         binaries {
             executable {
                 entryPoint = "com.bieniucieniu.cookbook.main"
+                // Default custom-allocator pages are hundreds of KiB per size class
+                // per thread and get the process OOMKilled under a container limit.
+                binaryOption("fixedBlockPageSize", "16")
                 val curlArch = when (requestedTarget) {
                     "linuxArm64" -> "aarch64"
                     "linuxX64" -> "x86_64"
