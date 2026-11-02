@@ -23,6 +23,10 @@ kotlin {
         binaries {
             executable {
                 entryPoint = "com.bieniucieniu.cookbook.main"
+                if (hostOs == "Linux") {
+                    val gnuArch = if (arch == "aarch64") "aarch64" else "x86_64"
+                    linkerOpts("-L/usr/lib/$gnuArch-linux-gnu", "-L/usr/lib", "-lcurl")
+                }
             }
         }
     }

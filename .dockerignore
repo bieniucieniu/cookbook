@@ -1,0 +1,11 @@
+.git
+.devenv
+.gradle
+**/.gradle
+**/.kotlin
+**/build
+**/node_modules
+.idea
+.cursor
+.direnv
+*.md
