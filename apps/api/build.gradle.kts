@@ -56,6 +56,8 @@ kotlin {
         nativeTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.ktor.serverTestHost)
+            implementation(libs.ktor.clientMock)
+            implementation(libs.ktor.clientContentNegotiation)
         }
     }
 }

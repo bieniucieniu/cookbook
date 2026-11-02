@@ -3,6 +3,7 @@ package com.bieniucieniu.cookbook.app
 import com.bieniucieniu.cookbook.core.database.databaseModule
 import com.bieniucieniu.cookbook.features.auth.authModule
 import com.bieniucieniu.cookbook.features.catalog.catalogModule
+import com.bieniucieniu.cookbook.features.mcp.mcpModule
 import com.bieniucieniu.cookbook.features.photos.photoModule
 import com.bieniucieniu.cookbook.features.recipes.recipeModule
 import io.ktor.server.application.Application
@@ -21,6 +22,7 @@ fun Application.configureKoin() {
             authModule,
             catalogModule,
             recipeModule,
+            mcpModule,
         )
         createEagerInstances()
     }

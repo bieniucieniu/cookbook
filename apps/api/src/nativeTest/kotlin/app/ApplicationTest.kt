@@ -75,6 +75,8 @@ class ApplicationTest {
         assertEquals(true, body.contains("CommentWrite"))
         assertEquals(true, body.contains("PhotoUpload"))
         assertEquals(false, body.contains("documentation.json"))
+        assertEquals(false, body.contains("\"/mcp\""))
+        assertEquals(false, body.contains("oauth-protected-resource"))
     }
 
     @Test

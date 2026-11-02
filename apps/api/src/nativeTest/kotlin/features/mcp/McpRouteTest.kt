@@ -1,0 +1,276 @@
+package com.bieniucieniu.cookbook.features.mcp
+
+import com.bieniucieniu.cookbook.core.http.configureSerialization
+import com.bieniucieniu.cookbook.core.http.configureStatusPages
+import com.bieniucieniu.cookbook.features.auth.Actor
+import com.bieniucieniu.cookbook.features.auth.AuthConfig
+import com.bieniucieniu.cookbook.features.auth.OptionalWorkOS
+import com.bieniucieniu.cookbook.features.catalog.domain.Allergen
+import com.bieniucieniu.cookbook.features.catalog.domain.Ingredient
+import com.bieniucieniu.cookbook.features.catalog.domain.Tool
+import com.bieniucieniu.cookbook.features.recipes.domain.CommentResponse
+import com.bieniucieniu.cookbook.features.recipes.domain.CommentWrite
+import com.bieniucieniu.cookbook.features.recipes.domain.RecipeDetail
+import com.bieniucieniu.cookbook.features.recipes.domain.RecipeWrite
+import com.bieniucieniu.cookbook.workos.SecureBytes
+import com.bieniucieniu.cookbook.workos.WorkOS
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.mock.MockEngine
+import io.ktor.client.engine.mock.respond
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
+import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
+import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
+import io.ktor.http.HttpStatusCode
+import io.ktor.http.content.OutgoingContent
+import io.ktor.http.contentType
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.install
+import io.ktor.server.routing.routing
+import io.ktor.server.testing.testApplication
+import kotlinx.serialization.json.Json
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+import org.koin.dsl.module
+import org.koin.ktor.plugin.Koin
+
+class McpRouteTest {
+    @Test
+    fun missingTokenIsUnauthorized() = harness { _, _ ->
+        val response = client.post("/mcp") {
+            contentType(ContentType.Application.Json)
+            setBody("""{"jsonrpc":"2.0","id":1,"method":"initialize"}""")
+        }
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+        val challenge = response.headers[HttpHeaders.WWWAuthenticate].orEmpty()
+        assertTrue(challenge.contains("resource_metadata="))
+        assertTrue(challenge.contains("http://127.0.0.1:8080/.well-known/oauth-protected-resource"))
+    }
+
+    @Test
+    fun protectedResourceDocument() = harness { _, _ ->
+        val response = client.get("/.well-known/oauth-protected-resource")
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("http://127.0.0.1:8080/mcp"))
+        assertTrue(body.contains("https://authkit.example"))
+        assertTrue(body.contains("header"))
+    }
+
+    @Test
+    fun activeTokenListsTools() = harness { _, _ ->
+        val headers = client.post("/mcp") {
+            header(HttpHeaders.Authorization, "Bearer good")
+            contentType(ContentType.Application.Json)
+            setBody("""{"jsonrpc":"2.0","id":1,"method":"initialize"}""")
+        }
+        assertEquals(HttpStatusCode.OK, headers.status)
+        val initialized = headers.bodyAsText()
+        assertTrue(initialized.contains("2025-03-26"))
+        assertTrue(initialized.contains("cookbook"))
+
+        val listed = client.post("/mcp") {
+            header(HttpHeaders.Authorization, "Bearer good")
+            contentType(ContentType.Application.Json)
+            setBody("""{"jsonrpc":"2.0","id":2,"method":"tools/list"}""")
+        }
+        assertEquals(HttpStatusCode.OK, listed.status)
+        assertTrue(listed.bodyAsText().contains("create_recipe"))
+    }
+
+    @Test
+    fun wrongAudienceIsUnauthorized() = harness { accounts, _ ->
+        val response = client.post("/mcp") {
+            header(HttpHeaders.Authorization, "Bearer bad-aud")
+            contentType(ContentType.Application.Json)
+            setBody("""{"jsonrpc":"2.0","id":1,"method":"ping"}""")
+        }
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+        assertEquals(null, accounts.workosUserId)
+    }
+
+    @Test
+    fun inactiveTokenIsUnauthorized() = harness { accounts, _ ->
+        val response = client.post("/mcp") {
+            header(HttpHeaders.Authorization, "Bearer inactive")
+            contentType(ContentType.Application.Json)
+            setBody("""{"jsonrpc":"2.0","id":1,"method":"ping"}""")
+        }
+        assertEquals(HttpStatusCode.Unauthorized, response.status)
+        assertEquals(null, accounts.workosUserId)
+    }
+
+    @Test
+    fun listAllergensUsesUpsertedUser() = harness { accounts, catalog ->
+        val response = client.post("/mcp") {
+            header(HttpHeaders.Authorization, "Bearer good")
+            contentType(ContentType.Application.Json)
+            setBody(
+                """{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_allergens","arguments":{}}}""",
+            )
+        }
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("milk"))
+        assertEquals("user_01", accounts.workosUserId)
+        assertEquals("ada@example.com", accounts.email)
+        assertEquals(true, catalog.listed)
+    }
+
+    @Test
+    fun notificationIsAccepted() = harness { _, _ ->
+        val response = client.post("/mcp") {
+            header(HttpHeaders.Authorization, "Bearer good")
+            contentType(ContentType.Application.Json)
+            setBody("""{"jsonrpc":"2.0","method":"notifications/initialized"}""")
+        }
+        assertEquals(HttpStatusCode.Accepted, response.status)
+        assertEquals("", response.bodyAsText())
+    }
+
+    @Test
+    fun foreignOriginIsForbidden() = harness { _, _ ->
+        val response = client.post("/mcp") {
+            header(HttpHeaders.Origin, "http://evil.example")
+            header(HttpHeaders.Authorization, "Bearer good")
+            contentType(ContentType.Application.Json)
+            setBody("""{"jsonrpc":"2.0","id":1,"method":"ping"}""")
+        }
+        assertEquals(HttpStatusCode.Forbidden, response.status)
+    }
+
+    private fun harness(
+        block: suspend io.ktor.server.testing.ApplicationTestBuilder.(RecordingAccounts, RecordingCatalog) -> Unit,
+    ) {
+        val http = mockHttp()
+        val accounts = RecordingAccounts()
+        val catalog = RecordingCatalog()
+        try {
+            testApplication {
+                application {
+                    configureSerialization()
+                    configureStatusPages()
+                    val app = this
+                    app.install(Koin) {
+                        modules(module {
+                            single { testConfig() }
+                            single { http }
+                            single<OptionalWorkOS> {
+                                OptionalWorkOS(
+                                    WorkOS(
+                                        apiKey = "sk_test",
+                                        clientId = "client_test",
+                                        httpClient = http,
+                                        apiBaseUrl = "https://api.workos.com",
+                                        secureBytes = SecureBytes { ByteArray(it) },
+                                    ),
+                                )
+                            }
+                            single {
+                                McpAuth(
+                                    config = get(),
+                                    http = get(),
+                                    workos = get<OptionalWorkOS>().client,
+                                    accounts = accounts,
+                                )
+                            }
+                            single { McpTools(catalog, ThrowingRecipes()) }
+                        })
+                    }
+                    routing { configureMcpRouting() }
+                }
+                block(accounts, catalog)
+            }
+        } finally {
+            http.close()
+        }
+    }
+}
+
+private fun testConfig() = AuthConfig(
+    clientId = "client_test",
+    apiKey = "sk_test",
+    redirectUri = "http://localhost:3000/api/auth/callback",
+    logoutReturnTo = "http://localhost:3000/",
+    apiBaseUrl = "https://api.workos.com",
+    sessionTtlSeconds = 60,
+    agentToken = null,
+    authKitDomain = "https://authkit.example",
+    mcpResourceUrl = "http://127.0.0.1:8080/mcp",
+)
+
+private fun mockHttp(): HttpClient = HttpClient(MockEngine { request ->
+    val path = request.url.encodedPath
+    when {
+        path.endsWith("/oauth2/introspection") -> {
+            val form = request.bodyText()
+            val json = when {
+                "token=inactive" in form -> """{"active":false}"""
+                "token=bad-aud" in form ->
+                    """{"active":true,"sub":"user_01","aud":"https://other.example/mcp","exp":4000000000}"""
+                else ->
+                    """{"active":true,"sub":"user_01","aud":"http://127.0.0.1:8080/mcp","exp":4000000000}"""
+            }
+            respond(json, HttpStatusCode.OK, io.ktor.http.headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))
+        }
+        path.endsWith("/user_management/users/user_01") && request.method == HttpMethod.Get -> respond(
+            """{"id":"user_01","email":"ada@example.com","first_name":"Ada","last_name":"Lovelace"}""",
+            HttpStatusCode.OK,
+            io.ktor.http.headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+        )
+        path.endsWith("/.well-known/oauth-authorization-server") -> respond(
+            """{"issuer":"https://authkit.example"}""",
+            HttpStatusCode.OK,
+            io.ktor.http.headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+        )
+        else -> error("unexpected ${request.method.value} ${request.url}")
+    }
+}) {
+    install(ContentNegotiation) {
+        json(Json { ignoreUnknownKeys = true; explicitNulls = false })
+    }
+}
+
+private fun io.ktor.client.request.HttpRequestData.bodyText(): String = when (val content = body) {
+    is OutgoingContent.ByteArrayContent -> content.bytes().decodeToString()
+    else -> content.toString()
+}
+
+private class RecordingAccounts : McpAccounts {
+    var workosUserId: String? = null
+    var email: String? = null
+
+    override suspend fun account(workosUserId: String, email: String, firstName: String, lastName: String): Actor {
+        this.workosUserId = workosUserId
+        this.email = email
+        return Actor(9)
+    }
+}
+
+private class RecordingCatalog : McpCatalog {
+    var listed: Boolean = false
+
+    override suspend fun listAllergens(): List<Allergen> {
+        listed = true
+        return listOf(Allergen(id = 3, slug = "milk", name = "Milk"))
+    }
+
+    override suspend fun listIngredients(): List<Ingredient> = error("unused")
+    override suspend fun listTools(): List<Tool> = error("unused")
+    override suspend fun createAllergen(slug: String, name: String): Allergen = error("unused")
+    override suspend fun createIngredient(slug: String, name: String): Ingredient = error("unused")
+    override suspend fun createTool(slug: String, name: String): Tool = error("unused")
+}
+
+private class ThrowingRecipes : McpRecipes {
+    override suspend fun get(actor: Actor, id: Long): RecipeDetail = error("unused")
+    override suspend fun create(actor: Actor, write: RecipeWrite): RecipeDetail = error("unused")
+    override suspend fun update(actor: Actor, id: Long, write: RecipeWrite): RecipeDetail = error("unused")
+    override suspend fun comment(actor: Actor, id: Long, write: CommentWrite): CommentResponse = error("unused")
+}

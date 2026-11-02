@@ -7,7 +7,6 @@ catalogMode: strict
 catalog:
   "@kobalte/core": ^0.13.14
   "@xyflow/system": 0.0.83
-  "@modelcontextprotocol/sdk": ^1.32.2
   "@tailwindcss/vite": ^4.3.3
   "@tanstack/router-plugin": ^1.168.48
   "@tanstack/solid-query": ^5.105.1
@@ -23,7 +22,6 @@ catalog:
   vite: npm:@voidzero-dev/vite-plus-core@1.4.0
   vite-plugin-solid: ^2.11.15
   vite-plus: 1.4.0
-  zod: ^4.6.7
 
 allowBuilds:
   esbuild: true

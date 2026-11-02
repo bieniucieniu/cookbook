@@ -10,25 +10,29 @@ import kotlinx.coroutines.runBlocking
 import org.koin.dsl.module
 import org.koin.ktor.ext.get
 
+class OptionalWorkOS(val client: WorkOS?)
+
 val authModule = module {
     single { AuthConfig.fromEnv() }
     single { AuthRepository(get(), get()) }
     single<SessionReader> { SessionService(get(), get<AuthConfig>().agentToken) }
     single {
         val config = get<AuthConfig>()
-        val workos = if (!config.configured) {
-            null
-        } else {
-            WorkOS(
-                apiKey = config.apiKey,
-                clientId = config.clientId,
-                httpClient = get(),
-                apiBaseUrl = config.apiBaseUrl,
-                secureBytes = SecureBytes { randomBytes(it) },
-            )
-        }
-        AuthService(get(), get(), workos)
+        OptionalWorkOS(
+            if (!config.configured) {
+                null
+            } else {
+                WorkOS(
+                    apiKey = config.apiKey,
+                    clientId = config.clientId,
+                    httpClient = get(),
+                    apiBaseUrl = config.apiBaseUrl,
+                    secureBytes = SecureBytes { randomBytes(it) },
+                )
+            },
+        )
     }
+    single { AuthService(config = get(), repository = get(), workos = get<OptionalWorkOS>().client) }
 }
 
 fun Application.configureHttpShutdown() {
