@@ -10,22 +10,37 @@ version = "1.0.0"
 kotlin {
     val hostOs = System.getProperty("os.name")
     val arch = System.getProperty("os.arch")
-    val nativeTarget = when {
-        hostOs == "Mac OS X" && arch == "x86_64" -> macosX64("native")
-        hostOs == "Mac OS X" && arch == "aarch64" -> macosArm64("native")
-        hostOs == "Linux" && (arch == "x86_64" || arch == "amd64") -> linuxX64("native")
-        hostOs == "Linux" && arch == "aarch64" -> linuxArm64("native")
-        hostOs.startsWith("Windows") -> mingwX64("native")
-        else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
+    val requestedTarget = project.findProperty("native.target") as String?
+    val nativeTarget = when (requestedTarget) {
+        "linuxX64" -> linuxX64("native")
+        "linuxArm64" -> linuxArm64("native")
+        null -> when {
+            hostOs == "Mac OS X" && arch == "x86_64" -> macosX64("native")
+            hostOs == "Mac OS X" && arch == "aarch64" -> macosArm64("native")
+            hostOs == "Linux" && (arch == "x86_64" || arch == "amd64") -> linuxX64("native")
+            hostOs == "Linux" && arch == "aarch64" -> linuxArm64("native")
+            hostOs.startsWith("Windows") -> mingwX64("native")
+            else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
+        }
+        else -> throw GradleException("Unsupported -Pnative.target=$requestedTarget. Use linuxX64 or linuxArm64.")
     }
 
     nativeTarget.apply {
         binaries {
             executable {
                 entryPoint = "com.bieniucieniu.cookbook.main"
-                if (hostOs == "Linux") {
-                    val gnuArch = if (arch == "aarch64") "aarch64" else "x86_64"
-                    linkerOpts("-L/usr/lib/$gnuArch-linux-gnu", "-L/usr/lib", "-lcurl")
+                val curlArch = when (requestedTarget) {
+                    "linuxArm64" -> "aarch64"
+                    "linuxX64" -> "x86_64"
+                    null -> if (hostOs == "Linux") {
+                        if (arch == "aarch64") "aarch64" else "x86_64"
+                    } else {
+                        null
+                    }
+                    else -> null
+                }
+                if (curlArch != null) {
+                    linkerOpts("-L/usr/lib/$curlArch-linux-gnu", "-L/usr/lib", "-lcurl")
                 }
             }
         }

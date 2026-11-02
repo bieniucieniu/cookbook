@@ -1,18 +1,32 @@
 # syntax=docker/dockerfile:1
-# Build on the target architecture. Kotlin/Native uses the host target, so do
-# not compile this image under QEMU.
+# The Kotlin/Native compiler runs on linux/amd64, not linux/arm64.
+# Cross-compile linuxArm64 from the amd64 build stage. QEMU is only for the
+# runtime image's package install.
 
-FROM eclipse-temurin:25-jdk AS build
+FROM --platform=$BUILDPLATFORM eclipse-temurin:25-jdk AS build
+
+ARG TARGETARCH
+ARG GRADLE_VERSION=9.8.2
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl unzip libcurl4-openssl-dev \
-    && rm -rf /var/lib/apt/lists/*
-
-ARG GRADLE_VERSION=9.8.2
-RUN curl -fsSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip \
+    && apt-get install -y --no-install-recommends ca-certificates curl unzip \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -fsSL "https://services.gradle.org/distributions/gradle-${GRADLE_VERSION}-bin.zip" -o /tmp/gradle.zip \
     && unzip -q /tmp/gradle.zip -d /opt \
     && ln -s "/opt/gradle-${GRADLE_VERSION}/bin/gradle" /usr/local/bin/gradle \
     && rm /tmp/gradle.zip
+
+RUN set -eux; \
+    if [ "$TARGETARCH" = "arm64" ]; then \
+      dpkg --add-architecture arm64; \
+      apt-get update; \
+      apt-get install -y --no-install-recommends libcurl4:arm64; \
+      ln -sf libcurl.so.4 /usr/lib/aarch64-linux-gnu/libcurl.so; \
+    else \
+      apt-get update; \
+      apt-get install -y --no-install-recommends libcurl4-openssl-dev; \
+    fi; \
+    rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
 
@@ -25,9 +39,16 @@ COPY packages/s3/build.gradle.kts packages/s3/build.gradle.kts
 COPY apps/api apps/api
 COPY packages packages
 
-RUN gradle :apps:api:linkReleaseExecutableNative --no-daemon
+RUN set -eux; \
+    case "$TARGETARCH" in \
+      amd64) native_target=linuxX64 ;; \
+      arm64) native_target=linuxArm64 ;; \
+      *) echo "unsupported TARGETARCH=$TARGETARCH" >&2; exit 1 ;; \
+    esac; \
+    gradle :apps:api:linkReleaseExecutableNative --no-daemon -Pnative.target="$native_target"; \
+    test -x apps/api/build/bin/native/releaseExecutable/api.kexe
 
-FROM debian:bookworm-slim
+FROM --platform=$TARGETPLATFORM ubuntu:24.04
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates libcurl4 \
