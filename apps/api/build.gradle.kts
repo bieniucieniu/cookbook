@@ -31,9 +31,7 @@ kotlin {
                 entryPoint = "com.bieniucieniu.cookbook.main"
                 // The custom allocator maps a 2GiB arena and faults it during
                 // startup. On the Pi that exceeds the container limit.
-                linkTaskProvider.configure {
-                    compilerOptions.freeCompilerArgs.add("-Xallocator=std")
-                }
+                compilerOptions.freeCompilerArgs.add("-Xallocator=std")
                 val curlArch = when (requestedTarget) {
                     "linuxArm64" -> "aarch64"
                     "linuxX64" -> "x86_64"
