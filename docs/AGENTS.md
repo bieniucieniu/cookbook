@@ -10,6 +10,7 @@ packages/
   core      Kotlin/Native shared lib Gradle `:packages:core`
   workos    Native WorkOS client     Gradle `:packages:workos`
   s3        Native S3 client         Gradle `:packages:s3`
+  storybook Solid Storybook          scans the monorepo  pnpm `@cookbook/storybook`
 ```
 
 New JS app → `apps/<name>`. API stays `apps/api`. New shared lib → `packages/<name>`. `:packages:workos` is the WorkOS client. `:packages:s3` is the Native stand-in for `aws.sdk.kotlin:s3`.
@@ -28,31 +29,35 @@ Postgres: `devenv up` (or a profile that starts it). URL `postgresql://127.0.0.1
 
 Server config: env read in `apps/api` (`embeddedServer(CIO)`). Env (do not commit secrets):
 
-| Var                                   | Required  | Notes                                                                                                                                                |
-| ------------------------------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`                        | no        | default `postgresql://127.0.0.1:5432/cookbook`                                                                                                       |
-| `DATABASE_USER` / `DATABASE_PASSWORD` | no        | default `cookbook`                                                                                                                                   |
-| `DATABASE_MAX_POOL_SIZE`              | no        | default `10`                                                                                                                                         |
-| `AUTO_MIGRATE`                        | no        | default `true`                                                                                                                                       |
-| `DATABASE_MIGRATIONS`                 | no        | default `apps/api/db/migrations`                                                                                                                     |
-| `WORKOS_CLIENT_ID`                    | for login | AuthKit client id                                                                                                                                    |
-| `WORKOS_API_KEY`                      | for login | WorkOS secret key. Login returns 503 when this or the client id is missing                                                                           |
-| `WORKOS_REDIRECT_URI`                 | no        | default `http://localhost:3000/api/auth/callback`                                                                                                    |
-| `WORKOS_LOGOUT_RETURN_TO`             | no        | default `http://localhost:3000/`                                                                                                                     |
-| `WORKOS_API_BASE_URL`                 | no        | default `https://api.workos.com`                                                                                                                     |
-| `WORKOS_AUTHKIT_DOMAIN`               | for mcp   | AuthKit issuer, no trailing slash. `POST /mcp` returns 503 when this, the client id, or the API key is missing                                      |
-| `MCP_RESOURCE_URL`                    | no        | default `http://127.0.0.1:8080/mcp`. Access token `aud` must equal this string. Register it as a WorkOS Resource Indicator and set it as the default. Enable Client ID Metadata Documents |
-| `SESSION_TTL_SECONDS`                 | no        | default 7 days                                                                                                                                       |
+| Var                                   | Required  | Notes                                                                                                                                                                                                  |
+| ------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`                        | no        | default `postgresql://127.0.0.1:5432/cookbook`                                                                                                                                                         |
+| `DATABASE_USER` / `DATABASE_PASSWORD` | no        | default `cookbook`                                                                                                                                                                                     |
+| `DATABASE_MAX_POOL_SIZE`              | no        | default `10`                                                                                                                                                                                           |
+| `AUTO_MIGRATE`                        | no        | default `true`                                                                                                                                                                                         |
+| `DATABASE_MIGRATIONS`                 | no        | default `apps/api/db/migrations`                                                                                                                                                                       |
+| `WORKOS_CLIENT_ID`                    | for login | AuthKit client id                                                                                                                                                                                      |
+| `WORKOS_API_KEY`                      | for login | WorkOS secret key. Login returns 503 when this or the client id is missing                                                                                                                             |
+| `WORKOS_REDIRECT_URI`                 | no        | default `http://localhost:3000/api/auth/callback`                                                                                                                                                      |
+| `WORKOS_LOGOUT_RETURN_TO`             | no        | default `http://localhost:3000/`                                                                                                                                                                       |
+| `WORKOS_API_BASE_URL`                 | no        | default `https://api.workos.com`                                                                                                                                                                       |
+| `WORKOS_AUTHKIT_DOMAIN`               | for mcp   | AuthKit issuer, no trailing slash. `POST /mcp` returns 503 when this, the client id, or the API key is missing                                                                                         |
+| `MCP_RESOURCE_URL`                    | no        | default `http://127.0.0.1:8080/mcp`. Access token `aud` must equal this string. Register it as a WorkOS Resource Indicator and set it as the default. Enable Client ID Metadata Documents              |
+| `SESSION_TTL_SECONDS`                 | no        | default 7 days                                                                                                                                                                                         |
 | `AGENT_TOKEN`                         | for agent | `Authorization: Bearer` maps to user `agent_local` / `agent@localhost`. The seed creates that user. A missing or wrong token does not open a session. This is the direct API bearer, not the MCP login |
-| `S3_ENDPOINT`                         | no        | default `http://127.0.0.1:8333`                                                                                                                      |
-| `S3_BUCKET`                           | no        | default `cookbook`                                                                                                                                   |
-| `S3_ACCESS_KEY` / `S3_SECRET_KEY`     | no        | default `cookbook`                                                                                                                                   |
-| `PHOTO_MAX_BYTES`                     | no        | default `5242880`. Larger uploads return 400 before `putObject`                                                                                      |
+| `S3_ENDPOINT`                         | no        | default `http://127.0.0.1:8333`                                                                                                                                                                        |
+| `S3_BUCKET`                           | no        | default `cookbook`                                                                                                                                                                                     |
+| `S3_ACCESS_KEY` / `S3_SECRET_KEY`     | no        | default `cookbook`                                                                                                                                                                                     |
+| `PHOTO_MAX_BYTES`                     | no        | default `5242880`. Larger uploads return 400 before `putObject`                                                                                                                                        |
 
 Commands:
 
 - Server: `devenv --profile server up` (Postgres + SeaweedFS + Native Ktor CIO on `:8080`)
-- Web: `devenv --profile web up` (extends server; Vite on `:3000`, proxies `/api` → `:8080`)
+- Web only: `devenv tasks run web:dev` (Vite on `:3000`)
+- Web: `devenv --profile web up` (Postgres + SeaweedFS + API + Vite on `:3000`, proxies `/api` → `:8080`)
+- Storybook only: `devenv tasks run storybook:dev` (Storybook on `:6006`)
+- Storybook: `devenv --profile storybook up` (Storybook process on `:6006`; Postgres and SeaweedFS still start)
+- Web + Storybook: `devenv --profile web --profile storybook up` (`:3000` and `:6006`)
 - All: `devenv --profile all up` (same as web)
 - Manual: `gradle :apps:api:runDebugExecutableNative` / `pnpm --filter web dev`
 - Seed: `gradle :apps:api:seed` (debug binary arg `seed`; needs Postgres and the S3 gateway; does not start the HTTP server)

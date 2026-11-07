@@ -1,0 +1,19 @@
+{
+  "name": "@cookbook/storybook",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "storybook dev --port 6006 --host 127.0.0.1 --no-open",
+    "build": "storybook build"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "catalog:",
+    "solid-js": "catalog:",
+    "storybook": "catalog:",
+    "storybook-solidjs-vite": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vite-plugin-solid": "catalog:"
+  }
+}

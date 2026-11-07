@@ -2,6 +2,16 @@
 let
   root = config.devenv.root;
   jdkPackage = pkgs.zulu25;
+  webDev = ''
+    set -eu
+    cd "${root}"
+    exec pnpm --filter web dev
+  '';
+  storybookDev = ''
+    set -eu
+    cd "${root}"
+    exec pnpm --filter @cookbook/storybook dev
+  '';
 in
 {
   dotenv.enable = true;
@@ -95,6 +105,14 @@ in
     pnpm --version | grep -q '^11\.'
   '';
 
+  tasks."web:dev" = {
+    exec = webDev;
+  };
+
+  tasks."storybook:dev" = {
+    exec = storybookDev;
+  };
+
   profiles = {
     server = {
       module = {
@@ -122,16 +140,26 @@ in
       module = {
         processes.web = {
           after = [ "devenv:processes:server" ];
-          exec = ''
-            set -eu
-            cd "${root}"
-            exec pnpm --filter web dev
-          '';
+          exec = webDev;
           ready = {
             http.get = {
               port = 3000;
               path = "/";
             };
+          };
+        };
+      };
+    };
+    storybook = {
+      module = {
+        processes.storybook = {
+          exec = storybookDev;
+          ready = {
+            http.get = {
+              port = 6006;
+              path = "/";
+            };
+            timeout = 120;
           };
         };
       };
