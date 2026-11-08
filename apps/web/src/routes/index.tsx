@@ -1,6 +1,13 @@
-import { Alert } from "@/components/ui/alert";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
-import { Table } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useCurrentUser } from "@/generated/auth/auth";
 import type { RecipeListItem } from "@/generated/model";
 import { type listRecipesResponse, useListRecipes } from "@/generated/recipes/recipes";
@@ -30,8 +37,8 @@ function Home() {
       </Show>
       <Show when={recipes.isError}>
         <Alert>
-          <Alert.Title>Could not load recipes</Alert.Title>
-          <Alert.Description>{recipes.error?.message}</Alert.Description>
+          <AlertTitle>Could not load recipes</AlertTitle>
+          <AlertDescription>{recipes.error?.message}</AlertDescription>
         </Alert>
       </Show>
       <Show when={listed(recipes.data)}>
@@ -41,18 +48,18 @@ function Home() {
             fallback={<p class="text-xs text-muted-foreground">No recipes yet.</p>}
           >
             <Table>
-              <Table.Header>
-                <Table.Row>
-                  <Table.Head>Title</Table.Head>
-                  <Table.Head>Visibility</Table.Head>
-                  <Table.Head>Hands-on</Table.Head>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Visibility</TableHead>
+                  <TableHead>Hands-on</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 <For each={items()}>
                   {(recipe) => (
-                    <Table.Row>
-                      <Table.Cell>
+                    <TableRow>
+                      <TableCell>
                         <Link
                           to="/recipes/$id"
                           params={{ id: String(recipe.id) }}
@@ -60,15 +67,15 @@ function Home() {
                         >
                           {recipe.title}
                         </Link>
-                      </Table.Cell>
-                      <Table.Cell>{recipe.visibility}</Table.Cell>
-                      <Table.Cell>
+                      </TableCell>
+                      <TableCell>{recipe.visibility}</TableCell>
+                      <TableCell>
                         {formatSpan(recipe.handsOnMinSeconds, recipe.handsOnMaxSeconds)}
-                      </Table.Cell>
-                    </Table.Row>
+                      </TableCell>
+                    </TableRow>
                   )}
                 </For>
-              </Table.Body>
+              </TableBody>
             </Table>
           </Show>
         )}

@@ -1,5 +1,14 @@
 import { XYDrag, nodeHasDimensions, type XYDragInstance } from "@xyflow/system";
-import { type JSX, Show, createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import {
+  type JSX,
+  Show,
+  createEffect,
+  createMemo,
+  createSignal,
+  on,
+  onCleanup,
+  onMount,
+} from "solid-js";
 import { Dynamic } from "solid-js/web";
 import { NodeIdContext, useFlow } from "../context";
 import { cx } from "../cx";
@@ -39,6 +48,20 @@ export function NodeView(props: { node: FlowNode; resizeObserver: ResizeObserver
     onCleanup(() => props.resizeObserver.unobserve(node));
   });
 
+  // `setNodes` with a new object for an id on screen drops `measured`, and the reused
+  // element does not resize. Observing it again makes the observer report its size.
+  const measured = createMemo(
+    () => props.node.measured?.width !== undefined && props.node.measured?.height !== undefined
+  );
+  createEffect(
+    on(measured, (isMeasured, wasMeasured) => {
+      const node = element();
+      if (isMeasured || !wasMeasured || !node) return;
+      props.resizeObserver.unobserve(node);
+      props.resizeObserver.observe(node);
+    })
+  );
+
   createEffect(() => {
     const node = element();
     if (!mounted() || !node || !drag || props.node.hidden || !draggable()) return;
@@ -50,6 +73,9 @@ export function NodeView(props: { node: FlowNode; resizeObserver: ResizeObserver
       isSelectable: selectable(),
       nodeClickDistance: 0,
     });
+    // Runs before the next update and when dragging is turned off or the node is hidden,
+    // so a node that is no longer draggable has no drag listeners left.
+    onCleanup(() => drag?.destroy());
   });
 
   const position = () => props.node.internals?.positionAbsolute ?? props.node.position;

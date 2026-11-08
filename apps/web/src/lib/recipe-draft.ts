@@ -10,6 +10,7 @@ import type {
   SpanWrite,
   ToolAltWrite,
 } from "@/generated/model";
+import { deriveModes } from "@/lib/recipe-graph";
 
 export type DraftNode = {
   key: string;
@@ -36,6 +37,12 @@ export type DraftPhoto = {
   alt: string;
 };
 
+/** Ingredients and tools picked for the recipe. Client only: the API sees them on steps. */
+export type DraftPantry = {
+  ingredients: number[];
+  tools: number[];
+};
+
 export type RecipeDraft = {
   title: string;
   description: string;
@@ -47,6 +54,7 @@ export type RecipeDraft = {
   ingredientAlts: IngredientAltWrite[];
   toolAlts: ToolAltWrite[];
   photos: DraftPhoto[];
+  pantry: DraftPantry;
 };
 
 export function blankNode(ord: number, key: string): DraftNode {
@@ -79,11 +87,12 @@ export function blankDraft(): RecipeDraft {
     notes: "",
     cooks: 1,
     visibility: "public",
-    nodes: [blankNode(0, "step-1")],
+    nodes: [],
     edges: [],
     ingredientAlts: [],
     toolAlts: [],
     photos: [],
+    pantry: { ingredients: [], tools: [] },
   };
 }
 
@@ -143,11 +152,22 @@ export function detailToDraft(recipe: RecipeDetail): RecipeDraft {
       note: alt.note,
     })),
     photos: (recipe.photos ?? []).map((photo) => ({ id: photo.id, alt: photo.alt ?? "" })),
+    pantry: {
+      ingredients: unique(
+        recipe.nodes.flatMap((node) => node.ingredients.map((item) => item.ingredientId))
+      ),
+      tools: unique(recipe.nodes.flatMap((node) => node.tools.map((item) => item.toolId))),
+    },
   };
+}
+
+function unique(ids: number[]): number[] {
+  return [...new Set(ids)];
 }
 
 export function draftToWrite(draft: RecipeDraft): RecipeWrite {
   const keys = new Set(draft.nodes.map((node) => node.key));
+  const modes = deriveModes(draft.nodes, draft.edges);
   return {
     title: draft.title.trim(),
     description: draft.description,
@@ -158,12 +178,12 @@ export function draftToWrite(draft: RecipeDraft): RecipeWrite {
       key: node.key,
       title: node.title.trim(),
       body: node.body,
-      branchMode: node.branchMode,
-      joinMode: node.joinMode,
+      branchMode: modes.get(node.key)?.branchMode ?? "none",
+      joinMode: modes.get(node.key)?.joinMode ?? "none",
       repeatMin: node.repeatMin,
       repeatMax: node.repeatMax,
       ord: index,
-      spans: node.spans,
+      spans: node.spans.map((span, ord) => ({ ...span, ord })),
       ingredients: node.ingredients,
       tools: node.tools,
     })),
@@ -174,4 +194,88 @@ export function draftToWrite(draft: RecipeDraft): RecipeWrite {
     toolAlts: draft.toolAlts,
     photos: draft.photos.map((photo) => ({ id: photo.id, alt: photo.alt })),
   };
+}
+
+export function stepSeconds(node: Pick<DraftNode, "spans" | "repeatMin">): number {
+  return node.spans.reduce((total, span) => total + span.seconds, 0) * node.repeatMin;
+}
+
+export function activeSeconds(node: Pick<DraftNode, "spans" | "repeatMin">): number {
+  return (
+    node.spans
+      .filter((span) => span.kind === "active")
+      .reduce((total, span) => total + span.seconds, 0) * node.repeatMin
+  );
+}
+
+/** Wall clock along the longest path, ignoring cook limits. A rough figure for the builder. */
+export function roughSeconds(draft: Pick<RecipeDraft, "nodes" | "edges">): number {
+  const byKey = new Map(draft.nodes.map((node) => [node.key, node]));
+  const memo = new Map<string, number>();
+  const visiting = new Set<string>();
+  const finish = (key: string): number => {
+    const known = memo.get(key);
+    if (known !== undefined) return known;
+    if (visiting.has(key)) return 0;
+    visiting.add(key);
+    const before = draft.edges
+      .filter((edge) => edge.to === key)
+      .reduce((longest, edge) => Math.max(longest, finish(edge.from)), 0);
+    visiting.delete(key);
+    const node = byKey.get(key);
+    const total = before + (node ? stepSeconds(node) : 0);
+    memo.set(key, total);
+    return total;
+  };
+  return draft.nodes.reduce((longest, node) => Math.max(longest, finish(node.key)), 0);
+}
+
+export type RolledLine = {
+  ingredientId: number;
+  qty: number | null;
+  unit: string | null;
+  optional: boolean;
+};
+
+/** One line per ingredient and unit, quantities summed across steps. */
+export function rollup(draft: Pick<RecipeDraft, "nodes">): RolledLine[] {
+  const groups = new Map<
+    string,
+    RolledLine & { uses: number; optionalUses: number; qtyUses: number }
+  >();
+  for (const node of [...draft.nodes].sort((left, right) => left.ord - right.ord)) {
+    for (const use of node.ingredients) {
+      const unit = use.unit ?? null;
+      const key = `${use.ingredientId}\0${unit ?? ""}`;
+      let row = groups.get(key);
+      if (!row) {
+        row = {
+          ingredientId: use.ingredientId,
+          qty: null,
+          unit,
+          optional: false,
+          uses: 0,
+          optionalUses: 0,
+          qtyUses: 0,
+        };
+        groups.set(key, row);
+      }
+      row.uses += 1;
+      if (use.optional) row.optionalUses += 1;
+      if (use.qty != null) {
+        row.qty = (row.qty ?? 0) + use.qty;
+        row.qtyUses += 1;
+      }
+    }
+  }
+  return [...groups.values()].map((row) => ({
+    ingredientId: row.ingredientId,
+    qty: row.qtyUses > 0 ? row.qty : null,
+    unit: row.unit,
+    optional: row.optionalUses === row.uses,
+  }));
+}
+
+export function toolIds(draft: Pick<RecipeDraft, "nodes">): number[] {
+  return unique(draft.nodes.flatMap((node) => node.tools.map((tool) => tool.toolId)));
 }

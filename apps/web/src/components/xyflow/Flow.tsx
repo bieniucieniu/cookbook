@@ -1,4 +1,4 @@
-import { For, Show, type JSX, createEffect, createSignal, onCleanup, onMount } from "solid-js";
+import { For, Show, type JSX, createEffect, createSignal, on, onCleanup, onMount } from "solid-js";
 import { FlowProvider, useFlow } from "./context";
 import type { Flow as FlowStore } from "./createFlow";
 import { ConnectionLine, EdgeView } from "./components/Edges";
@@ -56,17 +56,21 @@ function FlowSurface(props: { class?: string; style?: JSX.CSSProperties; childre
     });
   });
 
-  createEffect(() => {
-    if (!ready()) return;
-    flow.updateInteraction();
-    return [
-      flow.userSelectionActive,
-      flow.connection.inProgress,
-      flow.selectionKeyPressed,
-      flow.minZoom,
-      flow.maxZoom,
-    ];
-  });
+  // `updateInteraction` reads the store untracked, so its inputs are tracked here.
+  createEffect(
+    on(
+      [
+        ready,
+        () => flow.userSelectionActive,
+        () => flow.connection.inProgress,
+        () => flow.selectionKeyPressed,
+        () => flow.selectionOnDrag,
+      ],
+      ([isReady]) => {
+        if (isReady) flow.updateInteraction();
+      }
+    )
+  );
 
   return (
     <div
