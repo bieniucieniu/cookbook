@@ -39,7 +39,8 @@ SELECT ingredient_id, allergen_id
 FROM ingredient_allergens
 ORDER BY ingredient_id, allergen_id;
 
+-- sqlx4k 1.13 cannot decode NUMERIC (it panics on the binary value). Read it as FLOAT8.
 selectIngredientAlts:
-SELECT ingredient_id, alt_ingredient_id, ratio, note
+SELECT ingredient_id, alt_ingredient_id, CAST(ratio AS DOUBLE PRECISION) AS ratio, note
 FROM ingredient_alts
 ORDER BY ingredient_id, alt_ingredient_id;

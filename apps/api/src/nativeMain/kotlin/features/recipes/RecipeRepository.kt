@@ -7,7 +7,7 @@ import com.bieniucieniu.cookbook.core.database.tx
 import com.bieniucieniu.cookbook.core.http.ApiException
 import com.bieniucieniu.cookbook.db.CookbookDatabase
 import com.bieniucieniu.cookbook.db.Recipe_edges
-import com.bieniucieniu.cookbook.db.Recipe_ingredient_alts
+import com.bieniucieniu.cookbook.db.SelectRecipeIngredientAlts
 import com.bieniucieniu.cookbook.db.Recipe_ingredient_facts
 import com.bieniucieniu.cookbook.db.Recipe_node_spans
 import com.bieniucieniu.cookbook.db.Recipe_nodes
@@ -147,7 +147,7 @@ class RecipeRepository(
     suspend fun nodeTools(recipeId: Long): List<SelectNodeTools> =
         database.recipeGraphQueries.selectNodeTools(recipeId).awaitAsList()
 
-    suspend fun ingredientAlts(recipeId: Long): List<Recipe_ingredient_alts> =
+    suspend fun ingredientAlts(recipeId: Long): List<SelectRecipeIngredientAlts> =
         database.recipeGraphQueries.selectRecipeIngredientAlts(recipeId).awaitAsList()
 
     suspend fun toolAlts(recipeId: Long): List<Recipe_tool_alts> =

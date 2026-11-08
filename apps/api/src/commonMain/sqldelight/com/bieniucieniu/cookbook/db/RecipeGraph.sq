@@ -153,8 +153,9 @@ JOIN recipe_nodes n ON n.id = s.node_id
 WHERE n.recipe_id = :recipe_id
 ORDER BY s.node_id, s.ord;
 
+-- sqlx4k 1.13 cannot decode NUMERIC (it panics on the binary value). Read it as FLOAT8.
 selectNodeIngredients:
-SELECT ni.id, ni.node_id, ni.ingredient_id, ni.qty, ni.unit, ni.optional, i.slug
+SELECT ni.id, ni.node_id, ni.ingredient_id, CAST(ni.qty AS DOUBLE PRECISION) AS qty, ni.unit, ni.optional, i.slug
 FROM node_ingredients ni
 JOIN ingredients i ON i.id = ni.ingredient_id
 JOIN recipe_nodes n ON n.id = ni.node_id
@@ -169,8 +170,9 @@ JOIN recipe_nodes n ON n.id = nt.node_id
 WHERE n.recipe_id = :recipe_id
 ORDER BY nt.id;
 
+-- sqlx4k 1.13 cannot decode NUMERIC (it panics on the binary value). Read it as FLOAT8.
 selectRecipeIngredientAlts:
-SELECT id, recipe_id, ingredient_id, alt_ingredient_id, node_id, ratio, note
+SELECT id, recipe_id, ingredient_id, alt_ingredient_id, node_id, CAST(ratio AS DOUBLE PRECISION) AS ratio, note
 FROM recipe_ingredient_alts
 WHERE recipe_id = :recipe_id
 ORDER BY id;
