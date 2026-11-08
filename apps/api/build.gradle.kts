@@ -74,6 +74,8 @@ kotlin {
             implementation(libs.koin.ktor)
             implementation(libs.sqlx4k.postgres)
             implementation(libs.sqlx4k.sqldelight)
+            implementation(libs.cryptography.core)
+            implementation(libs.cryptography.provider.openssl3.prebuilt)
         }
         nativeTest.dependencies {
             implementation(libs.kotlin.test)

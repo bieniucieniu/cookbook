@@ -6,20 +6,15 @@ import com.bieniucieniu.cookbook.features.auth.nowSeconds
 import com.bieniucieniu.cookbook.workos.WorkOS
 import com.bieniucieniu.cookbook.workos.sha256Hex
 import io.ktor.client.HttpClient
-import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.isSuccess
-import io.ktor.http.parameters
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
 
 fun interface McpAccounts {
     suspend fun account(workosUserId: String, email: String, firstName: String, lastName: String): Actor
@@ -40,6 +35,14 @@ class McpAuth(
     private val cache = mutableMapOf<String, Cached>()
     private val mutex = Mutex()
     private val json = Json { ignoreUnknownKeys = true }
+    private val verifier: AccessTokenVerifier? = config.authKitDomain?.let { domain ->
+        AccessTokenVerifier(
+            issuer = domain,
+            resource = config.mcpResourceUrl,
+            fetchJwks = { fetchJwks(domain) },
+            now = ::nowSeconds,
+        )
+    }
 
     fun challenge(): String {
         val metadata = "${resourceOrigin(config.mcpResourceUrl)}/.well-known/oauth-protected-resource"
@@ -74,11 +77,11 @@ class McpAuth(
         if (!config.mcpConfigured || workos == null) return McpGate.Unconfigured
         val token = bearerToken(authorization) ?: return McpGate.Denied
         cached(token)?.let { return McpGate.Ready(it) }
-        val intro = introspect(token) ?: return McpGate.Denied
-        if (!intro.active || config.mcpResourceUrl !in intro.audiences) return McpGate.Denied
-        val exp = intro.exp
-        if (exp != null && exp <= nowSeconds()) return McpGate.Denied
-        val sub = intro.subject ?: return McpGate.Denied
+        // AuthKit access tokens are RS256 JWTs. Verify them against the JWKS, not by introspection:
+        // introspection needs a Connect application's credentials, not the environment API key.
+        val claims = verifier?.verify(token) ?: return McpGate.Denied
+        val exp = claims.expiresAt
+        val sub = claims.subject
         val remote = try {
             workos.userManagement.get(sub)
         } catch (_: Throwable) {
@@ -112,56 +115,16 @@ class McpAuth(
         }
     }
 
-    private suspend fun introspect(token: String): Introspection? {
-        val domain = config.authKitDomain ?: return null
-        val clientId = config.clientId ?: return null
-        val apiKey = config.apiKey ?: return null
-        val response = try {
-            http.submitForm(
-                url = "$domain/oauth2/introspection",
-                formParameters = parameters {
-                    append("token", token)
-                    append("client_id", clientId)
-                    append("client_secret", apiKey)
-                },
-            )
-        } catch (_: Throwable) {
-            return null
-        }
-        if (!response.status.isSuccess()) return null
-        val body = try {
-            json.parseToJsonElement(response.bodyAsText()) as? JsonObject
-        } catch (_: Throwable) {
-            null
-        } ?: return null
-        val active = body["active"]?.jsonPrimitive?.contentOrNull == "true"
-        return Introspection(
-            active = active,
-            subject = body["sub"]?.jsonPrimitive?.contentOrNull,
-            audiences = audiences(body),
-            exp = body["exp"]?.jsonPrimitive?.longOrNull,
-        )
-    }
-
-    private fun audiences(body: JsonObject): Set<String> {
-        val aud = body["aud"] ?: return emptySet()
-        return when (aud) {
-            is JsonArray -> aud.mapNotNull { element ->
-                (element as? JsonPrimitive)?.contentOrNull
-            }.toSet()
-            is JsonPrimitive -> setOf(aud.content)
-            else -> emptySet()
-        }
+    private suspend fun fetchJwks(domain: String): JsonObject? = try {
+        val response = http.get("${domain.trimEnd('/')}/oauth2/jwks")
+        if (!response.status.isSuccess()) null
+        else json.parseToJsonElement(response.bodyAsText()) as? JsonObject
+    } catch (_: Throwable) {
+        null
     }
 
     private data class Cached(val actor: Actor, val exp: Long)
 
-    private data class Introspection(
-        val active: Boolean,
-        val subject: String?,
-        val audiences: Set<String>,
-        val exp: Long?,
-    )
 }
 
 internal fun resourceOrigin(resourceUrl: String): String {
