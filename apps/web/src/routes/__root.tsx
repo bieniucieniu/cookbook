@@ -5,6 +5,7 @@ import { Alert, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ReadingPrefs } from "@/components/reading-prefs";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { Link, Outlet, createRootRoute } from "@tanstack/solid-router";
 import { TanStackRouterDevtools } from "@tanstack/solid-router-devtools";
 import { Show } from "solid-js";
@@ -32,6 +33,7 @@ function SessionHeader() {
       </Link>
       <div class="flex items-center gap-2">
         <ReadingPrefs />
+        <ThemeToggle />
         <Show when={!session.isPending} fallback={<Spinner />}>
           <Show
             when={session.isError && isUnauthorized(session.error)}

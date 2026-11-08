@@ -4,6 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Cookbook</title>
+    <!-- Sets the theme before first paint. Key matches THEME_STORAGE_KEY in theme-toggle.tsx. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem("cookbook:theme");
+          if (t !== "light" && t !== "dark")
+            t = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          document.documentElement.classList.toggle("dark", t === "dark");
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="app"></div>

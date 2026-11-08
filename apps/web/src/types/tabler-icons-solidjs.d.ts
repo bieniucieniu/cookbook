@@ -23,6 +23,7 @@ declare module "@tabler/icons-solidjs" {
   export const IconChevronRight: TablerIcon;
   export const IconClock: TablerIcon;
   export const IconCopy: TablerIcon;
+  export const IconDeviceDesktop: TablerIcon;
   export const IconDeviceFloppy: TablerIcon;
   export const IconDots: TablerIcon;
   export const IconEye: TablerIcon;
@@ -33,6 +34,7 @@ declare module "@tabler/icons-solidjs" {
   export const IconLayoutList: TablerIcon;
   export const IconLock: TablerIcon;
   export const IconMinus: TablerIcon;
+  export const IconMoon: TablerIcon;
   export const IconNote: TablerIcon;
   export const IconPencil: TablerIcon;
   export const IconPhoto: TablerIcon;
@@ -42,6 +44,7 @@ declare module "@tabler/icons-solidjs" {
   export const IconRepeat: TablerIcon;
   export const IconShare: TablerIcon;
   export const IconSitemap: TablerIcon;
+  export const IconSun: TablerIcon;
   export const IconTextSize: TablerIcon;
   export const IconToolsKitchen2: TablerIcon;
   export const IconTrash: TablerIcon;
