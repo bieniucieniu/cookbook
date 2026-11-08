@@ -70,7 +70,7 @@ export const getCreateAllergenUrl = () => {
 
 
 
-  return `/allergens`
+  return `/api/v1/allergens`
 }
 
 export const createAllergen = async (namedWrite: NamedWrite, options?: Parameters<typeof customInstance>[1]): Promise<createAllergenResponse> => {
@@ -163,7 +163,7 @@ export const getListAllergensUrl = () => {
 
 
 
-  return `/allergens`
+  return `/api/v1/allergens`
 }
 
 export const listAllergens = async ( options?: Parameters<typeof customInstance>[1]): Promise<listAllergensResponse> => {
@@ -183,7 +183,7 @@ export const listAllergens = async ( options?: Parameters<typeof customInstance>
 
 export const getListAllergensQueryKey = () => {
     return [
-    `/allergens`
+    `/api/v1/allergens`
     ] as const;
     }
 
@@ -261,7 +261,7 @@ export const getUpdateAllergenUrl = (id: string,) => {
 
 
 
-  return `/allergens/${id}`
+  return `/api/v1/allergens/${id}`
 }
 
 export const updateAllergen = async (id: string,
@@ -355,7 +355,7 @@ export const getDeleteAllergenUrl = (id: string,) => {
 
 
 
-  return `/allergens/${id}`
+  return `/api/v1/allergens/${id}`
 }
 
 export const deleteAllergen = async (id: string, options?: Parameters<typeof customInstance>[1]): Promise<deleteAllergenResponse> => {
@@ -441,7 +441,7 @@ export const getGetAllergenUrl = (id: string,) => {
 
 
 
-  return `/allergens/${id}`
+  return `/api/v1/allergens/${id}`
 }
 
 export const getAllergen = async (id: string, options?: Parameters<typeof customInstance>[1]): Promise<getAllergenResponse> => {
@@ -461,7 +461,7 @@ export const getAllergen = async (id: string, options?: Parameters<typeof custom
 
 export const getGetAllergenQueryKey = (id: string,) => {
     return [
-    `/allergens/${id}`
+    `/api/v1/allergens/${id}`
     ] as const;
     }
 

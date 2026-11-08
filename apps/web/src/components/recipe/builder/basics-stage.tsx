@@ -1,3 +1,4 @@
+import { photoUrl } from "@/lib/api";
 import { IconLock, IconNote, IconPhoto, IconTrash, IconUsers, IconWorld } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input, InputControl, InputLabel } from "@/components/ui/input";
@@ -63,7 +64,7 @@ export function BasicsStage(props: {
               {(photo, index) => (
                 <figure class="relative shrink-0">
                   <img
-                    src={`/api/photos/${photo.id}`}
+                    src={photoUrl(photo.id)}
                     alt={photo.alt}
                     class="h-40 rounded-xl object-cover"
                   />

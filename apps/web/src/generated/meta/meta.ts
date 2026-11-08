@@ -48,7 +48,7 @@ export const getGetRootUrl = () => {
 
 
 
-  return `/`
+  return `/api/v1`
 }
 
 export const getRoot = async ( options?: Parameters<typeof customInstance>[1]): Promise<getRootResponse> => {
@@ -68,7 +68,7 @@ export const getRoot = async ( options?: Parameters<typeof customInstance>[1]): 
 
 export const getGetRootQueryKey = () => {
     return [
-    `/`
+    `/api/v1`
     ] as const;
     }
 
@@ -146,7 +146,7 @@ export const getGetHealthUrl = () => {
 
 
 
-  return `/health`
+  return `/api/v1/health`
 }
 
 export const getHealth = async ( options?: Parameters<typeof customInstance>[1]): Promise<getHealthResponse> => {
@@ -166,7 +166,7 @@ export const getHealth = async ( options?: Parameters<typeof customInstance>[1])
 
 export const getGetHealthQueryKey = () => {
     return [
-    `/health`
+    `/api/v1/health`
     ] as const;
     }
 

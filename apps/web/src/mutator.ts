@@ -20,7 +20,7 @@ type MutatorInit = RequestInit & { schema?: unknown };
 
 export const customInstance = async <T>(url: string, init: MutatorInit = {}): Promise<T> => {
   const { schema: _schema, ...request } = init;
-  const response = await fetch(url.startsWith("http") ? url : `/api${url}`, {
+  const response = await fetch(url, {
     ...request,
     credentials: "include",
   });

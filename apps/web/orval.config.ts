@@ -3,7 +3,7 @@ import { defineConfig } from "orval";
 export default defineConfig({
   cookbook: {
     input: {
-      target: "http://127.0.0.1:8080/swagger/documentation.json",
+      target: "http://127.0.0.1:8080/api/v1/swagger/documentation.json",
     },
     output: {
       mode: "tags-split",

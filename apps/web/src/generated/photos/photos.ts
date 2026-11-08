@@ -70,7 +70,7 @@ export const getUploadPhotoUrl = () => {
 
 
 
-  return `/photos`
+  return `/api/v1/photos`
 }
 
 export const uploadPhoto = async (photoUpload: PhotoUpload, options?: Parameters<typeof customInstance>[1]): Promise<uploadPhotoResponse> => {
@@ -163,7 +163,7 @@ export const getGetPhotoUrl = (id: string,) => {
 
 
 
-  return `/photos/${id}`
+  return `/api/v1/photos/${id}`
 }
 
 export const getPhoto = async (id: string, options?: Parameters<typeof customInstance>[1]): Promise<getPhotoResponse> => {
@@ -183,7 +183,7 @@ export const getPhoto = async (id: string, options?: Parameters<typeof customIns
 
 export const getGetPhotoQueryKey = (id: string,) => {
     return [
-    `/photos/${id}`
+    `/api/v1/photos/${id}`
     ] as const;
     }
 

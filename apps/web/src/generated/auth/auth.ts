@@ -62,7 +62,7 @@ export const getLoginUrl = () => {
 
 
 
-  return `/auth/login`
+  return `/api/v1/auth/login`
 }
 
 /**
@@ -85,7 +85,7 @@ export const login = async ( options?: Parameters<typeof customInstance>[1]): Pr
 
 export const getLoginQueryKey = () => {
     return [
-    `/auth/login`
+    `/api/v1/auth/login`
     ] as const;
     }
 
@@ -173,7 +173,7 @@ export const getAuthCallbackUrl = () => {
 
 
 
-  return `/auth/callback`
+  return `/api/v1/auth/callback`
 }
 
 /**
@@ -196,7 +196,7 @@ export const authCallback = async ( options?: Parameters<typeof customInstance>[
 
 export const getAuthCallbackQueryKey = () => {
     return [
-    `/auth/callback`
+    `/api/v1/auth/callback`
     ] as const;
     }
 
@@ -281,7 +281,7 @@ export const getCurrentUserUrl = () => {
 
 
 
-  return `/auth/me`
+  return `/api/v1/auth/me`
 }
 
 export const currentUser = async ( options?: Parameters<typeof customInstance>[1]): Promise<currentUserResponse> => {
@@ -301,7 +301,7 @@ export const currentUser = async ( options?: Parameters<typeof customInstance>[1
 
 export const getCurrentUserQueryKey = () => {
     return [
-    `/auth/me`
+    `/api/v1/auth/me`
     ] as const;
     }
 
@@ -379,7 +379,7 @@ export const getLogoutUrl = () => {
 
 
 
-  return `/auth/logout`
+  return `/api/v1/auth/logout`
 }
 
 /**

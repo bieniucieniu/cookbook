@@ -59,7 +59,7 @@ export const getCreateIngredientUrl = () => {
 
 
 
-  return `/ingredients`
+  return `/api/v1/ingredients`
 }
 
 export const createIngredient = async (namedWrite: NamedWrite, options?: Parameters<typeof customInstance>[1]): Promise<createIngredientResponse> => {
@@ -152,7 +152,7 @@ export const getListIngredientsUrl = () => {
 
 
 
-  return `/ingredients`
+  return `/api/v1/ingredients`
 }
 
 export const listIngredients = async ( options?: Parameters<typeof customInstance>[1]): Promise<listIngredientsResponse> => {
@@ -172,7 +172,7 @@ export const listIngredients = async ( options?: Parameters<typeof customInstanc
 
 export const getListIngredientsQueryKey = () => {
     return [
-    `/ingredients`
+    `/api/v1/ingredients`
     ] as const;
     }
 
@@ -250,7 +250,7 @@ export const getUpdateIngredientUrl = (id: string,) => {
 
 
 
-  return `/ingredients/${id}`
+  return `/api/v1/ingredients/${id}`
 }
 
 export const updateIngredient = async (id: string,
@@ -344,7 +344,7 @@ export const getDeleteIngredientUrl = (id: string,) => {
 
 
 
-  return `/ingredients/${id}`
+  return `/api/v1/ingredients/${id}`
 }
 
 export const deleteIngredient = async (id: string, options?: Parameters<typeof customInstance>[1]): Promise<deleteIngredientResponse> => {
@@ -423,7 +423,7 @@ export const getGetIngredientUrl = (id: string,) => {
 
 
 
-  return `/ingredients/${id}`
+  return `/api/v1/ingredients/${id}`
 }
 
 export const getIngredient = async (id: string, options?: Parameters<typeof customInstance>[1]): Promise<getIngredientResponse> => {
@@ -443,7 +443,7 @@ export const getIngredient = async (id: string, options?: Parameters<typeof cust
 
 export const getGetIngredientQueryKey = (id: string,) => {
     return [
-    `/ingredients/${id}`
+    `/api/v1/ingredients/${id}`
     ] as const;
     }
 
@@ -521,7 +521,7 @@ export const getReplaceIngredientAllergensUrl = (id: string,) => {
 
 
 
-  return `/ingredients/${id}/allergens`
+  return `/api/v1/ingredients/${id}/allergens`
 }
 
 export const replaceIngredientAllergens = async (id: string,
@@ -615,7 +615,7 @@ export const getReplaceIngredientAltsUrl = (id: string,) => {
 
 
 
-  return `/ingredients/${id}/alts`
+  return `/api/v1/ingredients/${id}/alts`
 }
 
 export const replaceIngredientAlts = async (id: string,

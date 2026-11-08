@@ -50,20 +50,28 @@ val mcpModule = module {
     single { McpTools(get(), get()) }
 }
 
+/** Mounted at the host root, outside the API version prefix. */
 @OptIn(ExperimentalKtorApi::class)
-fun Route.configureMcpRouting() {
+fun Route.configureMcpWellKnownRouting() {
     val auth: McpAuth by inject()
-    val tools: McpTools by inject()
     val config: AuthConfig by inject()
 
-    get("/.well-known/oauth-protected-resource") {
-        if (!config.mcpConfigured) {
-            call.respond(HttpStatusCode.ServiceUnavailable, ErrorBody(listOf("workos is not configured")))
-            return@get
-        }
-        if (!originAllowed(call, config.mcpResourceUrl)) return@get
-        call.respond(auth.protectedResource())
-    }.hide()
+    // RFC 9728 §3.1: clients without a WWW-Authenticate hint insert the resource path after the
+    // well-known segment (`/.well-known/oauth-protected-resource/api/v1/mcp`) and fall back to the root.
+    val protectedResourcePaths = listOfNotNull(
+        "/.well-known/oauth-protected-resource",
+        resourcePath(config.mcpResourceUrl)?.let { "/.well-known/oauth-protected-resource$it" },
+    )
+    for (path in protectedResourcePaths) {
+        get(path) {
+            if (!config.mcpConfigured) {
+                call.respond(HttpStatusCode.ServiceUnavailable, ErrorBody(listOf("workos is not configured")))
+                return@get
+            }
+            if (!originAllowed(call, config.mcpResourceUrl)) return@get
+            call.respond(auth.protectedResource())
+        }.hide()
+    }
 
     get("/.well-known/oauth-authorization-server") {
         if (!config.mcpConfigured) {
@@ -78,6 +86,13 @@ fun Route.configureMcpRouting() {
         }
         call.respondText(metadata, ContentType.Application.Json)
     }.hide()
+}
+
+@OptIn(ExperimentalKtorApi::class)
+fun Route.configureMcpRouting() {
+    val auth: McpAuth by inject()
+    val tools: McpTools by inject()
+    val config: AuthConfig by inject()
 
     route("/mcp") {
         post {

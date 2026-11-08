@@ -33,7 +33,7 @@ Source: [Solid render-once model](https://github.com/solidjs/solid) and [eslint-
 
 Vite+: `@tanstack/router-plugin` with `target: "solid"` comes before `vite-plugin-solid`, then `@tailwindcss/vite`. App config is `vite.config.ts` (`defineConfig` from `vite-plus`). Root `vite.config.ts` owns `lint` and `fmt`. `pnpm exec vp check` formats, lints, and typechecks. `tsconfig` `jsx` is `preserve`. `jsxImportSource` is `solid-js`. Path alias is `@/*`.
 
-API client: `pnpm --filter web generate-api` while the API is on `:8080`. Orval writes `@tanstack/solid-query` hooks under `src/generated/`. A query result is a store. Read `query.data` in JSX. Do not destructure it. `useParams` is an accessor. For a param query, call `useQuery(() => getGetRecipeQueryOptions(params().id))` so the id stays reactive. Login and logout are browser navigations to `/api/auth/login` and `POST /api/auth/logout`, not the generated functions.
+API client: `pnpm --filter web generate-api` while the API is on `:8080`. Generated URLs already start with `/api/v1`. Hand-written URLs (login and logout navigations, photo upload, image `src`) use `apiBase` / `photoUrl` from `src/lib/api.ts`. Orval writes `@tanstack/solid-query` hooks under `src/generated/`. A query result is a store. Read `query.data` in JSX. Do not destructure it. `useParams` is an accessor. For a param query, call `useQuery(() => getGetRecipeQueryOptions(params().id))` so the id stays reactive. Login and logout are browser navigations to `/api/v1/auth/login` and `POST /api/v1/auth/logout`, not the generated functions.
 
 UI: solid-kit registry. From `apps/web`, `pnpm dlx shadcn@latest add bieniucieniu/solid-kit/<item>`. Hand-written `components.json`. Do not run `shadcn init`. Do not import `@solid-kit/ui`.
 

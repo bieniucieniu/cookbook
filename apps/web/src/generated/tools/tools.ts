@@ -58,7 +58,7 @@ export const getCreateToolUrl = () => {
 
 
 
-  return `/tools`
+  return `/api/v1/tools`
 }
 
 export const createTool = async (namedWrite: NamedWrite, options?: Parameters<typeof customInstance>[1]): Promise<createToolResponse> => {
@@ -151,7 +151,7 @@ export const getListToolsUrl = () => {
 
 
 
-  return `/tools`
+  return `/api/v1/tools`
 }
 
 export const listTools = async ( options?: Parameters<typeof customInstance>[1]): Promise<listToolsResponse> => {
@@ -171,7 +171,7 @@ export const listTools = async ( options?: Parameters<typeof customInstance>[1])
 
 export const getListToolsQueryKey = () => {
     return [
-    `/tools`
+    `/api/v1/tools`
     ] as const;
     }
 
@@ -249,7 +249,7 @@ export const getUpdateToolUrl = (id: string,) => {
 
 
 
-  return `/tools/${id}`
+  return `/api/v1/tools/${id}`
 }
 
 export const updateTool = async (id: string,
@@ -343,7 +343,7 @@ export const getDeleteToolUrl = (id: string,) => {
 
 
 
-  return `/tools/${id}`
+  return `/api/v1/tools/${id}`
 }
 
 export const deleteTool = async (id: string, options?: Parameters<typeof customInstance>[1]): Promise<deleteToolResponse> => {
@@ -422,7 +422,7 @@ export const getGetToolUrl = (id: string,) => {
 
 
 
-  return `/tools/${id}`
+  return `/api/v1/tools/${id}`
 }
 
 export const getTool = async (id: string, options?: Parameters<typeof customInstance>[1]): Promise<getToolResponse> => {
@@ -442,7 +442,7 @@ export const getTool = async (id: string, options?: Parameters<typeof customInst
 
 export const getGetToolQueryKey = (id: string,) => {
     return [
-    `/tools/${id}`
+    `/api/v1/tools/${id}`
     ] as const;
     }
 
@@ -520,7 +520,7 @@ export const getReplaceToolAltsUrl = (id: string,) => {
 
 
 
-  return `/tools/${id}/alts`
+  return `/api/v1/tools/${id}/alts`
 }
 
 export const replaceToolAlts = async (id: string,

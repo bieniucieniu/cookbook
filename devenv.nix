@@ -128,7 +128,7 @@ in
           ready = {
             http.get = {
               port = 8080;
-              path = "/health";
+              path = "/api/v1/health";
             };
             timeout = 600;
           };

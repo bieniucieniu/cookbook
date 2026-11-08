@@ -1,3 +1,4 @@
+import { photoUrl } from "@/lib/api";
 import {
   IconChefHat,
   IconClock,
@@ -128,7 +129,7 @@ function RecipePage() {
                   <Show when={item().photos?.[0]}>
                     {(photo) => (
                       <img
-                        src={`/api/photos/${photo().id}`}
+                        src={photoUrl(photo().id)}
                         alt={photo().alt ?? ""}
                         class="aspect-[21/9] max-h-80 w-full rounded-2xl object-cover"
                       />

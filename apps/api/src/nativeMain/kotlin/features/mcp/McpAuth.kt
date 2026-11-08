@@ -171,6 +171,13 @@ internal fun resourceOrigin(resourceUrl: String): String {
     return "$scheme://$host"
 }
 
+/** Path of the resource URL with a leading slash, or null when the resource sits at the origin root. */
+internal fun resourcePath(resourceUrl: String): String? {
+    val rest = resourceUrl.substringAfter("://")
+    val path = rest.substringAfter('/', "").substringBefore('?').substringBefore('#').trimEnd('/')
+    return if (path.isEmpty()) null else "/$path"
+}
+
 internal fun bearerToken(authorization: String?): String? {
     if (authorization == null) return null
     val prefix = "Bearer "

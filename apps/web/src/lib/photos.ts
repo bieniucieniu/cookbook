@@ -1,3 +1,4 @@
+import { apiBase } from "@/lib/api";
 import type { PhotoCreated } from "@/generated/model";
 import { ApiError } from "@/mutator";
 
@@ -35,7 +36,7 @@ export async function photoForUpload(file: File): Promise<File> {
 export async function uploadPhotoFile(file: File): Promise<PhotoCreated> {
   const body = new FormData();
   body.append("file", file);
-  const response = await fetch("/api/photos", {
+  const response = await fetch(`${apiBase}/photos`, {
     method: "POST",
     body,
     credentials: "include",

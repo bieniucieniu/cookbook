@@ -1,9 +1,8 @@
 package com.bieniucieniu.cookbook.app
 
-import com.bieniucieniu.cookbook.core.health.configureHealth
+import com.bieniucieniu.cookbook.core.health.configureHealthRouting
 import com.bieniucieniu.cookbook.core.http.configureSerialization
 import com.bieniucieniu.cookbook.core.http.configureStatusPages
-import com.bieniucieniu.cookbook.core.openapi.configureOpenApi
 import com.bieniucieniu.cookbook.features.auth.SessionReader
 import com.bieniucieniu.cookbook.features.recipes.configureRecipeRouting
 import io.ktor.client.request.get
@@ -11,6 +10,7 @@ import io.ktor.server.application.install
 import io.ktor.client.request.post
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpStatusCode
+import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import kotlin.test.Test
@@ -23,9 +23,9 @@ class ApplicationTest {
     @Test
     fun testRoot() = testApplication {
         application {
-            configureHealth()
+            routing { route(ApiVersion.V1) { configureHealthRouting() } }
         }
-        val response = client.get("/")
+        val response = client.get("/api/v1")
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("Hello, Ktor!", response.bodyAsText())
     }
@@ -33,9 +33,9 @@ class ApplicationTest {
     @Test
     fun testHealth() = testApplication {
         application {
-            configureHealth()
+            routing { route(ApiVersion.V1) { configureHealthRouting() } }
         }
-        val response = client.get("/health")
+        val response = client.get("/api/v1/health")
         assertEquals(HttpStatusCode.OK, response.status)
         assertEquals("ok", response.bodyAsText())
     }
@@ -44,28 +44,26 @@ class ApplicationTest {
     fun swaggerJson() = testApplication {
         application {
             configureSerialization()
-            configureHealth()
             configureRouting()
-            configureOpenApi()
         }
-        val response = client.get("/swagger/documentation.json")
+        val response = client.get("/api/v1/swagger/documentation.json")
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.bodyAsText()
         assertEquals(true, body.contains("\"openapi\""))
-        assertEquals(true, body.contains("\"/recipes\""))
-        assertEquals(true, body.contains("\"/recipes/{id}\""))
-        assertEquals(true, body.contains("\"/ingredients\""))
-        assertEquals(true, body.contains("\"/tools\""))
-        assertEquals(true, body.contains("\"/allergens\""))
+        assertEquals(true, body.contains("\"/api/v1/recipes\""))
+        assertEquals(true, body.contains("\"/api/v1/recipes/{id}\""))
+        assertEquals(true, body.contains("\"/api/v1/ingredients\""))
+        assertEquals(true, body.contains("\"/api/v1/tools\""))
+        assertEquals(true, body.contains("\"/api/v1/allergens\""))
         assertEquals(true, body.contains("listRecipes"))
         assertEquals(true, body.contains("createRecipe"))
         assertEquals(true, body.contains("listIngredients"))
         assertEquals(true, body.contains("listTools"))
         assertEquals(true, body.contains("listAllergens"))
-        assertEquals(true, body.contains("\"/auth/login\""))
-        assertEquals(true, body.contains("\"/recipes/{id}/grants\""))
-        assertEquals(true, body.contains("\"/photos\""))
-        assertEquals(true, body.contains("\"/recipes/{id}/comments\""))
+        assertEquals(true, body.contains("\"/api/v1/auth/login\""))
+        assertEquals(true, body.contains("\"/api/v1/recipes/{id}/grants\""))
+        assertEquals(true, body.contains("\"/api/v1/photos\""))
+        assertEquals(true, body.contains("\"/api/v1/recipes/{id}/comments\""))
         assertEquals(true, body.contains("RecipeWrite"))
         assertEquals(true, body.contains("GrantWrite"))
         assertEquals(true, body.contains("NamedWrite"))
@@ -75,7 +73,7 @@ class ApplicationTest {
         assertEquals(true, body.contains("CommentWrite"))
         assertEquals(true, body.contains("PhotoUpload"))
         assertEquals(false, body.contains("documentation.json"))
-        assertEquals(false, body.contains("\"/mcp\""))
+        assertEquals(false, body.contains("\"/api/v1/mcp\""))
         assertEquals(false, body.contains("oauth-protected-resource"))
     }
 
@@ -91,10 +89,22 @@ class ApplicationTest {
                 })
             }
             routing {
-                configureRecipeRouting()
+                route(ApiVersion.V1) { configureRecipeRouting() }
             }
         }
-        val response = client.post("/recipes")
+        val response = client.post("/api/v1/recipes")
         assertEquals(HttpStatusCode.Unauthorized, response.status)
+    }
+
+    @Test
+    fun unversionedPathsAreGone() = testApplication {
+        application {
+            configureSerialization()
+            configureRouting()
+        }
+        assertEquals(HttpStatusCode.NotFound, client.get("/health").status)
+        assertEquals(HttpStatusCode.NotFound, client.get("/recipes").status)
+        assertEquals(HttpStatusCode.NotFound, client.get("/swagger/documentation.json").status)
+        assertEquals(HttpStatusCode.OK, client.get("/api/v1/health").status)
     }
 }

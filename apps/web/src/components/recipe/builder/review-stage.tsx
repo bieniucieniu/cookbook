@@ -1,3 +1,4 @@
+import { photoUrl } from "@/lib/api";
 import {
   IconAlertTriangle,
   IconCheck,
@@ -62,7 +63,7 @@ export function ReviewStage(props: {
         <Show when={props.draft.photos[0]}>
           {(photo) => (
             <img
-              src={`/api/photos/${photo().id}`}
+              src={photoUrl(photo().id)}
               alt={photo().alt}
               class="aspect-video w-full rounded-xl object-cover"
             />

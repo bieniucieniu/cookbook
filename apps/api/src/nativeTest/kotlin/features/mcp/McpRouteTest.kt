@@ -1,5 +1,6 @@
 package com.bieniucieniu.cookbook.features.mcp
 
+import com.bieniucieniu.cookbook.app.ApiVersion
 import com.bieniucieniu.cookbook.core.http.configureSerialization
 import com.bieniucieniu.cookbook.core.http.configureStatusPages
 import com.bieniucieniu.cookbook.features.auth.Actor
@@ -31,6 +32,7 @@ import io.ktor.http.content.OutgoingContent
 import io.ktor.http.contentType
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.install
+import io.ktor.server.routing.route
 import io.ktor.server.routing.routing
 import io.ktor.server.testing.testApplication
 import kotlinx.serialization.json.Json
@@ -43,7 +45,7 @@ import org.koin.ktor.plugin.Koin
 class McpRouteTest {
     @Test
     fun missingTokenIsUnauthorized() = harness { _, _ ->
-        val response = client.post("/mcp") {
+        val response = client.post("/api/v1/mcp") {
             contentType(ContentType.Application.Json)
             setBody("""{"jsonrpc":"2.0","id":1,"method":"initialize"}""")
         }
@@ -58,14 +60,30 @@ class McpRouteTest {
         val response = client.get("/.well-known/oauth-protected-resource")
         assertEquals(HttpStatusCode.OK, response.status)
         val body = response.bodyAsText()
-        assertTrue(body.contains("http://127.0.0.1:8080/mcp"))
+        assertTrue(body.contains("http://127.0.0.1:8080/api/v1/mcp"))
         assertTrue(body.contains("https://authkit.example"))
         assertTrue(body.contains("header"))
     }
 
     @Test
-    fun activeTokenListsTools() = harness { _, _ ->
-        val headers = client.post("/mcp") {
+    fun protectedResourceDocumentAtResourcePath() = harness { _, _ ->
+        val response = client.get("/.well-known/oauth-protected-resource/api/v1/mcp")
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("http://127.0.0.1:8080/api/v1/mcp"))
+        assertTrue(body.contains("https://authkit.example"))
+    }
+
+    @Test
+    fun resourcePathParsing() {
+        assertEquals("/api/v1/mcp", resourcePath("https://cookbook.example/api/v1/mcp/"))
+        assertEquals(null, resourcePath("https://cookbook.example"))
+        assertEquals(null, resourcePath("https://cookbook.example/"))
+    }
+
+    @Test
+    fun activeTokenListsTools()= harness { _, _ ->
+        val headers = client.post("/api/v1/mcp") {
             header(HttpHeaders.Authorization, "Bearer good")
             contentType(ContentType.Application.Json)
             setBody("""{"jsonrpc":"2.0","id":1,"method":"initialize"}""")
@@ -75,7 +93,7 @@ class McpRouteTest {
         assertTrue(initialized.contains("2025-03-26"))
         assertTrue(initialized.contains("cookbook"))
 
-        val listed = client.post("/mcp") {
+        val listed = client.post("/api/v1/mcp") {
             header(HttpHeaders.Authorization, "Bearer good")
             contentType(ContentType.Application.Json)
             setBody("""{"jsonrpc":"2.0","id":2,"method":"tools/list"}""")
@@ -86,7 +104,7 @@ class McpRouteTest {
 
     @Test
     fun wrongAudienceIsUnauthorized() = harness { accounts, _ ->
-        val response = client.post("/mcp") {
+        val response = client.post("/api/v1/mcp") {
             header(HttpHeaders.Authorization, "Bearer bad-aud")
             contentType(ContentType.Application.Json)
             setBody("""{"jsonrpc":"2.0","id":1,"method":"ping"}""")
@@ -97,7 +115,7 @@ class McpRouteTest {
 
     @Test
     fun inactiveTokenIsUnauthorized() = harness { accounts, _ ->
-        val response = client.post("/mcp") {
+        val response = client.post("/api/v1/mcp") {
             header(HttpHeaders.Authorization, "Bearer inactive")
             contentType(ContentType.Application.Json)
             setBody("""{"jsonrpc":"2.0","id":1,"method":"ping"}""")
@@ -108,7 +126,7 @@ class McpRouteTest {
 
     @Test
     fun listAllergensUsesUpsertedUser() = harness { accounts, catalog ->
-        val response = client.post("/mcp") {
+        val response = client.post("/api/v1/mcp") {
             header(HttpHeaders.Authorization, "Bearer good")
             contentType(ContentType.Application.Json)
             setBody(
@@ -125,7 +143,7 @@ class McpRouteTest {
 
     @Test
     fun notificationIsAccepted() = harness { _, _ ->
-        val response = client.post("/mcp") {
+        val response = client.post("/api/v1/mcp") {
             header(HttpHeaders.Authorization, "Bearer good")
             contentType(ContentType.Application.Json)
             setBody("""{"jsonrpc":"2.0","method":"notifications/initialized"}""")
@@ -136,7 +154,7 @@ class McpRouteTest {
 
     @Test
     fun foreignOriginIsForbidden() = harness { _, _ ->
-        val response = client.post("/mcp") {
+        val response = client.post("/api/v1/mcp") {
             header(HttpHeaders.Origin, "http://evil.example")
             header(HttpHeaders.Authorization, "Bearer good")
             contentType(ContentType.Application.Json)
@@ -183,7 +201,10 @@ class McpRouteTest {
                             single { McpTools(catalog, ThrowingRecipes()) }
                         })
                     }
-                    routing { configureMcpRouting() }
+                    routing {
+                        configureMcpWellKnownRouting()
+                        route(ApiVersion.V1) { configureMcpRouting() }
+                    }
                 }
                 block(accounts, catalog)
             }
@@ -196,13 +217,13 @@ class McpRouteTest {
 private fun testConfig() = AuthConfig(
     clientId = "client_test",
     apiKey = "sk_test",
-    redirectUri = "http://localhost:3000/api/auth/callback",
+    redirectUri = "http://localhost:3000/api/v1/auth/callback",
     logoutReturnTo = "http://localhost:3000/",
     apiBaseUrl = "https://api.workos.com",
     sessionTtlSeconds = 60,
     agentToken = null,
     authKitDomain = "https://authkit.example",
-    mcpResourceUrl = "http://127.0.0.1:8080/mcp",
+    mcpResourceUrl = "http://127.0.0.1:8080/api/v1/mcp",
 )
 
 private fun mockHttp(): HttpClient = HttpClient(MockEngine { request ->
@@ -215,7 +236,7 @@ private fun mockHttp(): HttpClient = HttpClient(MockEngine { request ->
                 "token=bad-aud" in form ->
                     """{"active":true,"sub":"user_01","aud":"https://other.example/mcp","exp":4000000000}"""
                 else ->
-                    """{"active":true,"sub":"user_01","aud":"http://127.0.0.1:8080/mcp","exp":4000000000}"""
+                    """{"active":true,"sub":"user_01","aud":"http://127.0.0.1:8080/api/v1/mcp","exp":4000000000}"""
             }
             respond(json, HttpStatusCode.OK, io.ktor.http.headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()))
         }

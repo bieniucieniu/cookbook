@@ -80,7 +80,7 @@ export const getCreateRecipeUrl = () => {
 
 
 
-  return `/recipes`
+  return `/api/v1/recipes`
 }
 
 export const createRecipe = async (recipeWrite: RecipeWrite, options?: Parameters<typeof customInstance>[1]): Promise<createRecipeResponse> => {
@@ -180,7 +180,7 @@ export const getListRecipesUrl = () => {
 
 
 
-  return `/recipes`
+  return `/api/v1/recipes`
 }
 
 /**
@@ -203,7 +203,7 @@ export const listRecipes = async ( options?: Parameters<typeof customInstance>[1
 
 export const getListRecipesQueryKey = () => {
     return [
-    `/recipes`
+    `/api/v1/recipes`
     ] as const;
     }
 
@@ -308,7 +308,7 @@ export const getUpdateRecipeUrl = (id: string,) => {
 
 
 
-  return `/recipes/${id}`
+  return `/api/v1/recipes/${id}`
 }
 
 export const updateRecipe = async (id: string,
@@ -419,7 +419,7 @@ export const getDeleteRecipeUrl = (id: string,) => {
 
 
 
-  return `/recipes/${id}`
+  return `/api/v1/recipes/${id}`
 }
 
 export const deleteRecipe = async (id: string, options?: Parameters<typeof customInstance>[1]): Promise<deleteRecipeResponse> => {
@@ -505,7 +505,7 @@ export const getGetRecipeUrl = (id: string,) => {
 
 
 
-  return `/recipes/${id}`
+  return `/api/v1/recipes/${id}`
 }
 
 /**
@@ -528,7 +528,7 @@ export const getRecipe = async (id: string, options?: Parameters<typeof customIn
 
 export const getGetRecipeQueryKey = (id: string,) => {
     return [
-    `/recipes/${id}`
+    `/api/v1/recipes/${id}`
     ] as const;
     }
 
@@ -628,7 +628,7 @@ export const getUpsertRecipeGrantUrl = (id: string,) => {
 
 
 
-  return `/recipes/${id}/grants`
+  return `/api/v1/recipes/${id}/grants`
 }
 
 export const upsertRecipeGrant = async (id: string,
@@ -739,7 +739,7 @@ export const getListRecipeGrantsUrl = (id: string,) => {
 
 
 
-  return `/recipes/${id}/grants`
+  return `/api/v1/recipes/${id}/grants`
 }
 
 export const listRecipeGrants = async (id: string, options?: Parameters<typeof customInstance>[1]): Promise<listRecipeGrantsResponse> => {
@@ -759,7 +759,7 @@ export const listRecipeGrants = async (id: string, options?: Parameters<typeof c
 
 export const getListRecipeGrantsQueryKey = (id: string,) => {
     return [
-    `/recipes/${id}/grants`
+    `/api/v1/recipes/${id}/grants`
     ] as const;
     }
 
@@ -855,7 +855,7 @@ export const getDeleteRecipeGrantUrl = (id: string,
 
 
 
-  return `/recipes/${id}/grants/${userId}`
+  return `/api/v1/recipes/${id}/grants/${userId}`
 }
 
 export const deleteRecipeGrant = async (id: string,
@@ -952,7 +952,7 @@ export const getCreateRecipeCommentUrl = (id: string,) => {
 
 
 
-  return `/recipes/${id}/comments`
+  return `/api/v1/recipes/${id}/comments`
 }
 
 export const createRecipeComment = async (id: string,
@@ -1064,7 +1064,7 @@ export const getDeleteRecipeCommentUrl = (id: string,
 
 
 
-  return `/recipes/${id}/comments/${commentId}`
+  return `/api/v1/recipes/${id}/comments/${commentId}`
 }
 
 export const deleteRecipeComment = async (id: string,

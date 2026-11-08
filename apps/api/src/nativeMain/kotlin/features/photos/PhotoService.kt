@@ -1,5 +1,6 @@
 package com.bieniucieniu.cookbook.features.photos
 
+import com.bieniucieniu.cookbook.app.ApiVersion
 import com.bieniucieniu.cookbook.core.http.ApiException
 import com.bieniucieniu.cookbook.features.auth.Actor
 import com.bieniucieniu.cookbook.features.auth.nowSeconds
@@ -43,7 +44,7 @@ class PhotoService(
             recipes.deletePhoto(id)
             throw ApiException(HttpStatusCode.BadGateway, listOf("photo storage failed"))
         }
-        return PhotoCreated(id, "/photos/$id")
+        return PhotoCreated(id, "${ApiVersion.V1}/photos/$id")
     }
 
     suspend fun read(actor: Actor?, id: Long): PhotoBytes {

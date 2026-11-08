@@ -1,3 +1,4 @@
+import { apiBase } from "@/lib/api";
 import { type currentUserResponse, useCurrentUser } from "@/generated/auth/auth";
 import type { MeResponse } from "@/generated/model";
 import { isUnauthorized } from "@/mutator";
@@ -45,7 +46,7 @@ function SessionHeader() {
                     {(user) => (
                       <div class="flex items-center gap-2">
                         <span class="text-xs text-muted-foreground">{user().email}</span>
-                        <form method="post" action="/api/auth/logout">
+                        <form method="post" action={`${apiBase}/auth/logout`}>
                           <Button type="submit">Log out</Button>
                         </form>
                       </div>
@@ -59,7 +60,7 @@ function SessionHeader() {
               </Show>
             }
           >
-            <form action="/api/auth/login" method="get">
+            <form action={`${apiBase}/auth/login`} method="get">
               <Button type="submit">Log in</Button>
             </form>
           </Show>
