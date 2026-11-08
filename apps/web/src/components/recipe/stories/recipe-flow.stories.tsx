@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { validateGraph } from "../../../lib/recipe-graph";
 import { createStore } from "solid-js/store";
 import { createDraftActions } from "../builder/actions";
-import { StepCard } from "../builder/step-card";
+import { StepEditor } from "../builder/step-editor";
 import { RecipeFlow } from "../recipe-flow";
 import { fakeCatalog, sampleDraft } from "./fixtures";
 
@@ -42,7 +42,7 @@ export const Editable: Story = {
   },
 };
 
-export const Card: Story = {
+export const Step: Story = {
   args: { draft: sampleDraft() },
   render: () => {
     const [draft, setDraft] = createStore(sampleDraft());
@@ -50,14 +50,13 @@ export const Card: Story = {
     const node = draft.nodes[1];
     return node ? (
       <div class="max-w-md">
-        <StepCard
-          node={node}
+        <StepEditor
+          stepKey={node.key}
           number={2}
           draft={draft}
           actions={actions}
           catalog={fakeCatalog()}
-          first={false}
-          last={false}
+          onSelect={() => undefined}
         />
       </div>
     ) : null;

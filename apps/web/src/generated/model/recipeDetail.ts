@@ -6,13 +6,12 @@
  */
 import type { CommentResponse } from './commentResponse.ts';
 import type { EdgeResponse } from './edgeResponse.ts';
-import type { IngredientAltResponse } from './ingredientAltResponse.ts';
 import type { IngredientFactResponse } from './ingredientFactResponse.ts';
 import type { NodeResponse } from './nodeResponse.ts';
 import type { ParallelPair } from './parallelPair.ts';
 import type { PhotoRef } from './photoRef.ts';
 import type { RecipeDetailVisibility } from './recipeDetailVisibility.ts';
-import type { ToolAltResponse } from './toolAltResponse.ts';
+import type { RecipeSummary } from './recipeSummary.ts';
 import type { ToolFactResponse } from './toolFactResponse.ts';
 
 export interface RecipeDetail {
@@ -30,8 +29,7 @@ export interface RecipeDetail {
   elapsedMaxSeconds: number;
   nodes: NodeResponse[];
   edges: EdgeResponse[];
-  ingredientAlts: IngredientAltResponse[];
-  toolAlts: ToolAltResponse[];
+  summary: RecipeSummary;
   ingredientFacts: IngredientFactResponse[];
   toolFacts: ToolFactResponse[];
   parallelPairs: ParallelPair[];

@@ -4,6 +4,7 @@
  * Cookbook API
  * OpenAPI spec version: 1.0.0
  */
+import type { IngredientSwapResponse } from './ingredientSwapResponse.ts';
 
 export interface NodeIngredientResponse {
   ingredientId: number;
@@ -13,4 +14,5 @@ export interface NodeIngredientResponse {
   /** @nullable */
   unit?: string | null;
   optional?: boolean;
+  alts?: IngredientSwapResponse[];
 }

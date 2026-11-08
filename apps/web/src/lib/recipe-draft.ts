@@ -1,5 +1,4 @@
 import type {
-  IngredientAltWrite,
   NodeIngredientWrite,
   NodeToolWrite,
   NodeWriteBranchMode,
@@ -8,7 +7,6 @@ import type {
   RecipeWrite,
   RecipeWriteVisibility,
   SpanWrite,
-  ToolAltWrite,
 } from "@/generated/model";
 import { deriveModes } from "@/lib/recipe-graph";
 
@@ -37,12 +35,6 @@ export type DraftPhoto = {
   alt: string;
 };
 
-/** Ingredients and tools picked for the recipe. Client only: the API sees them on steps. */
-export type DraftPantry = {
-  ingredients: number[];
-  tools: number[];
-};
-
 export type RecipeDraft = {
   title: string;
   description: string;
@@ -51,10 +43,7 @@ export type RecipeDraft = {
   visibility: RecipeWriteVisibility;
   nodes: DraftNode[];
   edges: DraftEdge[];
-  ingredientAlts: IngredientAltWrite[];
-  toolAlts: ToolAltWrite[];
   photos: DraftPhoto[];
-  pantry: DraftPantry;
 };
 
 export function blankNode(ord: number, key: string): DraftNode {
@@ -89,10 +78,7 @@ export function blankDraft(): RecipeDraft {
     visibility: "public",
     nodes: [],
     edges: [],
-    ingredientAlts: [],
-    toolAlts: [],
     photos: [],
-    pantry: { ingredients: [], tools: [] },
   };
 }
 
@@ -125,11 +111,17 @@ export function detailToDraft(recipe: RecipeDetail): RecipeDraft {
           qty: item.qty,
           unit: item.unit,
           optional: item.optional,
+          alts: (item.alts ?? []).map((alt) => ({
+            altIngredientId: alt.altIngredientId,
+            ratio: alt.ratio,
+            note: alt.note,
+          })),
         })),
         tools: node.tools.map((item) => ({
           toolId: item.toolId,
           optional: item.optional,
           hold: item.hold,
+          alts: (item.alts ?? []).map((alt) => ({ altToolId: alt.altToolId, note: alt.note })),
         })),
       })),
     edges: recipe.edges.flatMap((edge) => {
@@ -138,31 +130,8 @@ export function detailToDraft(recipe: RecipeDetail): RecipeDraft {
       if (!from || !to) return [];
       return [{ from, to, label: edge.label }];
     }),
-    ingredientAlts: recipe.ingredientAlts.map((alt) => ({
-      ingredientId: alt.ingredientId,
-      altIngredientId: alt.altIngredientId,
-      nodeKey: alt.nodeId == null ? null : (keyById.get(alt.nodeId) ?? null),
-      ratio: alt.ratio,
-      note: alt.note,
-    })),
-    toolAlts: recipe.toolAlts.map((alt) => ({
-      toolId: alt.toolId,
-      altToolId: alt.altToolId,
-      nodeKey: alt.nodeId == null ? null : (keyById.get(alt.nodeId) ?? null),
-      note: alt.note,
-    })),
     photos: (recipe.photos ?? []).map((photo) => ({ id: photo.id, alt: photo.alt ?? "" })),
-    pantry: {
-      ingredients: unique(
-        recipe.nodes.flatMap((node) => node.ingredients.map((item) => item.ingredientId))
-      ),
-      tools: unique(recipe.nodes.flatMap((node) => node.tools.map((item) => item.toolId))),
-    },
   };
-}
-
-function unique(ids: number[]): number[] {
-  return [...new Set(ids)];
 }
 
 export function draftToWrite(draft: RecipeDraft): RecipeWrite {
@@ -190,8 +159,6 @@ export function draftToWrite(draft: RecipeDraft): RecipeWrite {
     edges: draft.edges
       .filter((edge) => edge.from && edge.to && keys.has(edge.from) && keys.has(edge.to))
       .map((edge) => ({ from: edge.from, to: edge.to, label: edge.label })),
-    ingredientAlts: draft.ingredientAlts,
-    toolAlts: draft.toolAlts,
     photos: draft.photos.map((photo) => ({ id: photo.id, alt: photo.alt })),
   };
 }
@@ -228,54 +195,4 @@ export function roughSeconds(draft: Pick<RecipeDraft, "nodes" | "edges">): numbe
     return total;
   };
   return draft.nodes.reduce((longest, node) => Math.max(longest, finish(node.key)), 0);
-}
-
-export type RolledLine = {
-  ingredientId: number;
-  qty: number | null;
-  unit: string | null;
-  optional: boolean;
-};
-
-/** One line per ingredient and unit, quantities summed across steps. */
-export function rollup(draft: Pick<RecipeDraft, "nodes">): RolledLine[] {
-  const groups = new Map<
-    string,
-    RolledLine & { uses: number; optionalUses: number; qtyUses: number }
-  >();
-  for (const node of [...draft.nodes].sort((left, right) => left.ord - right.ord)) {
-    for (const use of node.ingredients) {
-      const unit = use.unit ?? null;
-      const key = `${use.ingredientId}\0${unit ?? ""}`;
-      let row = groups.get(key);
-      if (!row) {
-        row = {
-          ingredientId: use.ingredientId,
-          qty: null,
-          unit,
-          optional: false,
-          uses: 0,
-          optionalUses: 0,
-          qtyUses: 0,
-        };
-        groups.set(key, row);
-      }
-      row.uses += 1;
-      if (use.optional) row.optionalUses += 1;
-      if (use.qty != null) {
-        row.qty = (row.qty ?? 0) + use.qty;
-        row.qtyUses += 1;
-      }
-    }
-  }
-  return [...groups.values()].map((row) => ({
-    ingredientId: row.ingredientId,
-    qty: row.qtyUses > 0 ? row.qty : null,
-    unit: row.unit,
-    optional: row.optionalUses === row.uses,
-  }));
-}
-
-export function toolIds(draft: Pick<RecipeDraft, "nodes">): number[] {
-  return unique(draft.nodes.flatMap((node) => node.tools.map((tool) => tool.toolId)));
 }

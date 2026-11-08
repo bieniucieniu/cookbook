@@ -5,11 +5,8 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface IngredientAltWrite {
-  ingredientId: number;
+export interface IngredientSwapWrite {
   altIngredientId: number;
-  /** @nullable */
-  nodeKey?: string | null;
   ratio?: number;
   note?: string;
 }

@@ -1,4 +1,4 @@
-import { IconTrash } from "@/components/icons";
+import { IconPencil, IconTrash } from "@/components/icons";
 import { Button } from "@/components/ui/button";
 import { Input, InputControl, InputLabel } from "@/components/ui/input";
 import type { RecipeDraft } from "@/lib/recipe-draft";
@@ -7,11 +7,15 @@ import { createMemo, createSignal, For, Show } from "solid-js";
 import { RecipeFlow } from "../recipe-flow";
 import type { DraftActions } from "./actions";
 
-/** The whole recipe as nodes. Drag from a right dot to a left dot to wire two steps. */
-export function FlowStage(props: {
+/**
+ * Optional: the whole recipe as nodes. The step list already places every step; this is for a
+ * look at the shape or wiring by hand. Drag from a right dot to a left dot to wire two steps.
+ */
+export function FlowPane(props: {
   draft: RecipeDraft;
   actions: DraftActions;
   issues: GraphIssue[];
+  onOpen: (key: string) => void;
 }) {
   const [selected, setSelected] = createSignal<string>();
   const step = createMemo(() => props.draft.nodes.find((node) => node.key === selected()));
@@ -28,7 +32,7 @@ export function FlowStage(props: {
         draft={props.draft}
         issues={props.issues}
         editable
-        class="h-[60vh] min-h-80"
+        class="h-[65vh] min-h-80"
         onSelect={setSelected}
         onConnect={(from, to) => props.actions.addEdge(from, to)}
         onRemoveEdge={(from, to) => props.actions.removeEdge(from, to)}
@@ -42,7 +46,16 @@ export function FlowStage(props: {
             aria-label="Selected step"
           >
             <div class="flex items-center justify-between gap-2">
-              <h2 class="text-base font-semibold">{node().title || node().key}</h2>
+              <h2 class="flex-1 text-base font-semibold">{node().title || node().key}</h2>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => props.onOpen(node().key)}
+              >
+                <IconPencil aria-hidden="true" />
+                Edit step
+              </Button>
               <Button
                 type="button"
                 variant="destructive"

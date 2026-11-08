@@ -41,6 +41,7 @@ declare module "@tabler/icons-solidjs" {
   export const IconPlayerPause: TablerIcon;
   export const IconPlayerPlay: TablerIcon;
   export const IconPlus: TablerIcon;
+  export const IconSettings: TablerIcon;
   export const IconRepeat: TablerIcon;
   export const IconShare: TablerIcon;
   export const IconSitemap: TablerIcon;

@@ -1,7 +1,6 @@
 import { photoUrl } from "@/lib/api";
 import { IconLock, IconNote, IconPhoto, IconTrash, IconUsers, IconWorld } from "@/components/icons";
 import { Button } from "@/components/ui/button";
-import { Input, InputControl, InputLabel } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { photoForUpload, uploadPhotoFile } from "@/lib/photos";
 import type { RecipeDraft } from "@/lib/recipe-draft";
@@ -11,16 +10,13 @@ import type { SetStoreFunction } from "solid-js/store";
 import { MarkdownEditor } from "../markdown";
 import { IconLabel, Stepper } from "../parts";
 
-/** Photo first (the finished result), then name, cooks and who can see it. */
-export function BasicsStage(props: {
+/** Recipe-wide settings: photos, cooks, who can see it, tips. Name and intro live in the summary. */
+export function DetailsEditor(props: {
   draft: RecipeDraft;
   setDraft: SetStoreFunction<RecipeDraft>;
 }) {
   const [uploading, setUploading] = createSignal(false);
   const [uploadError, setUploadError] = createSignal<string>();
-  const [showNotes, setShowNotes] = createSignal(
-    Boolean(props.draft.description.trim() || props.draft.notes.trim())
-  );
   let fileInput: HTMLInputElement | undefined;
 
   const upload = async (file: File | undefined) => {
@@ -39,6 +35,7 @@ export function BasicsStage(props: {
 
   return (
     <div class="flex flex-col gap-6">
+      <h2 class="text-lg font-bold">Recipe details</h2>
       <section class="flex flex-col gap-2" aria-label="Photo">
         <Show
           when={props.draft.photos.length > 0}
@@ -113,15 +110,6 @@ export function BasicsStage(props: {
         </Show>
       </section>
 
-      <Input
-        value={props.draft.title}
-        onChange={(value) => props.setDraft("title", value)}
-        required
-      >
-        <InputLabel class="text-sm">Name</InputLabel>
-        <InputControl class="h-11 text-lg font-semibold md:text-lg" placeholder="Tomato eggs" />
-      </Input>
-
       <div class="flex flex-wrap items-end gap-6">
         <div class="flex flex-col gap-2">
           <IconLabel icon={IconUsers} label="Cooks" class="text-sm font-medium" />
@@ -154,32 +142,15 @@ export function BasicsStage(props: {
         </div>
       </div>
 
-      <Show
-        when={showNotes()}
-        fallback={
-          <Button type="button" variant="ghost" class="w-fit" onClick={() => setShowNotes(true)}>
-            <IconNote aria-hidden="true" />
-            Add a note
-          </Button>
-        }
-      >
-        <div class="flex flex-col gap-2">
-          <IconLabel icon={IconNote} label="About" class="text-sm font-medium" />
-          <MarkdownEditor
-            label="About this recipe"
-            placeholder="Optional. A line or two."
-            defaultValue={props.draft.description}
-            onChange={(value) => props.setDraft("description", value)}
-          />
-          <span class="text-sm font-medium">Tips</span>
-          <MarkdownEditor
-            label="Tips"
-            placeholder="Optional. Storage, serving, swaps."
-            defaultValue={props.draft.notes}
-            onChange={(value) => props.setDraft("notes", value)}
-          />
-        </div>
-      </Show>
+      <div class="flex flex-col gap-2">
+        <IconLabel icon={IconNote} label="Tips" class="text-sm font-medium" />
+        <MarkdownEditor
+          label="Tips"
+          placeholder="Optional. Storage, serving, swaps."
+          defaultValue={props.draft.notes}
+          onChange={(value) => props.setDraft("notes", value)}
+        />
+      </div>
     </div>
   );
 }

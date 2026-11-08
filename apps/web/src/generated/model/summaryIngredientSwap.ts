@@ -5,11 +5,10 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface IngredientAltResponse {
-  ingredientId: number;
+export interface SummaryIngredientSwap {
   altIngredientId: number;
-  /** @nullable */
-  nodeId?: number | null;
+  slug: string;
   ratio: number;
   note: string;
+  stepKeys: string[];
 }

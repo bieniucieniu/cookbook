@@ -31,12 +31,27 @@ enum class Presence {
 @Serializable
 data class SpanWrite(val ord: Int, val kind: SpanKind, val seconds: Int)
 
+/** Another ingredient this step accepts instead. `ratio` is swap quantity / original quantity. */
+@Serializable
+data class IngredientSwapWrite(
+    val altIngredientId: Long,
+    val ratio: Double = 1.0,
+    val note: String = "",
+)
+
+@Serializable
+data class ToolSwapWrite(
+    val altToolId: Long,
+    val note: String = "",
+)
+
 @Serializable
 data class NodeIngredientWrite(
     val ingredientId: Long,
     val qty: Double? = null,
     val unit: String? = null,
     val optional: Boolean = false,
+    val alts: List<IngredientSwapWrite> = emptyList(),
 )
 
 @Serializable
@@ -44,6 +59,7 @@ data class NodeToolWrite(
     val toolId: Long,
     val optional: Boolean = false,
     val hold: ToolHold = ToolHold.Active,
+    val alts: List<ToolSwapWrite> = emptyList(),
 )
 
 @Serializable
@@ -63,23 +79,6 @@ data class NodeWrite(
 
 @Serializable
 data class EdgeWrite(val from: String, val to: String, val label: String = "")
-
-@Serializable
-data class IngredientAltWrite(
-    val ingredientId: Long,
-    val altIngredientId: Long,
-    val nodeKey: String? = null,
-    val ratio: Double = 1.0,
-    val note: String = "",
-)
-
-@Serializable
-data class ToolAltWrite(
-    val toolId: Long,
-    val altToolId: Long,
-    val nodeKey: String? = null,
-    val note: String = "",
-)
 
 @Serializable
 enum class RecipeVisibility {
@@ -124,8 +123,6 @@ data class RecipeWrite(
     val visibility: RecipeVisibility = RecipeVisibility.Public,
     val nodes: List<NodeWrite>,
     val edges: List<EdgeWrite> = emptyList(),
-    val ingredientAlts: List<IngredientAltWrite> = emptyList(),
-    val toolAlts: List<ToolAltWrite> = emptyList(),
     val photos: List<PhotoRef> = emptyList(),
 )
 
@@ -151,12 +148,28 @@ data class IngredientUse(
 )
 
 @Serializable
+data class IngredientSwapResponse(
+    val altIngredientId: Long,
+    val slug: String,
+    val ratio: Double,
+    val note: String,
+)
+
+@Serializable
+data class ToolSwapResponse(
+    val altToolId: Long,
+    val slug: String,
+    val note: String,
+)
+
+@Serializable
 data class NodeIngredientResponse(
     val ingredientId: Long,
     val slug: String,
     val qty: Double? = null,
     val unit: String? = null,
     val optional: Boolean = false,
+    val alts: List<IngredientSwapResponse> = emptyList(),
 )
 
 @Serializable
@@ -165,6 +178,7 @@ data class NodeToolResponse(
     val slug: String,
     val optional: Boolean = false,
     val hold: ToolHold = ToolHold.Active,
+    val alts: List<ToolSwapResponse> = emptyList(),
 )
 
 @Serializable
@@ -190,21 +204,54 @@ data class NodeResponse(
 @Serializable
 data class EdgeResponse(val fromNodeId: Long, val toNodeId: Long, val label: String)
 
+/** One summed amount. Uses with no quantity add nothing; `qty` stays null when no use had one. */
 @Serializable
-data class IngredientAltResponse(
-    val ingredientId: Long,
+data class SummaryAmount(val qty: Double? = null, val unit: String? = null)
+
+@Serializable
+data class SummaryIngredientSwap(
     val altIngredientId: Long,
-    val nodeId: Long? = null,
+    val slug: String,
     val ratio: Double,
     val note: String,
+    val stepKeys: List<String>,
 )
 
 @Serializable
-data class ToolAltResponse(
-    val toolId: Long,
+data class SummaryToolSwap(
     val altToolId: Long,
-    val nodeId: Long? = null,
+    val slug: String,
     val note: String,
+    val stepKeys: List<String>,
+)
+
+@Serializable
+data class SummaryIngredient(
+    val ingredientId: Long,
+    val slug: String,
+    val amounts: List<SummaryAmount>,
+    val optional: Boolean,
+    val presence: Presence,
+    val stepKeys: List<String>,
+    val alts: List<SummaryIngredientSwap>,
+)
+
+@Serializable
+data class SummaryTool(
+    val toolId: Long,
+    val slug: String,
+    val optional: Boolean,
+    val presence: Presence,
+    val stepKeys: List<String>,
+    val alts: List<SummaryToolSwap>,
+)
+
+/** The recipe-level lists. Only a sum of the steps; nothing here is stored on its own. */
+@Serializable
+data class RecipeSummary(
+    val ingredients: List<SummaryIngredient>,
+    val tools: List<SummaryTool>,
+    val stepCount: Int,
 )
 
 @Serializable
@@ -246,8 +293,7 @@ data class RecipeDetail(
     val elapsedMaxSeconds: Int,
     val nodes: List<NodeResponse>,
     val edges: List<EdgeResponse>,
-    val ingredientAlts: List<IngredientAltResponse>,
-    val toolAlts: List<ToolAltResponse>,
+    val summary: RecipeSummary,
     val ingredientFacts: List<IngredientFactResponse>,
     val toolFacts: List<ToolFactResponse>,
     val parallelPairs: List<ParallelPair>,

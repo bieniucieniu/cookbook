@@ -1,11 +1,9 @@
-import { isStage, type StageId } from "@/components/recipe/builder/stages";
-import { RecipeBuilder } from "@/components/recipe/builder/recipe-builder";
+import { RecipeEditor, type EditorPane } from "@/components/recipe/builder/recipe-editor";
 import { blankDraft } from "@/lib/recipe-draft";
 import { Link, createFileRoute } from "@tanstack/solid-router";
 
 export const Route = createFileRoute("/recipes/new")({
-  validateSearch: (search: Record<string, unknown>): { stage?: StageId } =>
-    isStage(search.stage) ? { stage: search.stage } : {},
+  validateSearch: editorSearch,
   component: NewRecipePage,
 });
 
@@ -13,15 +11,24 @@ function NewRecipePage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <main class="mx-auto flex w-full max-w-3xl flex-col gap-2 px-4 pt-2">
+    <main class="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 pt-2">
       <Link to="/" class="text-sm text-muted-foreground">
         Recipes
       </Link>
-      <RecipeBuilder
+      <RecipeEditor
         initial={blankDraft()}
-        stage={search().stage ?? "basics"}
-        onStage={(stage) => void navigate({ search: { stage } })}
+        selected={search().step}
+        pane={search().pane ?? "step"}
+        onSelect={(step) => void navigate({ search: (prev) => ({ ...prev, step }), replace: true })}
+        onPane={(pane) => void navigate({ search: (prev) => ({ ...prev, pane }), replace: true })}
       />
     </main>
   );
+}
+
+function editorSearch(search: Record<string, unknown>): { step?: string; pane?: EditorPane } {
+  return {
+    ...(typeof search.step === "string" && search.step ? { step: search.step } : {}),
+    ...(search.pane === "flow" || search.pane === "step" ? { pane: search.pane } : {}),
+  };
 }

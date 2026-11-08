@@ -76,6 +76,5 @@ export function sampleDraft(): RecipeDraft {
       ["pan", "serve"],
       ["broil", "serve"],
     ].map(([from = "", to = ""]) => ({ from, to, label: "" })),
-    pantry: { ingredients: [1, 2, 3, 4], tools: [1, 2] },
   };
 }

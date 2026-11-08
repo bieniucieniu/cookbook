@@ -106,7 +106,15 @@ private fun nodeSchema(): JsonObject = obj(
                     "ingredientId" to intSchema("Catalog ingredient id", minimum = 1),
                     "qty" to numberSchema(minimum = 0),
                     "unit" to stringSchema(),
-                    "optional" to buildJsonObject { put("type", "boolean") },
+                    "optional" to buildJsonObject {
+                        put("type", "boolean")
+                        put("description", "Same value in every step that uses this ingredient")
+                    },
+                    "alts" to buildJsonObject {
+                        put("type", "array")
+                        put("description", "Swaps this step accepts")
+                        put("items", ingredientSwapSchema())
+                    },
                 ),
                 required = listOf("ingredientId"),
             ))
@@ -116,8 +124,16 @@ private fun nodeSchema(): JsonObject = obj(
             put("items", obj(
                 props(
                     "toolId" to intSchema("Catalog tool id", minimum = 1),
-                    "optional" to buildJsonObject { put("type", "boolean") },
+                    "optional" to buildJsonObject {
+                        put("type", "boolean")
+                        put("description", "Same value in every step that uses this tool")
+                    },
                     "hold" to enumSchema("active", "span", description = "active during the step, or span for the timed span"),
+                    "alts" to buildJsonObject {
+                        put("type", "array")
+                        put("description", "Swaps this step accepts")
+                        put("items", toolSwapSchema())
+                    },
                 ),
                 required = listOf("toolId"),
             ))
@@ -135,25 +151,21 @@ private fun edgeSchema(): JsonObject = obj(
     required = listOf("from", "to"),
 )
 
-private fun ingredientAltSchema(): JsonObject = obj(
+private fun ingredientSwapSchema(): JsonObject = obj(
     props(
-        "ingredientId" to intSchema(minimum = 1),
         "altIngredientId" to intSchema(minimum = 1),
-        "nodeKey" to stringSchema("Null applies to the whole recipe"),
-        "ratio" to numberSchema(minimum = 0),
+        "ratio" to numberSchema("Swap quantity / original quantity", minimum = 0),
         "note" to stringSchema(),
     ),
-    required = listOf("ingredientId", "altIngredientId"),
+    required = listOf("altIngredientId"),
 )
 
-private fun toolAltSchema(): JsonObject = obj(
+private fun toolSwapSchema(): JsonObject = obj(
     props(
-        "toolId" to intSchema(minimum = 1),
         "altToolId" to intSchema(minimum = 1),
-        "nodeKey" to stringSchema("Null applies to the whole recipe"),
         "note" to stringSchema(),
     ),
-    required = listOf("toolId", "altToolId"),
+    required = listOf("altToolId"),
 )
 
 internal fun recipeInputSchema(includeRecipeId: Boolean): JsonObject {
@@ -177,14 +189,6 @@ internal fun recipeInputSchema(includeRecipeId: Boolean): JsonObject {
         "edges" to buildJsonObject {
             put("type", "array")
             put("items", edgeSchema())
-        },
-        "ingredientAlts" to buildJsonObject {
-            put("type", "array")
-            put("items", ingredientAltSchema())
-        },
-        "toolAlts" to buildJsonObject {
-            put("type", "array")
-            put("items", toolAltSchema())
         },
     )
     return obj(JsonObject(fields.toMap()), required)

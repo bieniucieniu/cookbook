@@ -5,10 +5,12 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { NodeToolResponseHold } from './nodeToolResponseHold.ts';
+import type { ToolSwapResponse } from './toolSwapResponse.ts';
 
 export interface NodeToolResponse {
   toolId: number;
   slug: string;
   optional?: boolean;
   hold?: NodeToolResponseHold;
+  alts?: ToolSwapResponse[];
 }

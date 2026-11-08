@@ -5,10 +5,9 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface ToolAltResponse {
-  toolId: number;
+export interface SummaryToolSwap {
   altToolId: number;
-  /** @nullable */
-  nodeId?: number | null;
+  slug: string;
   note: string;
+  stepKeys: string[];
 }

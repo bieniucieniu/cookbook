@@ -7,18 +7,18 @@ import com.bieniucieniu.cookbook.core.database.tx
 import com.bieniucieniu.cookbook.core.http.ApiException
 import com.bieniucieniu.cookbook.db.CookbookDatabase
 import com.bieniucieniu.cookbook.db.Recipe_edges
-import com.bieniucieniu.cookbook.db.SelectRecipeIngredientAlts
 import com.bieniucieniu.cookbook.db.Recipe_ingredient_facts
 import com.bieniucieniu.cookbook.db.Recipe_node_spans
 import com.bieniucieniu.cookbook.db.Recipe_nodes
-import com.bieniucieniu.cookbook.db.Recipe_tool_alts
 import com.bieniucieniu.cookbook.db.Recipe_tool_facts
 import com.bieniucieniu.cookbook.db.CommentById
 import com.bieniucieniu.cookbook.db.Recipe_photos
-import com.bieniucieniu.cookbook.db.SelectAllRecipeIngredientAlts
-import com.bieniucieniu.cookbook.db.SelectAllRecipeToolAlts
+import com.bieniucieniu.cookbook.db.SelectAllNodeIngredientAlts
+import com.bieniucieniu.cookbook.db.SelectAllNodeToolAlts
 import com.bieniucieniu.cookbook.db.SelectCommentsForRecipe
+import com.bieniucieniu.cookbook.db.SelectNodeIngredientAlts
 import com.bieniucieniu.cookbook.db.SelectNodeIngredients
+import com.bieniucieniu.cookbook.db.SelectNodeToolAlts
 import com.bieniucieniu.cookbook.db.SelectNodeTools
 import com.bieniucieniu.cookbook.db.SelectPublicSummaries
 import com.bieniucieniu.cookbook.db.SelectVisibleSummaries
@@ -76,7 +76,7 @@ data class SavedRecipe(val id: Long, val removedPhotoKeys: List<String>)
 
 fun photoObjectKey(storageKey: String): String = "photos/$storageKey"
 
-data class RecipeSummary(
+data class RecipeListRow(
     val id: Long,
     val title: String,
     val cooks: Int,
@@ -92,7 +92,7 @@ class RecipeRepository(
     private val database: CookbookDatabase,
     private val postgres: IPostgresSQL,
 ) {
-    suspend fun visibleSummaries(userId: Long?): List<RecipeSummary> =
+    suspend fun visibleSummaries(userId: Long?): List<RecipeListRow> =
         if (userId == null) {
             database.recipesQueries.selectPublicSummaries().awaitAsList().map { it.toSummary() }
         } else {
@@ -147,11 +147,11 @@ class RecipeRepository(
     suspend fun nodeTools(recipeId: Long): List<SelectNodeTools> =
         database.recipeGraphQueries.selectNodeTools(recipeId).awaitAsList()
 
-    suspend fun ingredientAlts(recipeId: Long): List<SelectRecipeIngredientAlts> =
-        database.recipeGraphQueries.selectRecipeIngredientAlts(recipeId).awaitAsList()
+    suspend fun ingredientAlts(recipeId: Long): List<SelectNodeIngredientAlts> =
+        database.recipeGraphQueries.selectNodeIngredientAlts(recipeId).awaitAsList()
 
-    suspend fun toolAlts(recipeId: Long): List<Recipe_tool_alts> =
-        database.recipeGraphQueries.selectRecipeToolAlts(recipeId).awaitAsList()
+    suspend fun toolAlts(recipeId: Long): List<SelectNodeToolAlts> =
+        database.recipeGraphQueries.selectNodeToolAlts(recipeId).awaitAsList()
 
     suspend fun ingredientFacts(recipeId: Long): List<Recipe_ingredient_facts> =
         database.recipeGraphQueries.selectIngredientFactsForRecipe(recipeId).awaitAsList()
@@ -165,11 +165,11 @@ class RecipeRepository(
     suspend fun allToolFacts(): List<Recipe_tool_facts> =
         database.recipeGraphQueries.selectAllToolFacts().awaitAsList()
 
-    suspend fun allIngredientAlts(): List<SelectAllRecipeIngredientAlts> =
-        database.recipeGraphQueries.selectAllRecipeIngredientAlts().awaitAsList()
+    suspend fun allIngredientAlts(): List<SelectAllNodeIngredientAlts> =
+        database.recipeGraphQueries.selectAllNodeIngredientAlts().awaitAsList()
 
-    suspend fun allToolAlts(): List<SelectAllRecipeToolAlts> =
-        database.recipeGraphQueries.selectAllRecipeToolAlts().awaitAsList()
+    suspend fun allToolAlts(): List<SelectAllNodeToolAlts> =
+        database.recipeGraphQueries.selectAllNodeToolAlts().awaitAsList()
 
     suspend fun idByTitle(title: String): Long? =
         database.recipesQueries.recipeIdByTitle(title).awaitAsOneOrNull()
@@ -309,8 +309,6 @@ private suspend fun QueryExecutor.writeGraph(recipeId: Long, write: RecipeWrite,
         "recipe_ingredient_facts",
         "recipe_tool_facts",
         "recipe_time",
-        "recipe_ingredient_alts",
-        "recipe_tool_alts",
         "recipe_nodes",
     )) {
         execute(sql("DELETE FROM $table WHERE recipe_id = :id", mapOf("id" to recipeId))).getOrThrow()
@@ -357,11 +355,12 @@ private suspend fun QueryExecutor.writeGraph(recipeId: Long, write: RecipeWrite,
             ).getOrThrow()
         }
         for (ingredient in node.ingredients) {
-            execute(
+            val useId = fetchAll(
                 sql(
                     """
                     INSERT INTO node_ingredients (node_id, ingredient_id, qty, unit, optional)
                     VALUES (:node_id, :ingredient_id, :qty, :unit, :optional)
+                    RETURNING id
                     """.trimIndent(),
                     mapOf(
                         "node_id" to nodeId,
@@ -371,14 +370,31 @@ private suspend fun QueryExecutor.writeGraph(recipeId: Long, write: RecipeWrite,
                         "optional" to ingredient.optional,
                     ),
                 ),
-            ).getOrThrow()
+            ).getOrThrow().single().get("id").asLong()
+            for (alt in ingredient.alts) {
+                execute(
+                    sql(
+                        """
+                        INSERT INTO node_ingredient_alts (node_ingredient_id, alt_ingredient_id, ratio, note)
+                        VALUES (:node_ingredient_id, :alt_ingredient_id, :ratio, :note)
+                        """.trimIndent(),
+                        mapOf(
+                            "node_ingredient_id" to useId,
+                            "alt_ingredient_id" to alt.altIngredientId,
+                            "ratio" to alt.ratio,
+                            "note" to alt.note,
+                        ),
+                    ),
+                ).getOrThrow()
+            }
         }
         for (tool in node.tools) {
-            execute(
+            val useId = fetchAll(
                 sql(
                     """
                     INSERT INTO node_tools (node_id, tool_id, optional, hold)
                     VALUES (:node_id, :tool_id, :optional, :hold)
+                    RETURNING id
                     """.trimIndent(),
                     mapOf(
                         "node_id" to nodeId,
@@ -387,7 +403,22 @@ private suspend fun QueryExecutor.writeGraph(recipeId: Long, write: RecipeWrite,
                         "hold" to tool.hold.db(),
                     ),
                 ),
-            ).getOrThrow()
+            ).getOrThrow().single().get("id").asLong()
+            for (alt in tool.alts) {
+                execute(
+                    sql(
+                        """
+                        INSERT INTO node_tool_alts (node_tool_id, alt_tool_id, note)
+                        VALUES (:node_tool_id, :alt_tool_id, :note)
+                        """.trimIndent(),
+                        mapOf(
+                            "node_tool_id" to useId,
+                            "alt_tool_id" to alt.altToolId,
+                            "note" to alt.note,
+                        ),
+                    ),
+                ).getOrThrow()
+            }
         }
     }
     for (edge in write.edges) {
@@ -402,44 +433,6 @@ private suspend fun QueryExecutor.writeGraph(recipeId: Long, write: RecipeWrite,
                     "from_node_id" to ids.getValue(edge.from),
                     "to_node_id" to ids.getValue(edge.to),
                     "label" to edge.label,
-                ),
-            ),
-        ).getOrThrow()
-    }
-    for (alt in write.ingredientAlts) {
-        execute(
-            sql(
-                """
-                INSERT INTO recipe_ingredient_alts (
-                  recipe_id, ingredient_id, alt_ingredient_id, node_id, ratio, note
-                ) VALUES (
-                  :recipe_id, :ingredient_id, :alt_ingredient_id, :node_id, :ratio, :note
-                )
-                """.trimIndent(),
-                mapOf(
-                    "recipe_id" to recipeId,
-                    "ingredient_id" to alt.ingredientId,
-                    "alt_ingredient_id" to alt.altIngredientId,
-                    "node_id" to alt.nodeKey?.let { ids.getValue(it) },
-                    "ratio" to alt.ratio,
-                    "note" to alt.note,
-                ),
-            ),
-        ).getOrThrow()
-    }
-    for (alt in write.toolAlts) {
-        execute(
-            sql(
-                """
-                INSERT INTO recipe_tool_alts (recipe_id, tool_id, alt_tool_id, node_id, note)
-                VALUES (:recipe_id, :tool_id, :alt_tool_id, :node_id, :note)
-                """.trimIndent(),
-                mapOf(
-                    "recipe_id" to recipeId,
-                    "tool_id" to alt.toolId,
-                    "alt_tool_id" to alt.altToolId,
-                    "node_id" to alt.nodeKey?.let { ids.getValue(it) },
-                    "note" to alt.note,
                 ),
             ),
         ).getOrThrow()
@@ -605,7 +598,7 @@ private fun permission(value: String): RecipePermission = when (value) {
     else -> RecipePermission.Read
 }
 
-private fun SelectPublicSummaries.toSummary() = RecipeSummary(
+private fun SelectPublicSummaries.toSummary() = RecipeListRow(
     id = id,
     title = title,
     cooks = cooks,
@@ -647,7 +640,7 @@ private fun CommentById.toRow() = CommentRow(
     createdAt = created_at,
 )
 
-private fun SelectVisibleSummaries.toSummary() = RecipeSummary(
+private fun SelectVisibleSummaries.toSummary() = RecipeListRow(
     id = id,
     title = title,
     cooks = cooks,

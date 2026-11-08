@@ -1,7 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Spinner } from "@/components/ui/spinner";
-import { isStage, type StageId } from "@/components/recipe/builder/stages";
-import { RecipeBuilder } from "@/components/recipe/builder/recipe-builder";
+import { RecipeEditor, type EditorPane } from "@/components/recipe/builder/recipe-editor";
 import type { RecipeDetail } from "@/generated/model";
 import { getGetRecipeQueryOptions, type getRecipeResponse } from "@/generated/recipes/recipes";
 import { detailToDraft } from "@/lib/recipe-draft";
@@ -11,8 +10,7 @@ import { Link, createFileRoute } from "@tanstack/solid-router";
 import { Show } from "solid-js";
 
 export const Route = createFileRoute("/recipes/$id/edit")({
-  validateSearch: (search: Record<string, unknown>): { stage?: StageId } =>
-    isStage(search.stage) ? { stage: search.stage } : {},
+  validateSearch: editorSearch,
   component: EditRecipePage,
 });
 
@@ -23,7 +21,7 @@ function EditRecipePage() {
   const recipe = useQuery(() => getGetRecipeQueryOptions(params().id));
   const detail = () => recipeDetail(recipe.data);
   return (
-    <main class="mx-auto flex w-full max-w-3xl flex-col gap-2 px-4 pt-2">
+    <main class="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 pt-2">
       <Link to="/recipes/$id" params={{ id: params().id }} class="text-sm text-muted-foreground">
         Back to recipe
       </Link>
@@ -42,11 +40,17 @@ function EditRecipePage() {
       </Show>
       <Show when={detail()}>
         {(item) => (
-          <RecipeBuilder
+          <RecipeEditor
             initial={detailToDraft(item())}
             recipeId={params().id}
-            stage={search().stage ?? "steps"}
-            onStage={(stage) => void navigate({ search: { stage } })}
+            selected={search().step}
+            pane={search().pane ?? "step"}
+            onSelect={(step) =>
+              void navigate({ search: (prev) => ({ ...prev, step }), replace: true })
+            }
+            onPane={(pane) =>
+              void navigate({ search: (prev) => ({ ...prev, pane }), replace: true })
+            }
           />
         )}
       </Show>
@@ -57,4 +61,11 @@ function EditRecipePage() {
 function recipeDetail(result: getRecipeResponse | undefined): RecipeDetail | undefined {
   if (!result || result.status !== 200) return undefined;
   return result.data;
+}
+
+function editorSearch(search: Record<string, unknown>): { step?: string; pane?: EditorPane } {
+  return {
+    ...(typeof search.step === "string" && search.step ? { step: search.step } : {}),
+    ...(search.pane === "flow" || search.pane === "step" ? { pane: search.pane } : {}),
+  };
 }

@@ -1,10 +1,10 @@
 # Recipes
 
-Migrated by `apps/api/db/migrations/0002_recipe_graph.sql`. `recipes.cooks` defaults to 1. The migration and the SQLDelight `.sq` files match. Partial unique indexes live only in the migration.
+The whole schema is one migration, `apps/api/db/migrations/0001_init.sql`. A schema change edits that file and resets the database (`drop schema public cascade; create schema public authorization cookbook;`). There are no step-by-step migrations. `recipes.cooks` defaults to 1. The migration and the SQLDelight `.sq` files match. Indexes live only in the migration.
 
 `elapsed_*` can be lower than `hands_on_*` when `cooks` > 1, so `recipe_time` checks each pair on its own (`max >= min`, both `>= 0`).
 
-A recipe is a directed acyclic graph of steps. Ingredients and tools are dictionary rows. A step points at those rows. Alternatives live on the dictionary and again on the recipe. Time is a list of spans on the step. Parallel work is an `and` split.
+A recipe is a directed acyclic graph of steps. Ingredients and tools are dictionary rows. A step points at those rows. Everything a recipe uses belongs to a step: there is no recipe-level ingredient or tool list. The recipe list is the sum of its steps (see Summary). Alternatives live on the dictionary and again on a step's use of an item. Time is a list of spans on the step. Parallel work is an `and` split.
 
 ## Graph
 
@@ -50,24 +50,48 @@ Search, allergy, dislike, and pantry join on dictionary ids. A step requirement 
 | `ingredient_allergens` | ingredient ↔ allergen                        |
 | `tools`                | `id`, `slug`, `name`                         |
 | `node_ingredients`     | step → ingredient, `qty`, `unit`, `optional` |
+| `node_ingredient_alts` | step use → swap ingredient, `ratio`, `note`  |
 | `node_tools`           | step → tool, `optional`, `hold`              |
+| `node_tool_alts`       | step use → swap tool, `note`                 |
 
-`optional` requirements stay out of the facts table. `unit` is free text. Comparing pantry quantities needs a unit table later. Identity is enough for allergy and for “I have this.”
+`optional` requirements stay out of the facts table. One ingredient or tool is optional in every step that uses it, or required in every step. A save that mixes them is rejected (`ingredient 12 is optional in "Chop" and required in "Fry"`). `unit` is free text. Comparing pantry quantities needs a unit table later. Identity is enough for allergy and for “I have this.”
 
 ## Alternatives
 
 Two lists:
 
 1. Dictionary: `ingredient_alts`, `tool_alts`. Shared suggestion. `ratio` is alt quantity / original quantity.
-2. Recipe: `recipe_ingredient_alts`, `recipe_tool_alts`. `node_id` null covers the whole recipe. `node_id` set covers that step.
+2. Step: `node_ingredient_alts`, `node_tool_alts`. Each row hangs off one step use (`node_ingredients.id` / `node_tools.id`). There is no recipe-wide swap. A swap used everywhere is listed on every step that uses the item.
+
+The write model nests them on the use:
+
+```json
+{
+  "ingredientId": 7,
+  "qty": 200,
+  "unit": "g",
+  "alts": [{ "altIngredientId": 8, "ratio": 1, "note": "" }]
+}
+```
+
+A swap is never the item itself, `ratio > 0`, and one swap item is listed once per use.
 
 Lookup order:
 
-1. Recipe alt for this step.
-2. Recipe alt for the whole recipe.
-3. Dictionary alt.
+1. Step alt.
+2. Dictionary alt.
 
-Steps 1 and 2 change whether a recipe survives a hard filter. A dictionary alt does not. Almond flour on the flour row does not make a wheat dough safe.
+Step 1 changes whether a recipe survives a hard filter. A dictionary alt does not. Almond flour on the flour row does not make a wheat dough safe.
+
+## Summary
+
+`RecipeDetail.summary` is computed on read from the steps. Nothing in it is stored on its own.
+
+- `ingredients`: one line per ingredient. `amounts` holds one `{qty, unit}` per unit, with quantities added up. `qty` stays null when no use gave one. Also `optional`, `presence` (from the facts; an optional item counts as `some_paths`), `stepKeys`, and `alts` (the union of step swaps with the steps that offer each).
+- `tools`: the same without amounts.
+- `stepCount`.
+
+The web editor computes the same lists from the live draft (`apps/web/src/lib/recipe-summary.ts`).
 
 ## Search facts
 
@@ -114,6 +138,8 @@ Sauce `active` 300s + `wait` 1200s, toast `active` 480s, same `and` split, one c
 `recipe_time` is rebuilt on the same save. `elapsed_*` is wall clock. `hands_on_*` is the sum of active seconds on the chosen arms. `xor` and `repeat_min` / `repeat_max` make the min and max.
 
 ## Tables
+
+Excerpt of `0001_init.sql`. Users, sessions, grants, photos and comments are left out here.
 
 ```sql
 create table if not exists allergens
@@ -248,51 +274,23 @@ create table if not exists node_tools
 create index if not exists node_tools_tool_idx
     on node_tools (tool_id);
 
-create table if not exists recipe_ingredient_alts
+create table if not exists node_ingredient_alts
 (
-    id                bigserial primary key,
-    recipe_id         bigint  not null references recipes (id) on delete cascade,
-    ingredient_id     bigint  not null references ingredients (id),
-    alt_ingredient_id bigint  not null references ingredients (id),
-    node_id           bigint,
-    ratio             numeric not null default 1,
-    note              text    not null default '',
-    constraint recipe_ingredient_alts_not_self check (ingredient_id <> alt_ingredient_id),
-    constraint recipe_ingredient_alts_ratio check (ratio > 0),
-    constraint recipe_ingredient_alts_node_fk
-        foreign key (node_id, recipe_id)
-            references recipe_nodes (id, recipe_id) on delete cascade
+    node_ingredient_id bigint  not null references node_ingredients (id) on delete cascade,
+    alt_ingredient_id  bigint  not null references ingredients (id),
+    ratio              numeric not null default 1,
+    note               text    not null default '',
+    primary key (node_ingredient_id, alt_ingredient_id),
+    constraint node_ingredient_alts_ratio check (ratio > 0)
 );
 
-create unique index if not exists recipe_ingredient_alts_recipe_uq
-    on recipe_ingredient_alts (recipe_id, ingredient_id, alt_ingredient_id)
-    where node_id is null;
-
-create unique index if not exists recipe_ingredient_alts_node_uq
-    on recipe_ingredient_alts (recipe_id, node_id, ingredient_id, alt_ingredient_id)
-    where node_id is not null;
-
-create table if not exists recipe_tool_alts
+create table if not exists node_tool_alts
 (
-    id          bigserial primary key,
-    recipe_id   bigint not null references recipes (id) on delete cascade,
-    tool_id     bigint not null references tools (id),
-    alt_tool_id bigint not null references tools (id),
-    node_id     bigint,
-    note        text   not null default '',
-    constraint recipe_tool_alts_not_self check (tool_id <> alt_tool_id),
-    constraint recipe_tool_alts_node_fk
-        foreign key (node_id, recipe_id)
-            references recipe_nodes (id, recipe_id) on delete cascade
+    node_tool_id bigint not null references node_tools (id) on delete cascade,
+    alt_tool_id  bigint not null references tools (id),
+    note         text   not null default '',
+    primary key (node_tool_id, alt_tool_id)
 );
-
-create unique index if not exists recipe_tool_alts_recipe_uq
-    on recipe_tool_alts (recipe_id, tool_id, alt_tool_id)
-    where node_id is null;
-
-create unique index if not exists recipe_tool_alts_node_uq
-    on recipe_tool_alts (recipe_id, node_id, tool_id, alt_tool_id)
-    where node_id is not null;
 
 create table if not exists recipe_ingredient_facts
 (
@@ -334,7 +332,19 @@ create table if not exists recipe_time
 );
 ```
 
-`recipes` gains `cooks integer not null default 1` with `cooks >= 1`. Postgres enforces slug identity, alt lists, step quantity, and that an edge or a step-scoped alt stays inside one recipe (`unique (id, recipe_id)` plus the composite foreign keys).
+`recipes` has `cooks integer not null default 1` with `cooks >= 1`. Postgres enforces slug identity, alt lists, step quantity, and that an edge stays inside one recipe (`unique (id, recipe_id)` plus the composite foreign keys). A step swap stays inside its step through the foreign key on the use row. Not-self and the optional rule are save-time checks.
+
+## Editor
+
+The web editor is a split view. On the left is the summary: title, description, summed ingredients with swaps and the optional marker, tools, and the step list. On the right is the editor for one step (or the recipe details). Each step in the list adds a step relative to it:
+
+| Button    | New step                                         |
+| --------- | ------------------------------------------------ |
+| Next      | runs after it, before what came next             |
+| Or        | `xor` arm next to it: same step before and after |
+| Alongside | `and` arm next to it: same step before and after |
+
+Or and Alongside need exactly one step before the anchor, at most one after, and a split of the same mode (or none) on the step before. That rules out the first step: add a step before it first. The step editor's Placement row moves an existing step the same way. The flow graph is an optional view and editor.
 
 ## Rejected shapes
 

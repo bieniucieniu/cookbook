@@ -4,6 +4,7 @@
  * Cookbook API
  * OpenAPI spec version: 1.0.0
  */
+import type { IngredientSwapWrite } from './ingredientSwapWrite.ts';
 
 export interface NodeIngredientWrite {
   ingredientId: number;
@@ -12,4 +13,5 @@ export interface NodeIngredientWrite {
   /** @nullable */
   unit?: string | null;
   optional?: boolean;
+  alts?: IngredientSwapWrite[];
 }

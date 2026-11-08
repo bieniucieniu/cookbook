@@ -285,6 +285,14 @@ function CookStep(props: {
                   aria-checked={got[item.ingredientId] ? "true" : "false"}
                   onClick={() => setGot(item.ingredientId, (value) => !value)}
                 />
+                <Show when={(item.alts ?? []).length > 0}>
+                  <span class="pl-3 text-sm text-muted-foreground">
+                    or{" "}
+                    {(item.alts ?? [])
+                      .map((alt) => props.catalog.name("ingredient", alt.altIngredientId))
+                      .join(", ")}
+                  </span>
+                </Show>
               </li>
             )}
           </For>
@@ -295,7 +303,20 @@ function CookStep(props: {
           <For each={props.node.tools}>
             {(item) => (
               <li>
-                <ItemChip kind="tool" name={props.catalog.name("tool", item.toolId)} static />
+                <ItemChip
+                  kind="tool"
+                  name={props.catalog.name("tool", item.toolId)}
+                  optional={item.optional}
+                  static
+                />
+                <Show when={(item.alts ?? []).length > 0}>
+                  <span class="ml-1 text-sm text-muted-foreground">
+                    or{" "}
+                    {(item.alts ?? [])
+                      .map((alt) => props.catalog.name("tool", alt.altToolId))
+                      .join(", ")}
+                  </span>
+                </Show>
               </li>
             )}
           </For>

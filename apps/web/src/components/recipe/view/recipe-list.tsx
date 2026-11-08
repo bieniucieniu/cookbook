@@ -5,8 +5,9 @@ import {
   IconToolsKitchen2,
 } from "@/components/icons";
 import type { Catalog } from "@/lib/catalog";
-import { rollup, toolIds, type RecipeDraft } from "@/lib/recipe-draft";
+import type { RecipeDraft } from "@/lib/recipe-draft";
 import { lanes } from "@/lib/recipe-graph";
+import { summarize } from "@/lib/recipe-summary";
 import { scaleQty } from "@/lib/units";
 import { createMemo, For, Index, Show, type JSX } from "solid-js";
 import { createStore } from "solid-js/store";
@@ -27,6 +28,9 @@ export function RecipeList(props: {
   const scale = (qty: number | null | undefined) =>
     qty == null ? qty : scaleQty(qty, props.draft.cooks, props.cooks);
   const rows = createMemo(() => lanes(props.draft.nodes, props.draft.edges));
+  const summary = createMemo(() => summarize(props.draft));
+  const swapText = (kind: "ingredient" | "tool", ids: number[]) =>
+    ids.length === 0 ? "" : `or ${ids.map((id) => props.catalog.name(kind, id)).join(", ")}`;
   const numbers = createMemo(() => {
     const result = new Map<string, number>();
     let next = 1;
@@ -49,48 +53,69 @@ export function RecipeList(props: {
           </h2>
           <ul class="flex flex-col gap-1.5">
             <For
-              each={rollup(props.draft)}
+              each={summary().ingredients}
               fallback={<li class="text-sm text-muted-foreground">None listed.</li>}
             >
-              {(line) => {
-                const id = `${line.ingredientId}:${line.unit ?? ""}`;
-                return (
-                  <li>
-                    <ItemChip
-                      kind="ingredient"
-                      class="w-full justify-start rounded-lg"
-                      name={props.catalog.name("ingredient", line.ingredientId)}
-                      qty={scale(line.qty)}
-                      unit={line.unit}
-                      optional={line.optional}
-                      muted={checked[id]}
-                      role="checkbox"
-                      aria-checked={checked[id] ? "true" : "false"}
-                      onClick={() => setChecked(id, (value) => !value)}
-                    />
-                  </li>
-                );
-              }}
+              {(line) => (
+                <li class="flex flex-col gap-1">
+                  <For each={line.amounts}>
+                    {(amount) => {
+                      const id = `${line.id}:${amount.unit ?? ""}`;
+                      return (
+                        <ItemChip
+                          kind="ingredient"
+                          class="w-full justify-start rounded-lg"
+                          name={props.catalog.name("ingredient", line.id)}
+                          qty={scale(amount.qty)}
+                          unit={amount.unit}
+                          optional={line.optional}
+                          muted={checked[id]}
+                          role="checkbox"
+                          aria-checked={checked[id] ? "true" : "false"}
+                          onClick={() => setChecked(id, (value) => !value)}
+                        />
+                      );
+                    }}
+                  </For>
+                  <Show when={line.alts.length > 0}>
+                    <span class="pl-3 text-xs text-muted-foreground">
+                      {swapText(
+                        "ingredient",
+                        line.alts.map((alt) => alt.id)
+                      )}
+                    </span>
+                  </Show>
+                </li>
+              )}
             </For>
           </ul>
         </section>
-        <Show when={toolIds(props.draft).length > 0}>
+        <Show when={summary().tools.length > 0}>
           <section class="flex flex-col gap-3">
             <h2 class="text-base font-semibold">
               <IconLabel icon={IconToolsKitchen2} label="Tools" />
             </h2>
             <ul class="flex flex-wrap gap-2">
-              <For each={toolIds(props.draft)}>
-                {(id) => (
-                  <li>
+              <For each={summary().tools}>
+                {(line) => (
+                  <li class="flex flex-col gap-1">
                     <ItemChip
                       kind="tool"
-                      name={props.catalog.name("tool", id)}
-                      muted={checked[`tool:${id}`]}
+                      name={props.catalog.name("tool", line.id)}
+                      optional={line.optional}
+                      muted={checked[`tool:${line.id}`]}
                       role="checkbox"
-                      aria-checked={checked[`tool:${id}`] ? "true" : "false"}
-                      onClick={() => setChecked(`tool:${id}`, (value) => !value)}
+                      aria-checked={checked[`tool:${line.id}`] ? "true" : "false"}
+                      onClick={() => setChecked(`tool:${line.id}`, (value) => !value)}
                     />
+                    <Show when={line.alts.length > 0}>
+                      <span class="pl-3 text-xs text-muted-foreground">
+                        {swapText(
+                          "tool",
+                          line.alts.map((alt) => alt.id)
+                        )}
+                      </span>
+                    </Show>
                   </li>
                 )}
               </For>
@@ -151,23 +176,44 @@ export function RecipeList(props: {
                         <div class="flex flex-wrap gap-2">
                           <For each={node.ingredients}>
                             {(item) => (
-                              <ItemChip
-                                kind="ingredient"
-                                name={props.catalog.name("ingredient", item.ingredientId)}
-                                qty={scale(item.qty)}
-                                unit={item.unit}
-                                optional={item.optional}
-                                static
-                              />
+                              <span class="inline-flex items-center gap-1.5">
+                                <ItemChip
+                                  kind="ingredient"
+                                  name={props.catalog.name("ingredient", item.ingredientId)}
+                                  qty={scale(item.qty)}
+                                  unit={item.unit}
+                                  optional={item.optional}
+                                  static
+                                />
+                                <Show when={(item.alts ?? []).length > 0}>
+                                  <span class="text-xs text-muted-foreground">
+                                    {swapText(
+                                      "ingredient",
+                                      (item.alts ?? []).map((alt) => alt.altIngredientId)
+                                    )}
+                                  </span>
+                                </Show>
+                              </span>
                             )}
                           </For>
                           <For each={node.tools}>
                             {(item) => (
-                              <ItemChip
-                                kind="tool"
-                                name={props.catalog.name("tool", item.toolId)}
-                                static
-                              />
+                              <span class="inline-flex items-center gap-1.5">
+                                <ItemChip
+                                  kind="tool"
+                                  name={props.catalog.name("tool", item.toolId)}
+                                  optional={item.optional}
+                                  static
+                                />
+                                <Show when={(item.alts ?? []).length > 0}>
+                                  <span class="text-xs text-muted-foreground">
+                                    {swapText(
+                                      "tool",
+                                      (item.alts ?? []).map((alt) => alt.altToolId)
+                                    )}
+                                  </span>
+                                </Show>
+                              </span>
                             )}
                           </For>
                           <For each={node.spans}>

@@ -7,8 +7,7 @@ import com.bieniucieniu.cookbook.features.recipes.domain.CommentResponse
 import com.bieniucieniu.cookbook.features.recipes.domain.CommentWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.EdgeResponse
 import com.bieniucieniu.cookbook.features.recipes.domain.GateMode
-import com.bieniucieniu.cookbook.features.recipes.domain.IngredientAltResponse
-import com.bieniucieniu.cookbook.features.recipes.domain.IngredientAltWrite
+import com.bieniucieniu.cookbook.features.recipes.domain.IngredientSwapResponse
 import com.bieniucieniu.cookbook.features.recipes.domain.IngredientFactResponse
 import com.bieniucieniu.cookbook.features.recipes.domain.IngredientUse
 import com.bieniucieniu.cookbook.features.recipes.domain.NodeIngredientResponse
@@ -28,8 +27,8 @@ import com.bieniucieniu.cookbook.features.recipes.domain.RecipeVisibility
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.SpanKind
 import com.bieniucieniu.cookbook.features.recipes.domain.SpanResponse
-import com.bieniucieniu.cookbook.features.recipes.domain.ToolAltResponse
-import com.bieniucieniu.cookbook.features.recipes.domain.ToolAltWrite
+import com.bieniucieniu.cookbook.features.recipes.domain.RecipeSummary
+import com.bieniucieniu.cookbook.features.recipes.domain.ToolSwapResponse
 import com.bieniucieniu.cookbook.features.recipes.domain.ToolFactResponse
 import com.bieniucieniu.cookbook.features.recipes.domain.ToolHold
 import com.bieniucieniu.cookbook.features.recipes.graph.Analysis
@@ -146,8 +145,7 @@ class RecipeService(
                 elapsedMaxSeconds = timeElapsedMax,
                 nodes = emptyList(),
                 edges = emptyList(),
-                ingredientAlts = emptyList(),
-                toolAlts = emptyList(),
+                summary = RecipeSummary(emptyList(), emptyList(), 0),
                 ingredientFacts = emptyList(),
                 toolFacts = emptyList(),
                 parallelPairs = emptyList(),
@@ -177,6 +175,56 @@ class RecipeService(
             allergensByIngredient = allergens,
         )
         val avoid = avoidNodes(analysis.alternatives, searchRecipe, query).map { it.toLong() }.sorted()
+        val ingredientSwaps = ingredientAlts.groupBy { it.node_id to it.ingredient_id }
+        val toolSwaps = toolAlts.groupBy { it.node_id to it.tool_id }
+        val nodeResponses = nodes.map { node ->
+            val ingredients = ingredientRows.filter { it.node_id == node.id }
+            val tools = toolRows.filter { it.node_id == node.id }
+            NodeResponse(
+                id = node.id,
+                key = node.key,
+                title = node.title,
+                body = node.body,
+                branchMode = gate(node.branch_mode),
+                joinMode = gate(node.join_mode),
+                repeatMin = node.repeat_min,
+                repeatMax = node.repeat_max,
+                ord = node.ord,
+                spans = spanRows.filter { it.node_id == node.id }.map {
+                    SpanResponse(ord = it.ord, kind = spanKind(it.kind), seconds = it.seconds)
+                },
+                ingredients = ingredients.map { row ->
+                    NodeIngredientResponse(
+                        row.ingredient_id,
+                        row.slug,
+                        row.qty,
+                        row.unit,
+                        row.optional,
+                        ingredientSwaps[node.id to row.ingredient_id].orEmpty().map {
+                            IngredientSwapResponse(it.alt_ingredient_id, it.slug, it.ratio, it.note)
+                        },
+                    )
+                },
+                ingredientMap = ingredients.associate { row ->
+                    row.slug to IngredientUse(row.ingredient_id, row.qty, row.unit, row.optional)
+                },
+                tools = tools.map { row ->
+                    NodeToolResponse(
+                        row.tool_id,
+                        row.slug,
+                        row.optional,
+                        toolHold(row.hold),
+                        toolSwaps[node.id to row.tool_id].orEmpty().map {
+                            ToolSwapResponse(it.alt_tool_id, it.slug, it.note)
+                        },
+                    )
+                },
+            )
+        }
+        val ingredientFacts = recipes.ingredientFacts(id).map {
+            IngredientFactResponse(it.ingredient_id, presence(it.presence))
+        }
+        val toolFacts = recipes.toolFacts(id).map { ToolFactResponse(it.tool_id, presence(it.presence)) }
         return RecipeDetail(
             id = recipe.id,
             title = recipe.title,
@@ -189,46 +237,15 @@ class RecipeService(
             handsOnMaxSeconds = timeHandsMax,
             elapsedMinSeconds = timeElapsedMin,
             elapsedMaxSeconds = timeElapsedMax,
-            nodes = nodes.map { node ->
-                val ingredients = ingredientRows.filter { it.node_id == node.id }
-                val tools = toolRows.filter { it.node_id == node.id }
-                NodeResponse(
-                    id = node.id,
-                    key = node.key,
-                    title = node.title,
-                    body = node.body,
-                    branchMode = gate(node.branch_mode),
-                    joinMode = gate(node.join_mode),
-                    repeatMin = node.repeat_min,
-                    repeatMax = node.repeat_max,
-                    ord = node.ord,
-                    spans = spanRows.filter { it.node_id == node.id }.map {
-                        SpanResponse(ord = it.ord, kind = spanKind(it.kind), seconds = it.seconds)
-                    },
-                    ingredients = ingredients.map {
-                        NodeIngredientResponse(it.ingredient_id, it.slug, it.qty, it.unit, it.optional)
-                    },
-                    ingredientMap = ingredients.associate { row ->
-                        row.slug to IngredientUse(row.ingredient_id, row.qty, row.unit, row.optional)
-                    },
-                    tools = tools.map {
-                        NodeToolResponse(it.tool_id, it.slug, it.optional, toolHold(it.hold))
-                    },
-                )
-            },
+            nodes = nodeResponses,
             edges = edgeRows.map { EdgeResponse(it.from_node_id, it.to_node_id, it.label) },
-            ingredientAlts = ingredientAlts.map {
-                IngredientAltResponse(it.ingredient_id, it.alt_ingredient_id, it.node_id, it.ratio, it.note)
-            },
-            toolAlts = toolAlts.map {
-                ToolAltResponse(it.tool_id, it.alt_tool_id, it.node_id, it.note)
-            },
-            ingredientFacts = recipes.ingredientFacts(id).map {
-                IngredientFactResponse(it.ingredient_id, presence(it.presence))
-            },
-            toolFacts = recipes.toolFacts(id).map {
-                ToolFactResponse(it.tool_id, presence(it.presence))
-            },
+            summary = summarize(
+                nodeResponses,
+                ingredientFacts.associate { it.ingredientId to it.presence },
+                toolFacts.associate { it.toolId to it.presence },
+            ),
+            ingredientFacts = ingredientFacts,
+            toolFacts = toolFacts,
             parallelPairs = analysis.parallelPairs.map { (left, right) ->
                 ParallelPair(left.toLong(), right.toLong())
             }.sortedWith(compareBy({ it.nodeId }, { it.otherNodeId })),
@@ -340,8 +357,7 @@ class RecipeService(
         if (write.nodes.any { node -> node.ingredients.any { it.qty != null && it.qty < 0.0 } }) {
             errors += "ingredient qty must be >= 0"
         }
-        val keys = write.nodes.map { it.key }.toSet()
-        errors += altErrors(write.ingredientAlts, write.toolAlts, keys)
+        errors += stepItemErrors(write.nodes)
         val analysis = try {
             analyze(write.toGraph())
         } catch (failure: GraphFailure) {
@@ -349,10 +365,12 @@ class RecipeService(
             null
         }
         if (errors.isNotEmpty() || analysis == null) throw ApiException(HttpStatusCode.BadRequest, errors)
-        val ingredientIds = write.nodes.flatMap { it.ingredients.map { ingredient -> ingredient.ingredientId } }.toSet() +
-            write.ingredientAlts.flatMap { listOf(it.ingredientId, it.altIngredientId) }
-        val toolIds = write.nodes.flatMap { it.tools.map { tool -> tool.toolId } }.toSet() +
-            write.toolAlts.flatMap { listOf(it.toolId, it.altToolId) }
+        val ingredientIds = write.nodes.flatMap { node ->
+            node.ingredients.flatMap { use -> listOf(use.ingredientId) + use.alts.map { it.altIngredientId } }
+        }.toSet()
+        val toolIds = write.nodes.flatMap { node ->
+            node.tools.flatMap { use -> listOf(use.toolId) + use.alts.map { it.altToolId } }
+        }.toSet()
         unknownIds("ingredient", ingredientIds, catalog.ingredientIds())
         unknownIds("tool", toolIds, catalog.toolIds())
         return analysis
@@ -378,28 +396,6 @@ private fun CommentRow.toResponse() = CommentResponse(
     body = body,
     createdAt = createdAt,
 )
-
-private fun altErrors(
-    ingredientAlts: List<IngredientAltWrite>,
-    toolAlts: List<ToolAltWrite>,
-    keys: Set<String>,
-): List<String> {
-    val errors = mutableListOf<String>()
-    val ingredientPairs = ingredientAlts.map { Triple(it.ingredientId, it.altIngredientId, it.nodeKey) }
-    if (ingredientPairs.size != ingredientPairs.toSet().size) errors += "ingredient alternatives must be unique"
-    for (alt in ingredientAlts) {
-        if (alt.ingredientId == alt.altIngredientId) errors += "an ingredient cannot replace itself"
-        if (alt.ratio <= 0.0) errors += "ratio must be > 0"
-        if (alt.nodeKey != null && alt.nodeKey !in keys) errors += "unknown step ${alt.nodeKey}"
-    }
-    val toolPairs = toolAlts.map { Triple(it.toolId, it.altToolId, it.nodeKey) }
-    if (toolPairs.size != toolPairs.toSet().size) errors += "tool alternatives must be unique"
-    for (alt in toolAlts) {
-        if (alt.toolId == alt.altToolId) errors += "a tool cannot replace itself"
-        if (alt.nodeKey != null && alt.nodeKey !in keys) errors += "unknown step ${alt.nodeKey}"
-    }
-    return errors
-}
 
 private fun RecipeWrite.toGraph() = InputGraph(
     cooks = cooks,

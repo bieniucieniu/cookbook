@@ -5,11 +5,9 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { EdgeWrite } from './edgeWrite.ts';
-import type { IngredientAltWrite } from './ingredientAltWrite.ts';
 import type { NodeWrite } from './nodeWrite.ts';
 import type { PhotoRef } from './photoRef.ts';
 import type { RecipeWriteVisibility } from './recipeWriteVisibility.ts';
-import type { ToolAltWrite } from './toolAltWrite.ts';
 
 export interface RecipeWrite {
   title: string;
@@ -19,7 +17,5 @@ export interface RecipeWrite {
   visibility?: RecipeWriteVisibility;
   nodes: NodeWrite[];
   edges?: EdgeWrite[];
-  ingredientAlts?: IngredientAltWrite[];
-  toolAlts?: ToolAltWrite[];
   photos?: PhotoRef[];
 }

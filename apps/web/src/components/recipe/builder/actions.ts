@@ -1,75 +1,129 @@
 import type {
+  IngredientSwapWrite,
   NodeIngredientWrite,
   NodeToolWrite,
   NodeWriteBranchMode,
   SpanWrite,
+  ToolSwapWrite,
 } from "@/generated/model";
 import { blankNode, nextStepKey, type DraftNode, type RecipeDraft } from "@/lib/recipe-draft";
-import { autoWire, incoming, outgoing } from "@/lib/recipe-graph";
+import {
+  attachEdges,
+  detachEdges,
+  incoming,
+  outgoing,
+  placement,
+  type Relation,
+} from "@/lib/recipe-graph";
 import { produce, type SetStoreFunction } from "solid-js/store";
 
 export type DraftActions = ReturnType<typeof createDraftActions>;
 
-/** Every draft edit in one place, so stages stay thin and graph cleanup is not forgotten. */
+/** Every draft edit in one place, so the panes stay thin and graph cleanup is not forgotten. */
 export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunction<RecipeDraft>) {
   const indexOf = (key: string) => draft.nodes.findIndex((node) => node.key === key);
   const renumber = (nodes: DraftNode[]) => nodes.forEach((node, ord) => (node.ord = ord));
+  const plain = () => draft.edges.map((edge) => ({ from: edge.from, to: edge.to }));
 
-  const addEdge = (from: string, to: string) => {
-    if (from === to) return;
-    if (draft.edges.some((edge) => edge.from === from && edge.to === to)) return;
-    setDraft("edges", (edges) => [...edges, { from, to, label: "" }]);
-  };
-
-  const removeEdge = (from: string, to: string) =>
-    setDraft("edges", (edges) => edges.filter((edge) => !(edge.from === from && edge.to === to)));
-
-  const insertStep = (node: DraftNode, at?: number) =>
+  /** Rewires `key` to `relation` of `anchor`, keeping labels of edges that survive. */
+  const wire = (key: string, relation: Relation, anchor: string | undefined) => {
+    const detached = detachEdges(key, plain());
+    const { edges, modes } = attachEdges(key, relation, anchor, draft.nodes, detached);
     setDraft(
       produce((state) => {
-        state.nodes.splice(at ?? state.nodes.length, 0, node);
-        renumber(state.nodes);
+        state.edges = edges.map((edge) => ({
+          ...edge,
+          label:
+            state.edges.find((old) => old.from === edge.from && old.to === edge.to)?.label ?? "",
+        }));
+        for (const [nodeKey, mode] of modes) {
+          const node = state.nodes.find((item) => item.key === nodeKey);
+          if (node) node.branchMode = mode;
+        }
+      })
+    );
+  };
+
+  /** List position for a step placed at `relation` to `anchor`: right after the anchor. */
+  const positionFor = (anchor: string | undefined) => {
+    if (anchor === undefined) return draft.nodes.length;
+    const at = indexOf(anchor);
+    return at < 0 ? draft.nodes.length : at + 1;
+  };
+
+  const patchItem = <T extends "ingredients" | "tools">(
+    key: string,
+    field: T,
+    match: (item: DraftNode[T][number]) => boolean,
+    update: (item: DraftNode[T][number]) => void
+  ) =>
+    setDraft(
+      produce((state) => {
+        const node = state.nodes.find((item) => item.key === key);
+        const list: DraftNode[T][number][] | undefined = node?.[field];
+        const item = list?.find(match);
+        if (item) update(item);
       })
     );
 
-  const pantryAdd = (kind: "ingredient" | "tool", id: number) => {
-    const field = kind === "ingredient" ? "ingredients" : "tools";
-    if (draft.pantry[field].includes(id)) return;
-    setDraft("pantry", field, (ids) => [...ids, id]);
-  };
-
   return {
-    addEdge,
-    removeEdge,
-    setEdgeLabel(from: string, to: string, label: string) {
-      const index = draft.edges.findIndex((edge) => edge.from === from && edge.to === to);
-      if (index >= 0) setDraft("edges", index, "label", label);
-    },
+    canPlace: (anchor: string, relation: Relation) =>
+      placement(anchor, relation, draft.nodes, draft.edges),
 
-    /** Appends a step after every open arm, so a linear recipe never needs the graph. */
-    addStep(init: Partial<Pick<DraftNode, "title" | "ingredients" | "tools" | "spans">>): string {
+    /** Adds an empty step at `relation` to `anchor`. No anchor: after every open arm. */
+    addStep(relation: Relation, anchor?: string): string | undefined {
+      if (anchor !== undefined && !placement(anchor, relation, draft.nodes, draft.edges).ok) {
+        return undefined;
+      }
       const key = nextStepKey(draft.nodes);
-      const wires = autoWire(
-        draft.nodes.map((node) => node.key),
-        draft.edges,
-        key
+      const at = positionFor(anchor);
+      setDraft(
+        produce((state) => {
+          state.nodes.splice(at, 0, blankNode(at, key));
+          renumber(state.nodes);
+        })
       );
-      insertStep({ ...blankNode(draft.nodes.length, key), ...init });
-      for (const wire of wires) addEdge(wire.from, wire.to);
+      wire(key, relation, anchor);
       return key;
     },
 
-    /** A parallel arm next to `key`: same steps before it, same steps after it. */
-    branchFrom(key: string): string | undefined {
-      const at = indexOf(key);
-      if (at < 0) return undefined;
-      const newKey = nextStepKey(draft.nodes);
-      const before = incoming(key, draft.edges);
-      const after = outgoing(key, draft.edges);
-      insertStep(blankNode(at + 1, newKey), at + 1);
-      for (const from of before) addEdge(from, newKey);
-      for (const to of after) addEdge(newKey, to);
-      return newKey;
+    /** Moves an existing step. The check runs on the graph without it. */
+    place(key: string, relation: Relation, anchor: string | undefined) {
+      if (anchor === key) return;
+      if (anchor !== undefined) {
+        const without = detachEdges(key, plain());
+        const others = draft.nodes.filter((node) => node.key !== key);
+        if (!placement(anchor, relation, others, without).ok) return;
+      }
+      setDraft(
+        produce((state) => {
+          const from = state.nodes.findIndex((node) => node.key === key);
+          const [node] = state.nodes.splice(from, 1);
+          if (!node) return;
+          const anchorAt =
+            anchor === undefined ? -1 : state.nodes.findIndex((item) => item.key === anchor);
+          state.nodes.splice(anchorAt < 0 ? state.nodes.length : anchorAt + 1, 0, node);
+          renumber(state.nodes);
+        })
+      );
+      wire(key, relation, anchor);
+    },
+
+    /** Placement moves only plain steps: one step before, one after at most. */
+    movable: (key: string) =>
+      incoming(key, draft.edges).length <= 1 && outgoing(key, draft.edges).length <= 1,
+
+    addEdge(from: string, to: string) {
+      if (from === to) return;
+      if (draft.edges.some((edge) => edge.from === from && edge.to === to)) return;
+      setDraft("edges", (edges) => [...edges, { from, to, label: "" }]);
+    },
+    removeEdge(from: string, to: string) {
+      setDraft("edges", (edges) => edges.filter((edge) => !(edge.from === from && edge.to === to)));
+    },
+    setEdgeLabel(from: string, to: string, label: string) {
+      const index = draft.edges.findIndex((edge) => edge.from === from && edge.to === to);
+      if (index >= 0) setDraft("edges", index, "label", label);
     },
 
     duplicateStep(key: string): string | undefined {
@@ -77,62 +131,30 @@ export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunctio
       const source = draft.nodes[at];
       if (!source) return undefined;
       const newKey = nextStepKey(draft.nodes);
-      insertStep(
-        {
-          ...source,
-          key: newKey,
-          spans: source.spans.map((span) => ({ ...span })),
-          ingredients: source.ingredients.map((item) => ({ ...item })),
-          tools: source.tools.map((item) => ({ ...item })),
-        },
-        at + 1
+      setDraft(
+        produce((state) => {
+          state.nodes.splice(at + 1, 0, {
+            ...(JSON.parse(JSON.stringify(source)) as DraftNode),
+            key: newKey,
+          });
+          renumber(state.nodes);
+        })
       );
-      // The copy runs right after the original: original → copy → original's next steps.
-      const next = outgoing(key, draft.edges);
-      setDraft("edges", (edges) => [
-        ...edges.filter((edge) => !(edge.from === key && next.includes(edge.to))),
-        { from: key, to: newKey, label: "" },
-        ...next.map((to) => ({ from: newKey, to, label: "" })),
-      ]);
+      wire(newKey, "next", key);
       return newKey;
     },
 
     removeStep(key: string) {
-      const before = incoming(key, draft.edges);
-      const after = outgoing(key, draft.edges);
+      const edges = detachEdges(key, plain());
       setDraft(
         produce((state) => {
           state.nodes = state.nodes.filter((node) => node.key !== key);
           renumber(state.nodes);
-          state.edges = state.edges.filter((edge) => edge.from !== key && edge.to !== key);
-          // Keep the chain closed: what came before now leads to what came after.
-          for (const from of before) {
-            for (const to of after) {
-              if (!state.edges.some((edge) => edge.from === from && edge.to === to)) {
-                state.edges.push({ from, to, label: "" });
-              }
-            }
-          }
-          state.ingredientAlts = state.ingredientAlts.map((alt) =>
-            alt.nodeKey === key ? { ...alt, nodeKey: null } : alt
-          );
-          state.toolAlts = state.toolAlts.map((alt) =>
-            alt.nodeKey === key ? { ...alt, nodeKey: null } : alt
-          );
-        })
-      );
-    },
-
-    /** Swaps list position only. Wiring stays as it is. */
-    moveStep(key: string, delta: -1 | 1) {
-      const at = indexOf(key);
-      const to = at + delta;
-      if (at < 0 || to < 0 || to >= draft.nodes.length) return;
-      setDraft(
-        produce((state) => {
-          const [node] = state.nodes.splice(at, 1);
-          if (node) state.nodes.splice(to, 0, node);
-          renumber(state.nodes);
+          state.edges = edges.map((edge) => ({
+            ...edge,
+            label:
+              state.edges.find((old) => old.from === edge.from && old.to === edge.to)?.label ?? "",
+          }));
         })
       );
     },
@@ -149,18 +171,34 @@ export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunctio
 
     addIngredient(key: string, ingredientId: number) {
       const at = indexOf(key);
-      if (at < 0 || draft.nodes[at]?.ingredients.some((item) => item.ingredientId === ingredientId))
-        return;
+      const node = draft.nodes[at];
+      if (!node || node.ingredients.some((item) => item.ingredientId === ingredientId)) return;
+      // A new use follows how the rest of the recipe uses it, so optional never mixes.
+      const optional = draft.nodes.some((other) =>
+        other.ingredients.some((item) => item.ingredientId === ingredientId && item.optional)
+      );
       setDraft("nodes", at, "ingredients", (items) => [
         ...items,
-        { ingredientId, qty: null, unit: null, optional: false },
+        { ingredientId, qty: null, unit: null, optional, alts: [] },
       ]);
-      pantryAdd("ingredient", ingredientId);
     },
     patchIngredient(key: string, ingredientId: number, patch: Partial<NodeIngredientWrite>) {
-      const at = indexOf(key);
-      if (at < 0) return;
-      setDraft("nodes", at, "ingredients", (item) => item.ingredientId === ingredientId, patch);
+      patchItem(
+        key,
+        "ingredients",
+        (item) => item.ingredientId === ingredientId,
+        (item) => Object.assign(item, patch)
+      );
+    },
+    /** Sets optional on every step that uses the ingredient. */
+    setIngredientOptional(ingredientId: number, optional: boolean) {
+      setDraft(
+        produce((state) => {
+          for (const node of state.nodes)
+            for (const item of node.ingredients)
+              if (item.ingredientId === ingredientId) item.optional = optional;
+        })
+      );
     },
     removeIngredient(key: string, ingredientId: number) {
       const at = indexOf(key);
@@ -169,25 +207,114 @@ export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunctio
         items.filter((item) => item.ingredientId !== ingredientId)
       );
     },
+    addIngredientAlt(key: string, ingredientId: number, altIngredientId: number) {
+      if (altIngredientId === ingredientId) return;
+      patchItem(
+        key,
+        "ingredients",
+        (item) => item.ingredientId === ingredientId,
+        (item) => {
+          const alts = item.alts ?? [];
+          if (alts.some((alt) => alt.altIngredientId === altIngredientId)) return;
+          item.alts = [...alts, { altIngredientId, ratio: 1, note: "" }];
+        }
+      );
+    },
+    patchIngredientAlt(
+      key: string,
+      ingredientId: number,
+      altIngredientId: number,
+      patch: Partial<IngredientSwapWrite>
+    ) {
+      patchItem(
+        key,
+        "ingredients",
+        (item) => item.ingredientId === ingredientId,
+        (item) => {
+          item.alts = (item.alts ?? []).map((alt) =>
+            alt.altIngredientId === altIngredientId ? { ...alt, ...patch } : alt
+          );
+        }
+      );
+    },
+    removeIngredientAlt(key: string, ingredientId: number, altIngredientId: number) {
+      patchItem(
+        key,
+        "ingredients",
+        (item) => item.ingredientId === ingredientId,
+        (item) => {
+          item.alts = (item.alts ?? []).filter((alt) => alt.altIngredientId !== altIngredientId);
+        }
+      );
+    },
 
     addTool(key: string, toolId: number) {
       const at = indexOf(key);
-      if (at < 0 || draft.nodes[at]?.tools.some((item) => item.toolId === toolId)) return;
+      const node = draft.nodes[at];
+      if (!node || node.tools.some((item) => item.toolId === toolId)) return;
+      const optional = draft.nodes.some((other) =>
+        other.tools.some((item) => item.toolId === toolId && item.optional)
+      );
       setDraft("nodes", at, "tools", (items) => [
         ...items,
-        { toolId, optional: false, hold: "active" as const },
+        { toolId, optional, hold: "active" as const, alts: [] },
       ]);
-      pantryAdd("tool", toolId);
     },
     patchTool(key: string, toolId: number, patch: Partial<NodeToolWrite>) {
-      const at = indexOf(key);
-      if (at < 0) return;
-      setDraft("nodes", at, "tools", (item) => item.toolId === toolId, patch);
+      patchItem(
+        key,
+        "tools",
+        (item) => item.toolId === toolId,
+        (item) => Object.assign(item, patch)
+      );
+    },
+    setToolOptional(toolId: number, optional: boolean) {
+      setDraft(
+        produce((state) => {
+          for (const node of state.nodes)
+            for (const item of node.tools) if (item.toolId === toolId) item.optional = optional;
+        })
+      );
     },
     removeTool(key: string, toolId: number) {
       const at = indexOf(key);
       if (at < 0) return;
       setDraft("nodes", at, "tools", (items) => items.filter((item) => item.toolId !== toolId));
+    },
+    addToolAlt(key: string, toolId: number, altToolId: number) {
+      if (altToolId === toolId) return;
+      patchItem(
+        key,
+        "tools",
+        (item) => item.toolId === toolId,
+        (item) => {
+          const alts = item.alts ?? [];
+          if (alts.some((alt) => alt.altToolId === altToolId)) return;
+          item.alts = [...alts, { altToolId, note: "" }];
+        }
+      );
+    },
+    patchToolAlt(key: string, toolId: number, altToolId: number, patch: Partial<ToolSwapWrite>) {
+      patchItem(
+        key,
+        "tools",
+        (item) => item.toolId === toolId,
+        (item) => {
+          item.alts = (item.alts ?? []).map((alt) =>
+            alt.altToolId === altToolId ? { ...alt, ...patch } : alt
+          );
+        }
+      );
+    },
+    removeToolAlt(key: string, toolId: number, altToolId: number) {
+      patchItem(
+        key,
+        "tools",
+        (item) => item.toolId === toolId,
+        (item) => {
+          item.alts = (item.alts ?? []).filter((alt) => alt.altToolId !== altToolId);
+        }
+      );
     },
 
     addSpan(key: string, span: Omit<SpanWrite, "ord">) {
@@ -205,47 +332,6 @@ export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunctio
       setDraft("nodes", at, "spans", (spans) =>
         spans.filter((_, spanIndex) => spanIndex !== index)
       );
-    },
-
-    pantryAdd,
-    /** Drops the item from the recipe and from every step that uses it. */
-    pantryRemove(kind: "ingredient" | "tool", id: number) {
-      setDraft(
-        produce((state) => {
-          if (kind === "ingredient") {
-            state.pantry.ingredients = state.pantry.ingredients.filter((item) => item !== id);
-            for (const node of state.nodes)
-              node.ingredients = node.ingredients.filter((item) => item.ingredientId !== id);
-            state.ingredientAlts = state.ingredientAlts.filter(
-              (alt) => alt.ingredientId !== id && alt.altIngredientId !== id
-            );
-          } else {
-            state.pantry.tools = state.pantry.tools.filter((item) => item !== id);
-            for (const node of state.nodes)
-              node.tools = node.tools.filter((item) => item.toolId !== id);
-            state.toolAlts = state.toolAlts.filter(
-              (alt) => alt.toolId !== id && alt.altToolId !== id
-            );
-          }
-        })
-      );
-    },
-
-    /** Recipe-wide (`nodeKey` null) or step-level swap for an ingredient. One per pair and scope. */
-    setIngredientAlt(
-      ingredientId: number,
-      altIngredientId: number | null,
-      nodeKey: string | null,
-      ratio = 1
-    ) {
-      setDraft("ingredientAlts", (alts) => {
-        const rest = alts.filter(
-          (alt) => !(alt.ingredientId === ingredientId && (alt.nodeKey ?? null) === nodeKey)
-        );
-        if (altIngredientId == null || altIngredientId === ingredientId) return rest;
-        return [...rest, { ingredientId, altIngredientId, nodeKey, ratio, note: "" }];
-      });
-      if (altIngredientId != null) pantryAdd("ingredient", altIngredientId);
     },
   };
 }

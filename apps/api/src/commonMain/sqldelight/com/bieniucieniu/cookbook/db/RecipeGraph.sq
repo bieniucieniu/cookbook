@@ -80,28 +80,20 @@ CREATE TABLE IF NOT EXISTS node_tools (
   CONSTRAINT node_tools_hold CHECK (hold IN ('active', 'span'))
 );
 
-CREATE TABLE IF NOT EXISTS recipe_ingredient_alts (
-  id BIGSERIAL PRIMARY KEY NOT NULL,
-  recipe_id BIGINT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-  ingredient_id BIGINT NOT NULL REFERENCES ingredients(id),
+CREATE TABLE IF NOT EXISTS node_ingredient_alts (
+  node_ingredient_id BIGINT NOT NULL REFERENCES node_ingredients(id) ON DELETE CASCADE,
   alt_ingredient_id BIGINT NOT NULL REFERENCES ingredients(id),
-  node_id BIGINT,
   ratio NUMERIC NOT NULL DEFAULT 1,
   note TEXT NOT NULL DEFAULT '',
-  CONSTRAINT recipe_ingredient_alts_not_self CHECK (ingredient_id <> alt_ingredient_id),
-  CONSTRAINT recipe_ingredient_alts_ratio CHECK (ratio > 0),
-  CONSTRAINT recipe_ingredient_alts_node_fk FOREIGN KEY (node_id, recipe_id) REFERENCES recipe_nodes(id, recipe_id) ON DELETE CASCADE
+  PRIMARY KEY (node_ingredient_id, alt_ingredient_id),
+  CONSTRAINT node_ingredient_alts_ratio CHECK (ratio > 0)
 );
 
-CREATE TABLE IF NOT EXISTS recipe_tool_alts (
-  id BIGSERIAL PRIMARY KEY NOT NULL,
-  recipe_id BIGINT NOT NULL REFERENCES recipes(id) ON DELETE CASCADE,
-  tool_id BIGINT NOT NULL REFERENCES tools(id),
+CREATE TABLE IF NOT EXISTS node_tool_alts (
+  node_tool_id BIGINT NOT NULL REFERENCES node_tools(id) ON DELETE CASCADE,
   alt_tool_id BIGINT NOT NULL REFERENCES tools(id),
-  node_id BIGINT,
   note TEXT NOT NULL DEFAULT '',
-  CONSTRAINT recipe_tool_alts_not_self CHECK (tool_id <> alt_tool_id),
-  CONSTRAINT recipe_tool_alts_node_fk FOREIGN KEY (node_id, recipe_id) REFERENCES recipe_nodes(id, recipe_id) ON DELETE CASCADE
+  PRIMARY KEY (node_tool_id, alt_tool_id)
 );
 
 CREATE TABLE IF NOT EXISTS recipe_ingredient_facts (
@@ -171,17 +163,23 @@ WHERE n.recipe_id = :recipe_id
 ORDER BY nt.id;
 
 -- sqlx4k 1.13 cannot decode NUMERIC (it panics on the binary value). Read it as FLOAT8.
-selectRecipeIngredientAlts:
-SELECT id, recipe_id, ingredient_id, alt_ingredient_id, node_id, CAST(ratio AS DOUBLE PRECISION) AS ratio, note
-FROM recipe_ingredient_alts
-WHERE recipe_id = :recipe_id
-ORDER BY id;
+selectNodeIngredientAlts:
+SELECT a.node_ingredient_id, ni.node_id, ni.ingredient_id, a.alt_ingredient_id, CAST(a.ratio AS DOUBLE PRECISION) AS ratio, a.note, i.slug
+FROM node_ingredient_alts a
+JOIN node_ingredients ni ON ni.id = a.node_ingredient_id
+JOIN recipe_nodes n ON n.id = ni.node_id
+JOIN ingredients i ON i.id = a.alt_ingredient_id
+WHERE n.recipe_id = :recipe_id
+ORDER BY a.node_ingredient_id, a.alt_ingredient_id;
 
-selectRecipeToolAlts:
-SELECT id, recipe_id, tool_id, alt_tool_id, node_id, note
-FROM recipe_tool_alts
-WHERE recipe_id = :recipe_id
-ORDER BY id;
+selectNodeToolAlts:
+SELECT a.node_tool_id, nt.node_id, nt.tool_id, a.alt_tool_id, a.note, t.slug
+FROM node_tool_alts a
+JOIN node_tools nt ON nt.id = a.node_tool_id
+JOIN recipe_nodes n ON n.id = nt.node_id
+JOIN tools t ON t.id = a.alt_tool_id
+WHERE n.recipe_id = :recipe_id
+ORDER BY a.node_tool_id, a.alt_tool_id;
 
 selectAllIngredientFacts:
 SELECT recipe_id, ingredient_id, presence
@@ -193,15 +191,19 @@ SELECT recipe_id, tool_id, presence
 FROM recipe_tool_facts
 ORDER BY recipe_id, tool_id;
 
-selectAllRecipeIngredientAlts:
-SELECT recipe_id, ingredient_id, alt_ingredient_id, node_id
-FROM recipe_ingredient_alts
-ORDER BY recipe_id, id;
+selectAllNodeIngredientAlts:
+SELECT n.recipe_id, ni.ingredient_id, a.alt_ingredient_id
+FROM node_ingredient_alts a
+JOIN node_ingredients ni ON ni.id = a.node_ingredient_id
+JOIN recipe_nodes n ON n.id = ni.node_id
+ORDER BY n.recipe_id, a.node_ingredient_id;
 
-selectAllRecipeToolAlts:
-SELECT recipe_id, tool_id, alt_tool_id, node_id
-FROM recipe_tool_alts
-ORDER BY recipe_id, id;
+selectAllNodeToolAlts:
+SELECT n.recipe_id, nt.tool_id, a.alt_tool_id
+FROM node_tool_alts a
+JOIN node_tools nt ON nt.id = a.node_tool_id
+JOIN recipe_nodes n ON n.id = nt.node_id
+ORDER BY n.recipe_id, a.node_tool_id;
 
 selectIngredientFactsForRecipe:
 SELECT recipe_id, ingredient_id, presence

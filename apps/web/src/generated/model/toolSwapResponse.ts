@@ -5,10 +5,8 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface ToolAltWrite {
-  toolId: number;
+export interface ToolSwapResponse {
   altToolId: number;
-  /** @nullable */
-  nodeKey?: string | null;
-  note?: string;
+  slug: string;
+  note: string;
 }

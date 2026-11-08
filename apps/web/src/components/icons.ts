@@ -30,6 +30,7 @@ export {
   IconPlayerPause,
   IconPlayerPlay,
   IconPlus,
+  IconSettings,
   IconRepeat,
   IconShare,
   IconSitemap,

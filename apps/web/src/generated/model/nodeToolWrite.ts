@@ -5,9 +5,11 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { NodeToolWriteHold } from './nodeToolWriteHold.ts';
+import type { ToolSwapWrite } from './toolSwapWrite.ts';
 
 export interface NodeToolWrite {
   toolId: number;
   optional?: boolean;
   hold?: NodeToolWriteHold;
+  alts?: ToolSwapWrite[];
 }
