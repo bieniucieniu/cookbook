@@ -1,0 +1,814 @@
+/*
+ * Material 3 Expressive tokens for Tailwind CSS 4. Generated; edit values, keep names.
+ *
+ * Raw values use the M3 names (--md-sys-color-*, --md-sys-typescale-*, --md-sys-shape-corner-*,
+ * --md-sys-elevation-*, --md-sys-motion-*). Light values on :root, dark values on .dark.
+ * Tailwind utilities use the bare role names: bg-primary-container, text-on-surface,
+ * rounded-extra-large, shadow-level-1, typescale-label-large, motion-fast.
+ *
+ * bg-primary / bg-secondary read --primary / --secondary (the same mapping shadcn uses). theme.css
+ * points them at M3 on :root. In an app that also loads a shadcn theme, the M3 values apply only
+ * while an element with [data-m3] is on the page.
+ */
+
+:root {
+  --md-ref-typeface-brand: Roboto, system-ui, sans-serif;
+  --md-ref-typeface-plain: Roboto, system-ui, sans-serif;
+
+  --md-sys-color-primary: #8b4f38;
+  --md-sys-color-on-primary: #fff7f5;
+  --md-sys-color-primary-container: #ffb194;
+  --md-sys-color-on-primary-container: #63301b;
+  --md-sys-color-secondary: #78584c;
+  --md-sys-color-on-secondary: #fff7f5;
+  --md-sys-color-secondary-container: #ffdbce;
+  --md-sys-color-on-secondary-container: #694b3f;
+  --md-sys-color-tertiary: #735c25;
+  --md-sys-color-on-tertiary: #fff8f0;
+  --md-sys-color-tertiary-container: #ffdf9b;
+  --md-sys-color-on-tertiary-container: #644f19;
+  --md-sys-color-error: #a83836;
+  --md-sys-color-on-error: #fff7f6;
+  --md-sys-color-error-container: #fa746f;
+  --md-sys-color-on-error-container: #6e0a12;
+  --md-sys-color-surface: #fff8f6;
+  --md-sys-color-on-surface: #3e2f2a;
+  --md-sys-color-surface-variant: #f6ddd5;
+  --md-sys-color-on-surface-variant: #6d5b55;
+  --md-sys-color-surface-container-lowest: #ffffff;
+  --md-sys-color-surface-container-low: #fff1ec;
+  --md-sys-color-surface-container: #feeae3;
+  --md-sys-color-surface-container-high: #fae4dc;
+  --md-sys-color-surface-container-highest: #f6ddd5;
+  --md-sys-color-surface-dim: #edd5cd;
+  --md-sys-color-surface-bright: #fff8f6;
+  --md-sys-color-inverse-surface: #130d0a;
+  --md-sys-color-inverse-on-surface: #a79a96;
+  --md-sys-color-inverse-primary: #ffb194;
+  --md-sys-color-outline: #8a7770;
+  --md-sys-color-outline-variant: #c3ada6;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-primary-fixed: #ffb194;
+  --md-sys-color-primary-fixed-dim: #f0a487;
+  --md-sys-color-on-primary-fixed: #4a1c08;
+  --md-sys-color-on-primary-fixed-variant: #6e3823;
+  --md-sys-color-secondary-fixed: #ffdbce;
+  --md-sys-color-secondary-fixed-dim: #f6cbbc;
+  --md-sys-color-on-secondary-fixed: #55392e;
+  --md-sys-color-on-secondary-fixed-variant: #745449;
+  --md-sys-color-tertiary-fixed: #ffdf9b;
+  --md-sys-color-tertiary-fixed-dim: #f0d18e;
+  --md-sys-color-on-tertiary-fixed: #503c07;
+  --md-sys-color-on-tertiary-fixed-variant: #6f5922;
+
+  --md-sys-shape-corner-none: 0px;
+  --md-sys-shape-corner-extra-small: 4px;
+  --md-sys-shape-corner-small: 8px;
+  --md-sys-shape-corner-medium: 12px;
+  --md-sys-shape-corner-large: 16px;
+  --md-sys-shape-corner-large-increased: 20px;
+  --md-sys-shape-corner-extra-large: 28px;
+  --md-sys-shape-corner-extra-large-increased: 32px;
+  --md-sys-shape-corner-extra-extra-large: 48px;
+
+  --md-sys-elevation-level0: 0 0 0 0 transparent;
+  --md-sys-elevation-level1:
+    0 1px 2px 0 color-mix(in srgb, var(--md-sys-color-shadow) 30%, transparent),
+    0 1px 3px 1px color-mix(in srgb, var(--md-sys-color-shadow) 15%, transparent);
+  --md-sys-elevation-level2:
+    0 1px 2px 0 color-mix(in srgb, var(--md-sys-color-shadow) 30%, transparent),
+    0 2px 6px 2px color-mix(in srgb, var(--md-sys-color-shadow) 15%, transparent);
+  --md-sys-elevation-level3:
+    0 1px 3px 0 color-mix(in srgb, var(--md-sys-color-shadow) 30%, transparent),
+    0 4px 8px 3px color-mix(in srgb, var(--md-sys-color-shadow) 15%, transparent);
+  --md-sys-elevation-level4:
+    0 2px 3px 0 color-mix(in srgb, var(--md-sys-color-shadow) 30%, transparent),
+    0 6px 10px 4px color-mix(in srgb, var(--md-sys-color-shadow) 15%, transparent);
+  --md-sys-elevation-level5:
+    0 4px 4px 0 color-mix(in srgb, var(--md-sys-color-shadow) 30%, transparent),
+    0 8px 12px 6px color-mix(in srgb, var(--md-sys-color-shadow) 15%, transparent);
+
+  --md-sys-motion-fast-spatial-easing: cubic-bezier(0.42, 1.67, 0.21, 0.9);
+  --md-sys-motion-fast-spatial-duration: 350ms;
+  --md-sys-motion-default-spatial-easing: cubic-bezier(0.38, 1.21, 0.22, 1);
+  --md-sys-motion-default-spatial-duration: 500ms;
+  --md-sys-motion-slow-spatial-easing: cubic-bezier(0.39, 1.29, 0.35, 0.98);
+  --md-sys-motion-slow-spatial-duration: 650ms;
+  --md-sys-motion-fast-effects-easing: cubic-bezier(0.31, 0.94, 0.34, 1);
+  --md-sys-motion-fast-effects-duration: 150ms;
+  --md-sys-motion-default-effects-easing: cubic-bezier(0.34, 0.8, 0.34, 1);
+  --md-sys-motion-default-effects-duration: 200ms;
+  --md-sys-motion-slow-effects-easing: cubic-bezier(0.34, 0.88, 0.34, 1);
+  --md-sys-motion-slow-effects-duration: 300ms;
+
+  --md-sys-typescale-display-large-font: var(--md-ref-typeface-brand);
+  --md-sys-typescale-display-large-size: 3.5625rem;
+  --md-sys-typescale-display-large-line-height: 4rem;
+  --md-sys-typescale-display-large-tracking: calc(-0.015625rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-display-large-weight: 400;
+  --md-sys-typescale-emphasized-display-large-weight: 500;
+  --md-sys-typescale-display-medium-font: var(--md-ref-typeface-brand);
+  --md-sys-typescale-display-medium-size: 2.8125rem;
+  --md-sys-typescale-display-medium-line-height: 3.25rem;
+  --md-sys-typescale-display-medium-tracking: calc(0rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-display-medium-weight: 400;
+  --md-sys-typescale-emphasized-display-medium-weight: 500;
+  --md-sys-typescale-display-small-font: var(--md-ref-typeface-brand);
+  --md-sys-typescale-display-small-size: 2.25rem;
+  --md-sys-typescale-display-small-line-height: 2.75rem;
+  --md-sys-typescale-display-small-tracking: calc(0rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-display-small-weight: 400;
+  --md-sys-typescale-emphasized-display-small-weight: 500;
+  --md-sys-typescale-headline-large-font: var(--md-ref-typeface-brand);
+  --md-sys-typescale-headline-large-size: 2rem;
+  --md-sys-typescale-headline-large-line-height: 2.5rem;
+  --md-sys-typescale-headline-large-tracking: calc(0rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-headline-large-weight: 400;
+  --md-sys-typescale-emphasized-headline-large-weight: 500;
+  --md-sys-typescale-headline-medium-font: var(--md-ref-typeface-brand);
+  --md-sys-typescale-headline-medium-size: 1.75rem;
+  --md-sys-typescale-headline-medium-line-height: 2.25rem;
+  --md-sys-typescale-headline-medium-tracking: calc(0rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-headline-medium-weight: 400;
+  --md-sys-typescale-emphasized-headline-medium-weight: 500;
+  --md-sys-typescale-headline-small-font: var(--md-ref-typeface-brand);
+  --md-sys-typescale-headline-small-size: 1.5rem;
+  --md-sys-typescale-headline-small-line-height: 2rem;
+  --md-sys-typescale-headline-small-tracking: calc(0rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-headline-small-weight: 400;
+  --md-sys-typescale-emphasized-headline-small-weight: 500;
+  --md-sys-typescale-title-large-font: var(--md-ref-typeface-brand);
+  --md-sys-typescale-title-large-size: 1.375rem;
+  --md-sys-typescale-title-large-line-height: 1.75rem;
+  --md-sys-typescale-title-large-tracking: calc(0rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-title-large-weight: 400;
+  --md-sys-typescale-emphasized-title-large-weight: 500;
+  --md-sys-typescale-title-medium-font: var(--md-ref-typeface-plain);
+  --md-sys-typescale-title-medium-size: 1rem;
+  --md-sys-typescale-title-medium-line-height: 1.5rem;
+  --md-sys-typescale-title-medium-tracking: calc(0.009375rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-title-medium-weight: 500;
+  --md-sys-typescale-emphasized-title-medium-weight: 700;
+  --md-sys-typescale-title-small-font: var(--md-ref-typeface-plain);
+  --md-sys-typescale-title-small-size: 0.875rem;
+  --md-sys-typescale-title-small-line-height: 1.25rem;
+  --md-sys-typescale-title-small-tracking: calc(0.00625rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-title-small-weight: 500;
+  --md-sys-typescale-emphasized-title-small-weight: 700;
+  --md-sys-typescale-body-large-font: var(--md-ref-typeface-plain);
+  --md-sys-typescale-body-large-size: 1rem;
+  --md-sys-typescale-body-large-line-height: 1.5rem;
+  --md-sys-typescale-body-large-tracking: calc(0.03125rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-body-large-weight: 400;
+  --md-sys-typescale-emphasized-body-large-weight: 500;
+  --md-sys-typescale-body-medium-font: var(--md-ref-typeface-plain);
+  --md-sys-typescale-body-medium-size: 0.875rem;
+  --md-sys-typescale-body-medium-line-height: 1.25rem;
+  --md-sys-typescale-body-medium-tracking: calc(0.015625rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-body-medium-weight: 400;
+  --md-sys-typescale-emphasized-body-medium-weight: 500;
+  --md-sys-typescale-body-small-font: var(--md-ref-typeface-plain);
+  --md-sys-typescale-body-small-size: 0.75rem;
+  --md-sys-typescale-body-small-line-height: 1rem;
+  --md-sys-typescale-body-small-tracking: calc(0.025rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-body-small-weight: 400;
+  --md-sys-typescale-emphasized-body-small-weight: 500;
+  --md-sys-typescale-label-large-font: var(--md-ref-typeface-plain);
+  --md-sys-typescale-label-large-size: 0.875rem;
+  --md-sys-typescale-label-large-line-height: 1.25rem;
+  --md-sys-typescale-label-large-tracking: calc(0.00625rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-label-large-weight: 500;
+  --md-sys-typescale-emphasized-label-large-weight: 700;
+  --md-sys-typescale-label-medium-font: var(--md-ref-typeface-plain);
+  --md-sys-typescale-label-medium-size: 0.75rem;
+  --md-sys-typescale-label-medium-line-height: 1rem;
+  --md-sys-typescale-label-medium-tracking: calc(0.03125rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-label-medium-weight: 500;
+  --md-sys-typescale-emphasized-label-medium-weight: 700;
+  --md-sys-typescale-label-small-font: var(--md-ref-typeface-plain);
+  --md-sys-typescale-label-small-size: 0.6875rem;
+  --md-sys-typescale-label-small-line-height: 1rem;
+  --md-sys-typescale-label-small-tracking: calc(0.03125rem + var(--reading-tracking, 0em));
+  --md-sys-typescale-label-small-weight: 500;
+  --md-sys-typescale-emphasized-label-small-weight: 700;
+}
+
+.dark {
+  --md-sys-color-primary: #f8b8a0;
+  --md-sys-color-on-primary: #603523;
+  --md-sys-color-primary-container: #764634;
+  --md-sys-color-on-primary-container: #ffdcd0;
+  --md-sys-color-secondary: #e7beaf;
+  --md-sys-color-on-secondary: #56392f;
+  --md-sys-color-secondary-container: #50352a;
+  --md-sys-color-on-secondary-container: #dfb6a8;
+  --md-sys-color-tertiary: #ffefd2;
+  --md-sys-color-on-tertiary: #6d5721;
+  --md-sys-color-tertiary-container: #ffdf9b;
+  --md-sys-color-on-tertiary-container: #644f19;
+  --md-sys-color-error: #fa746f;
+  --md-sys-color-on-error: #490006;
+  --md-sys-color-error-container: #871f21;
+  --md-sys-color-on-error-container: #ff9993;
+  --md-sys-color-surface: #130d0a;
+  --md-sys-color-on-surface: #f9e0d8;
+  --md-sys-color-surface-variant: #30231e;
+  --md-sys-color-on-surface-variant: #bca69f;
+  --md-sys-color-surface-container-lowest: #000000;
+  --md-sys-color-surface-container-low: #1a110e;
+  --md-sys-color-surface-container: #221713;
+  --md-sys-color-surface-container-high: #281d19;
+  --md-sys-color-surface-container-highest: #30231e;
+  --md-sys-color-surface-dim: #130d0a;
+  --md-sys-color-surface-bright: #372924;
+  --md-sys-color-inverse-surface: #fff8f6;
+  --md-sys-color-inverse-on-surface: #5d534f;
+  --md-sys-color-inverse-primary: #84533f;
+  --md-sys-color-outline: #84716b;
+  --md-sys-color-outline-variant: #55443f;
+  --md-sys-color-scrim: #000000;
+  --md-sys-color-shadow: #000000;
+  --md-sys-color-primary-fixed: #fbbaa2;
+  --md-sys-color-primary-fixed-dim: #ecad95;
+  --md-sys-color-on-primary-fixed: #4b2313;
+  --md-sys-color-on-primary-fixed-variant: #6d3f2d;
+  --md-sys-color-secondary-fixed: #ffdbce;
+  --md-sys-color-secondary-fixed-dim: #f6cbbc;
+  --md-sys-color-on-secondary-fixed: #55392e;
+  --md-sys-color-on-secondary-fixed-variant: #745449;
+  --md-sys-color-tertiary-fixed: #ffdf9b;
+  --md-sys-color-tertiary-fixed-dim: #f0d18e;
+  --md-sys-color-on-tertiary-fixed: #503c07;
+  --md-sys-color-on-tertiary-fixed-variant: #6f5922;
+}
+
+:root:has([data-m3]) {
+  --primary: var(--md-sys-color-primary);
+  --secondary: var(--md-sys-color-secondary);
+}
+
+:root:has([data-m3]) .dark,
+:root:has([data-m3]).dark {
+  --primary: var(--md-sys-color-primary);
+  --secondary: var(--md-sys-color-secondary);
+}
+
+@theme inline {
+  --color-primary: var(--primary);
+  --color-on-primary: var(--md-sys-color-on-primary);
+  --color-primary-container: var(--md-sys-color-primary-container);
+  --color-on-primary-container: var(--md-sys-color-on-primary-container);
+  --color-secondary: var(--secondary);
+  --color-on-secondary: var(--md-sys-color-on-secondary);
+  --color-secondary-container: var(--md-sys-color-secondary-container);
+  --color-on-secondary-container: var(--md-sys-color-on-secondary-container);
+  --color-tertiary: var(--md-sys-color-tertiary);
+  --color-on-tertiary: var(--md-sys-color-on-tertiary);
+  --color-tertiary-container: var(--md-sys-color-tertiary-container);
+  --color-on-tertiary-container: var(--md-sys-color-on-tertiary-container);
+  --color-error: var(--md-sys-color-error);
+  --color-on-error: var(--md-sys-color-on-error);
+  --color-error-container: var(--md-sys-color-error-container);
+  --color-on-error-container: var(--md-sys-color-on-error-container);
+  --color-surface: var(--md-sys-color-surface);
+  --color-on-surface: var(--md-sys-color-on-surface);
+  --color-surface-variant: var(--md-sys-color-surface-variant);
+  --color-on-surface-variant: var(--md-sys-color-on-surface-variant);
+  --color-surface-container-lowest: var(--md-sys-color-surface-container-lowest);
+  --color-surface-container-low: var(--md-sys-color-surface-container-low);
+  --color-surface-container: var(--md-sys-color-surface-container);
+  --color-surface-container-high: var(--md-sys-color-surface-container-high);
+  --color-surface-container-highest: var(--md-sys-color-surface-container-highest);
+  --color-surface-dim: var(--md-sys-color-surface-dim);
+  --color-surface-bright: var(--md-sys-color-surface-bright);
+  --color-inverse-surface: var(--md-sys-color-inverse-surface);
+  --color-inverse-on-surface: var(--md-sys-color-inverse-on-surface);
+  --color-inverse-primary: var(--md-sys-color-inverse-primary);
+  --color-outline: var(--md-sys-color-outline);
+  --color-outline-variant: var(--md-sys-color-outline-variant);
+  --color-scrim: var(--md-sys-color-scrim);
+  --color-primary-fixed: var(--md-sys-color-primary-fixed);
+  --color-primary-fixed-dim: var(--md-sys-color-primary-fixed-dim);
+  --color-on-primary-fixed: var(--md-sys-color-on-primary-fixed);
+  --color-on-primary-fixed-variant: var(--md-sys-color-on-primary-fixed-variant);
+  --color-secondary-fixed: var(--md-sys-color-secondary-fixed);
+  --color-secondary-fixed-dim: var(--md-sys-color-secondary-fixed-dim);
+  --color-on-secondary-fixed: var(--md-sys-color-on-secondary-fixed);
+  --color-on-secondary-fixed-variant: var(--md-sys-color-on-secondary-fixed-variant);
+  --color-tertiary-fixed: var(--md-sys-color-tertiary-fixed);
+  --color-tertiary-fixed-dim: var(--md-sys-color-tertiary-fixed-dim);
+  --color-on-tertiary-fixed: var(--md-sys-color-on-tertiary-fixed);
+  --color-on-tertiary-fixed-variant: var(--md-sys-color-on-tertiary-fixed-variant);
+
+  --radius-extra-small: var(--md-sys-shape-corner-extra-small);
+  --radius-small: var(--md-sys-shape-corner-small);
+  --radius-medium: var(--md-sys-shape-corner-medium);
+  --radius-large: var(--md-sys-shape-corner-large);
+  --radius-large-increased: var(--md-sys-shape-corner-large-increased);
+  --radius-extra-large: var(--md-sys-shape-corner-extra-large);
+  --radius-extra-large-increased: var(--md-sys-shape-corner-extra-large-increased);
+  --radius-extra-extra-large: var(--md-sys-shape-corner-extra-extra-large);
+
+  --shadow-level-0: var(--md-sys-elevation-level0);
+  --shadow-level-1: var(--md-sys-elevation-level1);
+  --shadow-level-2: var(--md-sys-elevation-level2);
+  --shadow-level-3: var(--md-sys-elevation-level3);
+  --shadow-level-4: var(--md-sys-elevation-level4);
+  --shadow-level-5: var(--md-sys-elevation-level5);
+
+  --ease-fast-spatial: var(--md-sys-motion-fast-spatial-easing);
+  --ease-default-spatial: var(--md-sys-motion-default-spatial-easing);
+  --ease-slow-spatial: var(--md-sys-motion-slow-spatial-easing);
+  --ease-fast-effects: var(--md-sys-motion-fast-effects-easing);
+  --ease-default-effects: var(--md-sys-motion-default-effects-easing);
+  --ease-slow-effects: var(--md-sys-motion-slow-effects-easing);
+
+  --breakpoint-medium: 37.5rem;
+  --breakpoint-expanded: 52.5rem;
+  --breakpoint-large: 75rem;
+  --breakpoint-extra-large: 100rem;
+}
+
+/* Type scale. One class sets typeface, size, line height, tracking, and weight. */
+@utility typescale-display-large {
+  font-family: var(--md-sys-typescale-display-large-font);
+  font-size: var(--md-sys-typescale-display-large-size);
+  line-height: var(--md-sys-typescale-display-large-line-height);
+  letter-spacing: var(--md-sys-typescale-display-large-tracking);
+  font-weight: var(--md-sys-typescale-display-large-weight);
+}
+
+@utility typescale-emphasized-display-large {
+  font-family: var(--md-sys-typescale-display-large-font);
+  font-size: var(--md-sys-typescale-display-large-size);
+  line-height: var(--md-sys-typescale-display-large-line-height);
+  letter-spacing: var(--md-sys-typescale-display-large-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-display-large-weight);
+}
+
+@utility typescale-display-medium {
+  font-family: var(--md-sys-typescale-display-medium-font);
+  font-size: var(--md-sys-typescale-display-medium-size);
+  line-height: var(--md-sys-typescale-display-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-display-medium-tracking);
+  font-weight: var(--md-sys-typescale-display-medium-weight);
+}
+
+@utility typescale-emphasized-display-medium {
+  font-family: var(--md-sys-typescale-display-medium-font);
+  font-size: var(--md-sys-typescale-display-medium-size);
+  line-height: var(--md-sys-typescale-display-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-display-medium-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-display-medium-weight);
+}
+
+@utility typescale-display-small {
+  font-family: var(--md-sys-typescale-display-small-font);
+  font-size: var(--md-sys-typescale-display-small-size);
+  line-height: var(--md-sys-typescale-display-small-line-height);
+  letter-spacing: var(--md-sys-typescale-display-small-tracking);
+  font-weight: var(--md-sys-typescale-display-small-weight);
+}
+
+@utility typescale-emphasized-display-small {
+  font-family: var(--md-sys-typescale-display-small-font);
+  font-size: var(--md-sys-typescale-display-small-size);
+  line-height: var(--md-sys-typescale-display-small-line-height);
+  letter-spacing: var(--md-sys-typescale-display-small-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-display-small-weight);
+}
+
+@utility typescale-headline-large {
+  font-family: var(--md-sys-typescale-headline-large-font);
+  font-size: var(--md-sys-typescale-headline-large-size);
+  line-height: var(--md-sys-typescale-headline-large-line-height);
+  letter-spacing: var(--md-sys-typescale-headline-large-tracking);
+  font-weight: var(--md-sys-typescale-headline-large-weight);
+}
+
+@utility typescale-emphasized-headline-large {
+  font-family: var(--md-sys-typescale-headline-large-font);
+  font-size: var(--md-sys-typescale-headline-large-size);
+  line-height: var(--md-sys-typescale-headline-large-line-height);
+  letter-spacing: var(--md-sys-typescale-headline-large-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-headline-large-weight);
+}
+
+@utility typescale-headline-medium {
+  font-family: var(--md-sys-typescale-headline-medium-font);
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+  font-weight: var(--md-sys-typescale-headline-medium-weight);
+}
+
+@utility typescale-emphasized-headline-medium {
+  font-family: var(--md-sys-typescale-headline-medium-font);
+  font-size: var(--md-sys-typescale-headline-medium-size);
+  line-height: var(--md-sys-typescale-headline-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-headline-medium-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-headline-medium-weight);
+}
+
+@utility typescale-headline-small {
+  font-family: var(--md-sys-typescale-headline-small-font);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: var(--md-sys-typescale-headline-small-line-height);
+  letter-spacing: var(--md-sys-typescale-headline-small-tracking);
+  font-weight: var(--md-sys-typescale-headline-small-weight);
+}
+
+@utility typescale-emphasized-headline-small {
+  font-family: var(--md-sys-typescale-headline-small-font);
+  font-size: var(--md-sys-typescale-headline-small-size);
+  line-height: var(--md-sys-typescale-headline-small-line-height);
+  letter-spacing: var(--md-sys-typescale-headline-small-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-headline-small-weight);
+}
+
+@utility typescale-title-large {
+  font-family: var(--md-sys-typescale-title-large-font);
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  letter-spacing: var(--md-sys-typescale-title-large-tracking);
+  font-weight: var(--md-sys-typescale-title-large-weight);
+}
+
+@utility typescale-emphasized-title-large {
+  font-family: var(--md-sys-typescale-title-large-font);
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  letter-spacing: var(--md-sys-typescale-title-large-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-title-large-weight);
+}
+
+@utility typescale-title-medium {
+  font-family: var(--md-sys-typescale-title-medium-font);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-title-medium-tracking);
+  font-weight: var(--md-sys-typescale-title-medium-weight);
+}
+
+@utility typescale-emphasized-title-medium {
+  font-family: var(--md-sys-typescale-title-medium-font);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-title-medium-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-title-medium-weight);
+}
+
+@utility typescale-title-small {
+  font-family: var(--md-sys-typescale-title-small-font);
+  font-size: var(--md-sys-typescale-title-small-size);
+  line-height: var(--md-sys-typescale-title-small-line-height);
+  letter-spacing: var(--md-sys-typescale-title-small-tracking);
+  font-weight: var(--md-sys-typescale-title-small-weight);
+}
+
+@utility typescale-emphasized-title-small {
+  font-family: var(--md-sys-typescale-title-small-font);
+  font-size: var(--md-sys-typescale-title-small-size);
+  line-height: var(--md-sys-typescale-title-small-line-height);
+  letter-spacing: var(--md-sys-typescale-title-small-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-title-small-weight);
+}
+
+@utility typescale-body-large {
+  font-family: var(--md-sys-typescale-body-large-font);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
+  font-weight: var(--md-sys-typescale-body-large-weight);
+}
+
+@utility typescale-emphasized-body-large {
+  font-family: var(--md-sys-typescale-body-large-font);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-body-large-weight);
+}
+
+@utility typescale-body-medium {
+  font-family: var(--md-sys-typescale-body-medium-font);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  font-weight: var(--md-sys-typescale-body-medium-weight);
+}
+
+@utility typescale-emphasized-body-medium {
+  font-family: var(--md-sys-typescale-body-medium-font);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-body-medium-weight);
+}
+
+@utility typescale-body-small {
+  font-family: var(--md-sys-typescale-body-small-font);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  font-weight: var(--md-sys-typescale-body-small-weight);
+}
+
+@utility typescale-emphasized-body-small {
+  font-family: var(--md-sys-typescale-body-small-font);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-body-small-weight);
+}
+
+@utility typescale-label-large {
+  font-family: var(--md-sys-typescale-label-large-font);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+}
+
+@utility typescale-emphasized-label-large {
+  font-family: var(--md-sys-typescale-label-large-font);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-label-large-weight);
+}
+
+@utility typescale-label-medium {
+  font-family: var(--md-sys-typescale-label-medium-font);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+}
+
+@utility typescale-emphasized-label-medium {
+  font-family: var(--md-sys-typescale-label-medium-font);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-label-medium-weight);
+}
+
+@utility typescale-label-small {
+  font-family: var(--md-sys-typescale-label-small-font);
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: var(--md-sys-typescale-label-small-line-height);
+  letter-spacing: var(--md-sys-typescale-label-small-tracking);
+  font-weight: var(--md-sys-typescale-label-small-weight);
+}
+
+@utility typescale-emphasized-label-small {
+  font-family: var(--md-sys-typescale-label-small-font);
+  font-size: var(--md-sys-typescale-label-small-size);
+  line-height: var(--md-sys-typescale-label-small-line-height);
+  letter-spacing: var(--md-sys-typescale-label-small-tracking);
+  font-weight: var(--md-sys-typescale-emphasized-label-small-weight);
+}
+
+/*
+ * Motion. Geometry (size, corners, position) uses the spatial spring curve and overshoots.
+ * Color, opacity, and shadow use the effects curve and never overshoot.
+ */
+@utility motion-fast {
+  transition-property:
+    border-radius, width, height, min-width, min-height, max-height, padding, gap, translate, scale,
+    rotate, transform, color, background-color, border-color, outline-color, fill, stroke, opacity,
+    box-shadow;
+  transition-duration:
+    var(--md-sys-motion-fast-spatial-duration), var(--md-sys-motion-fast-spatial-duration),
+    var(--md-sys-motion-fast-spatial-duration), var(--md-sys-motion-fast-spatial-duration),
+    var(--md-sys-motion-fast-spatial-duration), var(--md-sys-motion-fast-spatial-duration),
+    var(--md-sys-motion-fast-spatial-duration), var(--md-sys-motion-fast-spatial-duration),
+    var(--md-sys-motion-fast-spatial-duration), var(--md-sys-motion-fast-spatial-duration),
+    var(--md-sys-motion-fast-spatial-duration), var(--md-sys-motion-fast-spatial-duration),
+    var(--md-sys-motion-fast-effects-duration), var(--md-sys-motion-fast-effects-duration),
+    var(--md-sys-motion-fast-effects-duration), var(--md-sys-motion-fast-effects-duration),
+    var(--md-sys-motion-fast-effects-duration), var(--md-sys-motion-fast-effects-duration),
+    var(--md-sys-motion-fast-effects-duration), var(--md-sys-motion-fast-effects-duration);
+  transition-timing-function:
+    var(--md-sys-motion-fast-spatial-easing), var(--md-sys-motion-fast-spatial-easing),
+    var(--md-sys-motion-fast-spatial-easing), var(--md-sys-motion-fast-spatial-easing),
+    var(--md-sys-motion-fast-spatial-easing), var(--md-sys-motion-fast-spatial-easing),
+    var(--md-sys-motion-fast-spatial-easing), var(--md-sys-motion-fast-spatial-easing),
+    var(--md-sys-motion-fast-spatial-easing), var(--md-sys-motion-fast-spatial-easing),
+    var(--md-sys-motion-fast-spatial-easing), var(--md-sys-motion-fast-spatial-easing),
+    var(--md-sys-motion-fast-effects-easing), var(--md-sys-motion-fast-effects-easing),
+    var(--md-sys-motion-fast-effects-easing), var(--md-sys-motion-fast-effects-easing),
+    var(--md-sys-motion-fast-effects-easing), var(--md-sys-motion-fast-effects-easing),
+    var(--md-sys-motion-fast-effects-easing), var(--md-sys-motion-fast-effects-easing);
+}
+
+@utility motion-default {
+  transition-property:
+    border-radius, width, height, min-width, min-height, max-height, padding, gap, translate, scale,
+    rotate, transform, color, background-color, border-color, outline-color, fill, stroke, opacity,
+    box-shadow;
+  transition-duration:
+    var(--md-sys-motion-default-spatial-duration), var(--md-sys-motion-default-spatial-duration),
+    var(--md-sys-motion-default-spatial-duration), var(--md-sys-motion-default-spatial-duration),
+    var(--md-sys-motion-default-spatial-duration), var(--md-sys-motion-default-spatial-duration),
+    var(--md-sys-motion-default-spatial-duration), var(--md-sys-motion-default-spatial-duration),
+    var(--md-sys-motion-default-spatial-duration), var(--md-sys-motion-default-spatial-duration),
+    var(--md-sys-motion-default-spatial-duration), var(--md-sys-motion-default-spatial-duration),
+    var(--md-sys-motion-default-effects-duration), var(--md-sys-motion-default-effects-duration),
+    var(--md-sys-motion-default-effects-duration), var(--md-sys-motion-default-effects-duration),
+    var(--md-sys-motion-default-effects-duration), var(--md-sys-motion-default-effects-duration),
+    var(--md-sys-motion-default-effects-duration), var(--md-sys-motion-default-effects-duration);
+  transition-timing-function:
+    var(--md-sys-motion-default-spatial-easing), var(--md-sys-motion-default-spatial-easing),
+    var(--md-sys-motion-default-spatial-easing), var(--md-sys-motion-default-spatial-easing),
+    var(--md-sys-motion-default-spatial-easing), var(--md-sys-motion-default-spatial-easing),
+    var(--md-sys-motion-default-spatial-easing), var(--md-sys-motion-default-spatial-easing),
+    var(--md-sys-motion-default-spatial-easing), var(--md-sys-motion-default-spatial-easing),
+    var(--md-sys-motion-default-spatial-easing), var(--md-sys-motion-default-spatial-easing),
+    var(--md-sys-motion-default-effects-easing), var(--md-sys-motion-default-effects-easing),
+    var(--md-sys-motion-default-effects-easing), var(--md-sys-motion-default-effects-easing),
+    var(--md-sys-motion-default-effects-easing), var(--md-sys-motion-default-effects-easing),
+    var(--md-sys-motion-default-effects-easing), var(--md-sys-motion-default-effects-easing);
+}
+
+@utility motion-slow {
+  transition-property:
+    border-radius, width, height, min-width, min-height, max-height, padding, gap, translate, scale,
+    rotate, transform, color, background-color, border-color, outline-color, fill, stroke, opacity,
+    box-shadow;
+  transition-duration:
+    var(--md-sys-motion-slow-spatial-duration), var(--md-sys-motion-slow-spatial-duration),
+    var(--md-sys-motion-slow-spatial-duration), var(--md-sys-motion-slow-spatial-duration),
+    var(--md-sys-motion-slow-spatial-duration), var(--md-sys-motion-slow-spatial-duration),
+    var(--md-sys-motion-slow-spatial-duration), var(--md-sys-motion-slow-spatial-duration),
+    var(--md-sys-motion-slow-spatial-duration), var(--md-sys-motion-slow-spatial-duration),
+    var(--md-sys-motion-slow-spatial-duration), var(--md-sys-motion-slow-spatial-duration),
+    var(--md-sys-motion-slow-effects-duration), var(--md-sys-motion-slow-effects-duration),
+    var(--md-sys-motion-slow-effects-duration), var(--md-sys-motion-slow-effects-duration),
+    var(--md-sys-motion-slow-effects-duration), var(--md-sys-motion-slow-effects-duration),
+    var(--md-sys-motion-slow-effects-duration), var(--md-sys-motion-slow-effects-duration);
+  transition-timing-function:
+    var(--md-sys-motion-slow-spatial-easing), var(--md-sys-motion-slow-spatial-easing),
+    var(--md-sys-motion-slow-spatial-easing), var(--md-sys-motion-slow-spatial-easing),
+    var(--md-sys-motion-slow-spatial-easing), var(--md-sys-motion-slow-spatial-easing),
+    var(--md-sys-motion-slow-spatial-easing), var(--md-sys-motion-slow-spatial-easing),
+    var(--md-sys-motion-slow-spatial-easing), var(--md-sys-motion-slow-spatial-easing),
+    var(--md-sys-motion-slow-spatial-easing), var(--md-sys-motion-slow-spatial-easing),
+    var(--md-sys-motion-slow-effects-easing), var(--md-sys-motion-slow-effects-easing),
+    var(--md-sys-motion-slow-effects-easing), var(--md-sys-motion-slow-effects-easing),
+    var(--md-sys-motion-slow-effects-easing), var(--md-sys-motion-slow-effects-easing),
+    var(--md-sys-motion-slow-effects-easing), var(--md-sys-motion-slow-effects-easing);
+}
+
+/*
+ * State layer: a currentColor overlay whose opacity shows hover (8%), focus (10%), and press (10%).
+ * Set --state-layer-inset (e.g. -11px) to draw a 40px circle around a small control, and
+ * --state-layer-color to override the color. The element needs a position (relative, absolute,
+ * fixed); the layer paints between its background and its content.
+ */
+@utility state-layer {
+  isolation: isolate;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: var(--state-layer-inset, 0);
+    z-index: -1;
+    border-radius: var(--state-layer-radius, inherit);
+    background-color: var(--state-layer-color, currentColor);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--md-sys-motion-fast-effects-duration)
+      var(--md-sys-motion-fast-effects-easing);
+  }
+
+  @media (hover: hover) {
+    &:hover::before {
+      opacity: 0.08;
+    }
+  }
+
+  &[data-highlighted]::before {
+    opacity: 0.08;
+  }
+
+  &:focus-visible::before {
+    opacity: 0.1;
+  }
+
+  &:active::before {
+    opacity: 0.1;
+  }
+
+  &:disabled::before,
+  &[data-disabled]::before,
+  &[aria-disabled="true"]::before {
+    opacity: 0;
+  }
+}
+
+/* The M3 focus indicator: a 3px secondary outline, 2px outside the element. */
+@utility focus-ring {
+  outline: 0 solid transparent;
+
+  &:focus-visible {
+    outline: 3px solid var(--md-sys-color-secondary);
+    outline-offset: 2px;
+  }
+}
+
+@keyframes m3-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes m3-linear-indeterminate {
+  0% {
+    translate: -100% 0;
+    scale: 0.3 1;
+  }
+  50% {
+    scale: 0.6 1;
+  }
+  100% {
+    translate: 200% 0;
+    scale: 0.3 1;
+  }
+}
+
+@keyframes m3-circular-indeterminate {
+  0% {
+    stroke-dasharray: 1 200;
+    stroke-dashoffset: 0;
+  }
+  50% {
+    stroke-dasharray: 90 200;
+    stroke-dashoffset: -35;
+  }
+  100% {
+    stroke-dasharray: 90 200;
+    stroke-dashoffset: -124;
+  }
+}
+
+@keyframes m3-wave {
+  from {
+    mask-position: 0 0;
+  }
+  to {
+    mask-position: 40px 0;
+  }
+}
+
+/* Wavy progress: a repeating sine stroke used as a mask over the indicator color. */
+@utility wave-mask {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 10'%3E%3Cpath d='M0 5Q10 0 20 5T40 5' fill='none' stroke='black' stroke-width='3.5'/%3E%3C/svg%3E");
+  mask-size: 40px 100%;
+  mask-repeat: repeat-x;
+}
+
+/* Loading indicator: the shape morphs through the M3 shape library while it turns. */
+@keyframes m3-morph {
+  0%,
+  100% {
+    border-radius: 50%;
+    scale: 1;
+  }
+  14% {
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    scale: 0.92;
+  }
+  28% {
+    border-radius: 18%;
+    scale: 0.86;
+  }
+  42% {
+    border-radius: 50% 50% 18% 50%;
+    scale: 0.94;
+  }
+  57% {
+    border-radius: 42% 58% 38% 62% / 55% 38% 62% 45%;
+    scale: 1;
+  }
+  71% {
+    border-radius: 24% 76% 24% 76%;
+    scale: 0.9;
+  }
+  85% {
+    border-radius: 35%;
+    scale: 0.96;
+  }
+}
+
+@theme inline {
+  --animate-m3-spin: m3-spin 1.4s linear infinite;
+  --animate-m3-linear-indeterminate: m3-linear-indeterminate 1.75s
+    var(--md-sys-motion-default-effects-easing) infinite;
+  --animate-m3-circular-indeterminate: m3-circular-indeterminate 1.4s ease-in-out infinite;
+  --animate-m3-wave: m3-wave 1s linear infinite;
+  --animate-m3-morph:
+    m3-morph 4.5s var(--md-sys-motion-default-spatial-easing) infinite, m3-spin 4.5s linear infinite;
+}

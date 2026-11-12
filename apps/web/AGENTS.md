@@ -37,6 +37,8 @@ API client: `pnpm --filter web generate-api` while the API is on `:8080`. Genera
 
 UI: solid-kit registry. From `apps/web`, `pnpm dlx shadcn@latest add bieniucieniu/solid-kit/<item>`. Hand-written `components.json`. Do not run `shadcn init`. Do not import `@solid-kit/ui`.
 
+Material 3: new UI uses `m3-<item>` (installs into `components/m3/`). `components/ui/` stays until each screen moves over. Tokens live in `src/m3-tokens.css`: the color values come from seed `#B4532A` (tonal spot), and every typescale tracking adds `--reading-tracking` (Aa menu). Keep both when reinstalling `m3-theme`. `index.css` points the shadcn tokens at M3 roles so `ui` components follow the scheme. Use M3 utilities (`bg-surface-container`, `text-on-surface-variant`, `typescale-*`) in new code, not `muted` / `foreground`.
+
 <!-- intent-skills:start -->
 
 # TanStack Intent - before editing files, run the matching guidance command.
