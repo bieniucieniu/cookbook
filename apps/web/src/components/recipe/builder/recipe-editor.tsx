@@ -17,7 +17,7 @@ import {
   snackbar,
 } from "@/components/m3/snackbar";
 import { Toolbar } from "@/components/m3/toolbar";
-import { notify } from "@/components/notify";
+import { notifyError } from "@/components/notify";
 import { EmptyState } from "@/components/page-state";
 import {
   getGetRecipeQueryKey,
@@ -61,7 +61,10 @@ export function RecipeEditor(props: {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const catalog = useCatalog();
-  const restored = loadDraft(props.recipeId);
+  // The loaded recipe, serialized. A stored draft only counts when it differs from this.
+  const baseline = JSON.stringify(props.initial);
+  const stored = loadDraft(props.recipeId);
+  const restored = stored && JSON.stringify(stored) !== baseline ? stored : undefined;
   const [draft, setDraft] = createStore<RecipeDraft>(structuredClone(restored ?? props.initial));
   const [generation, setGeneration] = createSignal(0);
   /** Phones only: which side is showing. */
@@ -70,9 +73,11 @@ export function RecipeEditor(props: {
   const create = useCreateRecipe();
   const update = useUpdateRecipe();
 
+  // Autosave real edits only. A draft equal to the loaded recipe (just opened, or every change
+  // undone, or discarded) clears storage, so the next visit loads the server copy.
   createEffect(() => {
-    const snapshot = JSON.stringify(draft);
-    saveDraft(props.recipeId, JSON.parse(snapshot));
+    if (JSON.stringify(draft) === baseline) clearDraft(props.recipeId);
+    else saveDraft(props.recipeId, draft);
   });
 
   const issues = createMemo(() => validateGraph(draft.nodes, draft.edges));
@@ -141,9 +146,7 @@ export function RecipeEditor(props: {
       await queryClient.invalidateQueries({ queryKey: getGetRecipeQueryKey(id) });
       await navigate({ to: "/recipes/$id", params: { id } });
     } catch (error) {
-      notify(`Could not save${error instanceof Error ? `: ${error.message}` : "."}`, {
-        persistent: true,
-      });
+      notifyError("save", error, { persistent: true });
     }
   };
 

@@ -55,10 +55,10 @@
       stroke: #777;
     }
   }
+}
 
-  &-text {
-    font-size: 10px;
-  }
+.xy-flow__edge-text {
+  font-size: 10px;
 }
 
 .xy-flow__node.selectable {
@@ -122,62 +122,62 @@
 
 .xy-flow__controls {
   box-shadow: var(--xy-controls-box-shadow, var(--xy-controls-box-shadow-default));
+}
 
-  &-button {
-    border: none;
+.xy-flow__controls-button {
+  border: none;
+  background: var(
+    --xy-controls-button-background-color,
+    var(--xy-controls-button-background-color-default)
+  );
+  border-bottom: 1px solid
+    var(
+      --xy-controls-button-border-color-props,
+      var(--xy-controls-button-border-color, var(--xy-controls-button-border-color-default))
+    );
+  color: var(
+    --xy-controls-button-color-props,
+    var(--xy-controls-button-color, var(--xy-controls-button-color-default))
+  );
+  cursor: pointer;
+  user-select: none;
+
+  &:hover {
     background: var(
-      --xy-controls-button-background-color,
-      var(--xy-controls-button-background-color-default)
-    );
-    border-bottom: 1px solid
+      --xy-controls-button-background-color-hover-props,
       var(
-        --xy-controls-button-border-color-props,
-        var(--xy-controls-button-border-color, var(--xy-controls-button-border-color-default))
-      );
+        --xy-controls-button-background-color-hover,
+        var(--xy-controls-button-background-color-hover-default)
+      )
+    );
     color: var(
-      --xy-controls-button-color-props,
-      var(--xy-controls-button-color, var(--xy-controls-button-color-default))
+      --xy-controls-button-color-hover-props,
+      var(--xy-controls-button-color-hover, var(--xy-controls-button-color-hover-default))
     );
-    cursor: pointer;
-    user-select: none;
+  }
 
-    &:hover {
-      background: var(
-        --xy-controls-button-background-color-hover-props,
-        var(
-          --xy-controls-button-background-color-hover,
-          var(--xy-controls-button-background-color-hover-default)
-        )
-      );
-      color: var(
-        --xy-controls-button-color-hover-props,
-        var(--xy-controls-button-color-hover, var(--xy-controls-button-color-hover-default))
-      );
-    }
+  &:disabled {
+    pointer-events: none;
 
-    &:disabled {
-      pointer-events: none;
-
-      svg {
-        fill-opacity: 0.4;
-      }
+    svg {
+      fill-opacity: 0.4;
     }
   }
+}
 
-  &-button:last-child {
-    border-bottom: none;
-  }
+.xy-flow__controls-button:last-child {
+  border-bottom: none;
+}
 
-  &.horizontal &-button {
-    border-bottom: none;
-    border-right: 1px solid
-      var(
-        --xy-controls-button-border-color-props,
-        var(--xy-controls-button-border-color, var(--xy-controls-button-border-color-default))
-      );
-  }
+.xy-flow__controls.horizontal .xy-flow__controls-button {
+  border-bottom: none;
+  border-right: 1px solid
+    var(
+      --xy-controls-button-border-color-props,
+      var(--xy-controls-button-border-color, var(--xy-controls-button-border-color-default))
+    );
+}
 
-  &.horizontal &-button:last-child {
-    border-right: none;
-  }
+.xy-flow__controls.horizontal .xy-flow__controls-button:last-child {
+  border-right: none;
 }

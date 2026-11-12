@@ -18,14 +18,31 @@ export type Catalog = {
   loading: Accessor<boolean>;
 };
 
+/**
+ * ASCII slug for the catalog API (`[a-z0-9]+(-[a-z0-9]+)*`). Accents fold to plain letters.
+ * Letters with no ASCII form (Cyrillic, CJK, …) are dropped, so a short hash of the whole name
+ * keeps the slug non-empty and distinct from a Latin name it would otherwise collide with.
+ */
 export function slugify(name: string): string {
-  return name
+  const folded = name
     .trim()
     .toLowerCase()
     .normalize("NFKD")
-    .replace(/[̀-ͯ]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+    .replace(/[\u0300-\u036f]/g, "");
+  const ascii = folded.replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const lost = /[\u0080-\uffff]/.test(folded);
+  if (!lost) return ascii;
+  return ascii ? `${ascii}-${nameHash(folded)}` : `item-${nameHash(folded)}`;
+}
+
+/** FNV-1a over the UTF-16 code units, in base 36. Stable across sessions. */
+function nameHash(text: string): string {
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(36);
 }
 
 function listed(data: { status: number; data: unknown } | undefined): CatalogItem[] {
@@ -63,11 +80,17 @@ export function useCatalog(): Catalog {
       if (kind === "ingredient") {
         const created = await createIngredient(data);
         await queryClient.invalidateQueries({ queryKey: getListIngredientsQueryKey() });
-        return { id: created.data.id ?? 0, slug: created.data.slug, name: created.data.name };
+        return createdItem(created.data);
       }
       const created = await createTool(data);
       await queryClient.invalidateQueries({ queryKey: getListToolsQueryKey() });
-      return { id: created.data.id ?? 0, slug: created.data.slug, name: created.data.name };
+      return createdItem(created.data);
     },
   };
+}
+
+/** A create without an id cannot be picked: fail so the picker shows its error, not item #0. */
+function createdItem(data: { id?: number | null; slug: string; name: string }): CatalogItem {
+  if (typeof data.id !== "number") throw new Error(`Created "${data.name}" has no id`);
+  return { id: data.id, slug: data.slug, name: data.name };
 }

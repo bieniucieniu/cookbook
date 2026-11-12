@@ -19,7 +19,7 @@ import {
   TextFieldInput,
   TextFieldLabel,
 } from "@/components/m3/text-field";
-import { notify } from "@/components/notify";
+import { notifyError } from "@/components/notify";
 import type { RecipeGrant } from "@/generated/model";
 import {
   getListRecipeGrantsQueryKey,
@@ -62,7 +62,7 @@ export function ShareSheet(props: { recipeId: string }) {
       setEmail("");
       await refresh();
     } catch (error) {
-      notify(`Could not share${error instanceof Error ? `: ${error.message}` : "."}`);
+      notifyError("share", error);
     }
   };
 
@@ -106,9 +106,7 @@ export function ShareSheet(props: { recipeId: string }) {
                               .mutateAsync({ id: props.recipeId, userId: String(grant.userId) })
                               .then(() => refresh())
                               .catch((error: unknown) =>
-                                notify(
-                                  `Could not remove ${grant.email}${error instanceof Error ? `: ${error.message}` : "."}`
-                                )
+                                notifyError(`remove ${grant.email}`, error)
                               );
                           }}
                         >

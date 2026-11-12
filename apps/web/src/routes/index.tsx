@@ -7,6 +7,7 @@ import { useCurrentUser } from "@/generated/auth/auth";
 import type { RecipeListItem } from "@/generated/model";
 import { type listRecipesResponse, useListRecipes } from "@/generated/recipes/recipes";
 import { signedIn } from "@/lib/session";
+import { formatSpan } from "@/lib/units";
 import { Link, createFileRoute } from "@tanstack/solid-router";
 import { For, Show } from "solid-js";
 
@@ -123,18 +124,4 @@ function RecipeCard(props: { recipe: RecipeListItem }) {
 function listed(result: listRecipesResponse | undefined): RecipeListItem[] | undefined {
   if (!result || result.status !== 200) return undefined;
   return result.data;
-}
-
-function formatSpan(minSeconds: number, maxSeconds: number): string {
-  const min = formatSeconds(minSeconds);
-  const max = formatSeconds(maxSeconds);
-  return min === max ? min : `${min}–${max}`;
-}
-
-function formatSeconds(seconds: number): string {
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
 }
