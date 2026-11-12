@@ -34,7 +34,7 @@ import {
   MenuPortal,
   MenuTrigger,
 } from "@/components/m3/menu";
-import { notify } from "@/components/notify";
+import { notifyError } from "@/components/notify";
 import { ErrorBlock, PageLoading } from "@/components/page-state";
 import { MarkdownView } from "@/components/recipe/markdown";
 import { IconLabel, Stepper } from "@/components/recipe/parts";
@@ -53,7 +53,7 @@ import {
 import { useCatalog } from "@/lib/catalog";
 import { detailToDraft } from "@/lib/recipe-draft";
 import { signedIn } from "@/lib/session";
-import { formatDuration } from "@/lib/units";
+import { formatSpan } from "@/lib/units";
 import { ApiError } from "@/mutator";
 import { useQuery, useQueryClient } from "@tanstack/solid-query";
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
@@ -102,7 +102,7 @@ function RecipePage() {
       await navigate({ to: "/" });
     } catch (error) {
       setConfirmDelete(false);
-      notify(`Could not delete the recipe${error instanceof Error ? `: ${error.message}` : "."}`);
+      notifyError("delete the recipe", error);
     }
   };
 
@@ -155,11 +155,11 @@ function RecipePage() {
                       <div class="flex flex-wrap items-center gap-x-4 gap-y-1 typescale-label-large text-on-surface-variant">
                         <IconLabel
                           icon={IconClock}
-                          label={span(item().elapsedMinSeconds, item().elapsedMaxSeconds)}
+                          label={formatSpan(item().elapsedMinSeconds, item().elapsedMaxSeconds)}
                         />
                         <IconLabel
                           icon={IconHandStop}
-                          label={`${span(item().handsOnMinSeconds, item().handsOnMaxSeconds)} hands on`}
+                          label={`${formatSpan(item().handsOnMinSeconds, item().handsOnMaxSeconds)} hands on`}
                         />
                         <Show when={item().visibility === "private"}>
                           <IconLabel icon={IconLock} label="Only you" />
@@ -273,12 +273,6 @@ function RecipePage() {
       </Show>
     </main>
   );
-}
-
-function span(minSeconds: number, maxSeconds: number): string {
-  const min = formatDuration(minSeconds);
-  const max = formatDuration(maxSeconds);
-  return min === max ? min : `${min}–${max}`;
 }
 
 function recipeDetail(result: getRecipeResponse | undefined): RecipeDetail | undefined {

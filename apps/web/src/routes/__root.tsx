@@ -1,6 +1,6 @@
 import { apiBase } from "@/lib/api";
-import { type currentUserResponse, useCurrentUser } from "@/generated/auth/auth";
-import type { MeResponse } from "@/generated/model";
+import { useCurrentUser } from "@/generated/auth/auth";
+import { signedIn } from "@/lib/session";
 import { isUnauthorized } from "@/mutator";
 import { IconAlertTriangle, IconArrowLeft, IconLogout, IconUserCircle } from "@/components/icons";
 import {
@@ -166,9 +166,4 @@ function AccountMenu(props: { email: string }) {
       </Menu>
     </>
   );
-}
-
-function signedIn(result: currentUserResponse | undefined): MeResponse | undefined {
-  if (!result || result.status !== 200) return undefined;
-  return result.data;
 }

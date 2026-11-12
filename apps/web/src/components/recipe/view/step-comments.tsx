@@ -7,7 +7,7 @@ import {
   TextFieldInput,
   TextFieldLabel,
 } from "@/components/m3/text-field";
-import { notify } from "@/components/notify";
+import { notifyError } from "@/components/notify";
 import type { CommentResponse } from "@/generated/model";
 import {
   getGetRecipeQueryKey,
@@ -19,10 +19,6 @@ import { createSignal, For, Show } from "solid-js";
 
 function formatTime(seconds: number): string {
   return new Date(seconds * 1000).toLocaleString();
-}
-
-function failure(action: string, error: unknown): string {
-  return `Could not ${action}${error instanceof Error ? `: ${error.message}` : "."}`;
 }
 
 /** Comments on one step. Plain text, not markdown. */
@@ -66,7 +62,7 @@ export function StepComments(props: {
                   void remove
                     .mutateAsync({ id: props.recipeId, commentId: String(comment.id) })
                     .then(() => refresh())
-                    .catch((error: unknown) => notify(failure("delete the comment", error)));
+                    .catch((error: unknown) => notifyError("delete the comment", error));
                 }}
               >
                 <IconTrash aria-hidden="true" />
@@ -88,7 +84,7 @@ export function StepComments(props: {
                 setBody("");
                 return refresh();
               })
-              .catch((error: unknown) => notify(failure("post the comment", error)));
+              .catch((error: unknown) => notifyError("post the comment", error));
           }}
         >
           <TextField variant="outlined" value={body()} onChange={setBody} class="flex-1">

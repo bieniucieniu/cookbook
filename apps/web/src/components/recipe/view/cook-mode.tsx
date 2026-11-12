@@ -36,20 +36,38 @@ function formatClock(seconds: number): string {
   return `${minutes}:${String(rest).padStart(2, "0")}`;
 }
 
-/** Keeps the screen on while cooking. Fails quietly where the API is missing or refused. */
+/**
+ * Keeps the screen on while cooking. The browser drops the lock whenever the page is hidden
+ * (another app, a locked phone), so it is asked for again each time the page comes back.
+ * Fails quietly where the API is missing or refused.
+ */
 function useWakeLock() {
   let lock: { release: () => Promise<void> } | undefined;
-  onMount(async () => {
+  let active = true;
+  const request = async () => {
+    if (document.visibilityState !== "visible") return;
     try {
       const nav = navigator as Navigator & {
         wakeLock?: { request: (type: "screen") => Promise<{ release: () => Promise<void> }> };
       };
-      lock = await nav.wakeLock?.request("screen");
+      const next = await nav.wakeLock?.request("screen");
+      // Unmounted while the request was pending: let go at once.
+      if (!active) void next?.release().catch(() => undefined);
+      else lock = next;
     } catch {
       lock = undefined;
     }
+  };
+  const onVisible = () => void request();
+  onMount(() => {
+    void request();
+    document.addEventListener("visibilitychange", onVisible);
   });
-  onCleanup(() => void lock?.release().catch(() => undefined));
+  onCleanup(() => {
+    active = false;
+    document.removeEventListener("visibilitychange", onVisible);
+    void lock?.release().catch(() => undefined);
+  });
 }
 
 /**
@@ -374,7 +392,7 @@ function CookStep(props: {
         </div>
       </Show>
       <Show when={props.node.body.trim()}>
-        <MarkdownView value={props.node.body} class="text-base" />
+        <MarkdownView value={props.node.body} class="typescale-body-large" />
       </Show>
       <ToggleButton
         variant="tonal"

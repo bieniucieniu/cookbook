@@ -1,6 +1,6 @@
-import { apiBase } from "@/lib/api";
+import { apiBase, photoUrl } from "@/lib/api";
 import type { PhotoCreated } from "@/generated/model";
-import { ApiError } from "@/mutator";
+import { ApiError, errorMessage, readBody } from "@/mutator";
 
 const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
@@ -41,25 +41,16 @@ export async function uploadPhotoFile(file: File): Promise<PhotoCreated> {
     body,
     credentials: "include",
   });
-  const text = await response.text();
-  const data: unknown = text ? JSON.parse(text) : undefined;
-  if (!response.ok) {
-    const errors =
-      data && typeof data === "object" && "errors" in data
-        ? (data as { errors?: unknown }).errors
-        : undefined;
-    const message = Array.isArray(errors)
-      ? errors.join("; ")
-      : response.statusText || "Upload failed";
-    throw new ApiError(response.status, message);
-  }
+  const data = await readBody(response);
+  if (!response.ok)
+    throw new ApiError(response.status, errorMessage(response, data, "Upload failed"));
   if (!data || typeof data !== "object" || !("id" in data)) {
     throw new ApiError(response.status, "Upload failed");
   }
   const id = (data as { id: unknown }).id;
   const url = (data as { url?: unknown }).url;
   if (typeof id !== "number") throw new ApiError(response.status, "Upload failed");
-  return { id, url: typeof url === "string" ? url : `/photos/${id}` };
+  return { id, url: typeof url === "string" ? url : photoUrl(id) };
 }
 
 function encodeJpeg(

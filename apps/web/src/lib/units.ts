@@ -51,6 +51,13 @@ export function formatDuration(seconds: number): string {
   return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
 }
 
+/** A min–max range of durations, or one duration when both ends read the same. */
+export function formatSpan(minSeconds: number, maxSeconds: number): string {
+  const min = formatDuration(minSeconds);
+  const max = formatDuration(maxSeconds);
+  return min === max ? min : `${min}–${max}`;
+}
+
 export const durationPresets = [1, 2, 5, 10, 15, 20, 30, 45, 60, 90, 120].map(
   (minutes) => minutes * 60
 );
