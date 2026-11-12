@@ -9,6 +9,8 @@
     "preview": "vp preview"
   },
   "dependencies": {
+    "@corvu/dialog": "catalog:",
+    "@corvu/drawer": "catalog:",
     "@corvu/tooltip": "catalog:",
     "@fontsource-variable/roboto-flex": "catalog:",
     "@kobalte/core": "catalog:",

@@ -7,7 +7,7 @@ import {
   IconToolsKitchen2,
   type TablerIcon,
 } from "@/components/icons";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/m3/icon-button";
 import type { SpanWriteKind } from "@/generated/model";
 import { formatAmount, formatDuration } from "@/lib/units";
 import { cn } from "@/lib/utils";
@@ -36,32 +36,31 @@ export function Stepper(props: {
   const max = () => props.max ?? 99;
   return (
     <div class="inline-flex items-center gap-1" role="group" aria-label={props.label}>
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-lg"
+      <IconButton
+        variant="outlined"
         aria-label={`Fewer ${props.label}`}
         disabled={props.value <= min()}
         onClick={() => props.onChange(Math.max(min(), props.value - 1))}
       >
         <IconMinus aria-hidden="true" />
-      </Button>
-      <output class="min-w-12 text-center text-lg font-semibold tabular-nums" aria-live="polite">
+      </IconButton>
+      <output
+        class="min-w-12 text-center typescale-title-large text-on-surface tabular-nums"
+        aria-live="polite"
+      >
         {props.value}
         <Show when={props.unit}>
-          <span class="ml-1 text-xs font-medium text-muted-foreground">{props.unit}</span>
+          <span class="ml-1 typescale-label-small text-on-surface-variant">{props.unit}</span>
         </Show>
       </output>
-      <Button
-        type="button"
-        variant="outline"
-        size="icon-lg"
+      <IconButton
+        variant="outlined"
         aria-label={`More ${props.label}`}
         disabled={props.value >= max()}
         onClick={() => props.onChange(Math.min(max(), props.value + 1))}
       >
         <IconPlus aria-hidden="true" />
-      </Button>
+      </IconButton>
     </div>
   );
 }
@@ -75,6 +74,8 @@ type ChipProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
   muted?: boolean;
   /** Display only: renders a span, not a button. */
   static?: boolean;
+  /** `lg` is the cook-mode row: taller, with body-large text. */
+  size?: "md" | "lg";
 };
 
 /** One item with its amount. Amount is large and tabular, name is short. */
@@ -88,6 +89,7 @@ export function ItemChip(props: ChipProps) {
     "muted",
     "class",
     "static",
+    "size",
   ]);
   const amount = () => formatAmount(local.qty, local.unit);
   return (
@@ -95,10 +97,13 @@ export function ItemChip(props: ChipProps) {
       component={local.static ? "span" : "button"}
       type={local.static ? undefined : "button"}
       class={cn(
-        "inline-flex min-h-9 items-center gap-2 rounded-full border border-border bg-card px-3 py-1 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none",
-        !local.static && "hover:bg-muted",
+        "relative inline-flex items-center gap-2 border border-outline-variant bg-surface-container-low py-1 text-on-surface",
+        local.size === "lg"
+          ? "min-h-14 rounded-large px-4 typescale-body-large"
+          : "min-h-9 rounded-small px-3 typescale-label-large",
+        !local.static && "cursor-pointer state-layer focus-ring motion-fast",
         local.optional && "border-dashed",
-        local.muted && "opacity-50 line-through",
+        local.muted && "text-on-surface/38 line-through",
         local.class
       )}
       {...rest}
@@ -108,14 +113,14 @@ export function ItemChip(props: ChipProps) {
         size={16}
         stroke={1.75}
         aria-hidden="true"
-        class="text-muted-foreground"
+        class="text-primary"
       />
       <Show when={amount()}>
         <span class="font-semibold tabular-nums">{amount()}</span>
       </Show>
       <span>{local.name}</span>
       <Show when={local.optional}>
-        <span class="text-xs text-muted-foreground">optional</span>
+        <span class="typescale-label-small text-on-surface-variant">optional</span>
       </Show>
     </Dynamic>
   );
@@ -145,16 +150,18 @@ export function SpanBadge(
       component={local.static ? "span" : "button"}
       type={local.static ? undefined : "button"}
       class={cn(
-        "inline-flex min-h-9 items-center gap-1.5 rounded-md border px-2.5 py-1 text-sm tabular-nums transition-colors focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none",
-        !local.static && "hover:bg-muted",
-        local.kind === "wait" ? "border-dashed border-border" : "border-foreground/30 bg-muted/50",
+        "relative inline-flex min-h-9 items-center gap-1.5 rounded-small border px-2.5 py-1 typescale-label-large text-on-surface tabular-nums",
+        !local.static && "cursor-pointer state-layer focus-ring motion-fast",
+        local.kind === "wait"
+          ? "border-dashed border-outline"
+          : "border-transparent bg-secondary-container text-on-secondary-container",
         local.class
       )}
       {...rest}
     >
       <Dynamic component={spanIcon[local.kind]} size={16} stroke={1.75} aria-hidden="true" />
       <span class="font-semibold">{formatDuration(local.seconds)}</span>
-      <span class="text-xs text-muted-foreground">{spanLabel[local.kind]}</span>
+      <span class="typescale-label-small opacity-80">{spanLabel[local.kind]}</span>
     </Dynamic>
   );
 }

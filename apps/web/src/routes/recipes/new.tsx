@@ -1,6 +1,6 @@
 import { RecipeEditor, type EditorPane } from "@/components/recipe/builder/recipe-editor";
 import { blankDraft } from "@/lib/recipe-draft";
-import { Link, createFileRoute } from "@tanstack/solid-router";
+import { createFileRoute } from "@tanstack/solid-router";
 
 export const Route = createFileRoute("/recipes/new")({
   validateSearch: editorSearch,
@@ -12,9 +12,6 @@ function NewRecipePage() {
   const navigate = Route.useNavigate();
   return (
     <main class="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 pt-2">
-      <Link to="/" class="text-sm text-muted-foreground">
-        Recipes
-      </Link>
       <RecipeEditor
         initial={blankDraft()}
         selected={search().step}

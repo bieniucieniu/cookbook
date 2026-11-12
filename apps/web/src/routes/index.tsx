@@ -1,13 +1,8 @@
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Spinner } from "@/components/ui/spinner";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { IconChefHat, IconClock, IconHandStop, IconLock, IconPlus } from "@/components/icons";
+import { Card } from "@/components/m3/card";
+import { fabVariants } from "@/components/m3/fab";
+import { EmptyState, ErrorBlock, PageLoading } from "@/components/page-state";
+import { IconLabel } from "@/components/recipe/parts";
 import { useCurrentUser } from "@/generated/auth/auth";
 import type { RecipeListItem } from "@/generated/model";
 import { type listRecipesResponse, useListRecipes } from "@/generated/recipes/recipes";
@@ -19,68 +14,109 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
+/** Tile colors cycle through the three accent containers so neighbouring cards differ. */
+const tiles = [
+  "bg-primary-container text-on-primary-container",
+  "bg-secondary-container text-on-secondary-container",
+  "bg-tertiary-container text-on-tertiary-container",
+];
+
+/** M3 feed layout: one column on compact, a card grid from medium up. */
 function Home() {
   const recipes = useListRecipes();
   const session = useCurrentUser();
   return (
-    <main class="mx-auto flex w-full max-w-3xl flex-col gap-4 p-4">
-      <div class="flex items-center justify-between gap-3">
-        <h1 class="text-sm font-medium">Recipes</h1>
-        <Show when={signedIn(session.data)}>
-          <Link to="/recipes/new" class="text-xs underline">
-            New recipe
-          </Link>
-        </Show>
-      </div>
+    <main class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-2 pb-28 medium:px-6">
+      <h1 class="typescale-headline-small text-on-surface">Recipes</h1>
       <Show when={recipes.isPending}>
-        <Spinner />
+        <PageLoading label="Loading recipes" />
       </Show>
       <Show when={recipes.isError}>
-        <Alert>
-          <AlertTitle>Could not load recipes</AlertTitle>
-          <AlertDescription>{recipes.error?.message}</AlertDescription>
-        </Alert>
+        <ErrorBlock title="Could not load recipes" detail={recipes.error?.message} />
       </Show>
       <Show when={listed(recipes.data)}>
         {(items) => (
           <Show
             when={items().length > 0}
-            fallback={<p class="text-xs text-muted-foreground">No recipes yet.</p>}
+            fallback={
+              <EmptyState
+                icon={IconChefHat}
+                title="No recipes yet"
+                description={
+                  signedIn(session.data)
+                    ? "Start one with New recipe."
+                    : "Log in to write the first one."
+                }
+              />
+            }
           >
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Visibility</TableHead>
-                  <TableHead>Hands-on</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <For each={items()}>
-                  {(recipe) => (
-                    <TableRow>
-                      <TableCell>
-                        <Link
-                          to="/recipes/$id"
-                          params={{ id: String(recipe.id) }}
-                          class="underline"
-                        >
-                          {recipe.title}
-                        </Link>
-                      </TableCell>
-                      <TableCell>{recipe.visibility}</TableCell>
-                      <TableCell>
-                        {formatSpan(recipe.handsOnMinSeconds, recipe.handsOnMaxSeconds)}
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </For>
-              </TableBody>
-            </Table>
+            <ul class="grid gap-3 medium:grid-cols-2 medium:gap-4 expanded:grid-cols-3">
+              <For each={items()}>
+                {(recipe) => (
+                  <li>
+                    <RecipeCard recipe={recipe} />
+                  </li>
+                )}
+              </For>
+            </ul>
           </Show>
         )}
       </Show>
+      <Show when={signedIn(session.data)}>
+        <Link
+          to="/recipes/new"
+          class={fabVariants({
+            extended: true,
+            class: "fixed right-4 bottom-4 z-30 medium:right-6 medium:bottom-6",
+          })}
+        >
+          <IconPlus aria-hidden="true" />
+          New recipe
+        </Link>
+      </Show>
     </main>
+  );
+}
+
+/** The whole card is the link: the title's link stretches over it. */
+function RecipeCard(props: { recipe: RecipeListItem }) {
+  return (
+    <Card
+      variant="filled"
+      interactive
+      class="h-full flex-row items-center gap-0 py-0 has-[a:focus-visible]:outline-3 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-secondary"
+    >
+      <span
+        class={`m-3 flex size-16 shrink-0 items-center justify-center rounded-large ${tiles[props.recipe.id % tiles.length]}`}
+        aria-hidden="true"
+      >
+        <IconChefHat class="size-8" stroke={1.5} />
+      </span>
+      <div class="flex min-w-0 flex-1 flex-col gap-1 py-3 pr-4">
+        <h2 class="typescale-title-large text-on-surface">
+          <Link
+            to="/recipes/$id"
+            params={{ id: String(props.recipe.id) }}
+            class="outline-none after:absolute after:inset-0 after:z-10"
+          >
+            {props.recipe.title}
+          </Link>
+        </h2>
+        <div class="flex flex-wrap gap-x-4 gap-y-1 typescale-label-large text-on-surface-variant">
+          <IconLabel
+            icon={IconClock}
+            label={formatSpan(props.recipe.elapsedMinSeconds, props.recipe.elapsedMaxSeconds)}
+          />
+          <IconLabel
+            icon={IconHandStop}
+            label={`${formatSpan(props.recipe.handsOnMinSeconds, props.recipe.handsOnMaxSeconds)} hands on`}
+          />
+          <Show when={props.recipe.visibility === "private"}>
+            <IconLabel icon={IconLock} label="Only you" />
+          </Show>
+        </div>
+      </div>
+    </Card>
   );
 }
 
