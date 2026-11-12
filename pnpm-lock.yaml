@@ -12,9 +12,6 @@ catalogs:
     '@corvu/drawer':
       specifier: ^0.2.4
       version: 0.2.4
-    '@corvu/tooltip':
-      specifier: ^0.2.2
-      version: 0.2.2
     '@fontsource-variable/roboto-flex':
       specifier: ^5.3.0
       version: 5.3.0
@@ -125,9 +122,6 @@ importers:
       '@corvu/drawer':
         specifier: 'catalog:'
         version: 0.2.4(solid-js@1.9.18)
-      '@corvu/tooltip':
-        specifier: 'catalog:'
-        version: 0.2.2(solid-js@1.9.18)
       '@fontsource-variable/roboto-flex':
         specifier: 'catalog:'
         version: 5.3.0
@@ -349,11 +343,6 @@ packages:
 
   '@corvu/drawer@0.2.4':
     resolution: {integrity: sha512-7jQoGZ8ROB9CmXam2nMY2wEskU3IoFwZQywkF/7vrBc/edGsPv7mOVQ1GN6G+4nd7nrMZ3UtqHAhmRh9V0azlw==}
-    peerDependencies:
-      solid-js: ^1.8
-
-  '@corvu/tooltip@0.2.2':
-    resolution: {integrity: sha512-gyOBJ43GNAecDtmWc68A5YJvifXWwK0VZZdTOcFbX0rVQUA2ihBMltRE4oj7/lKidg2gXALjmFr71Blt5s3YuQ==}
     peerDependencies:
       solid-js: ^1.8
 
@@ -3636,14 +3625,6 @@ snapshots:
       '@solid-primitives/memo': 1.5.1(solid-js@1.9.18)
       solid-js: 1.9.18
       solid-transition-size: 0.1.4(solid-js@1.9.18)
-
-  '@corvu/tooltip@0.2.2(solid-js@1.9.18)':
-    dependencies:
-      '@corvu/utils': 0.4.2(solid-js@1.9.18)
-      '@floating-ui/dom': 1.8.0
-      solid-dismissible: 0.1.1(solid-js@1.9.18)
-      solid-js: 1.9.18
-      solid-presence: 0.2.0(solid-js@1.9.18)
 
   '@corvu/utils@0.3.2(solid-js@1.9.18)':
     dependencies:

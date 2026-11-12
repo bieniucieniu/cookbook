@@ -7,7 +7,6 @@ catalogMode: strict
 catalog:
   "@corvu/dialog": ^0.2.4
   "@corvu/drawer": ^0.2.4
-  "@corvu/tooltip": ^0.2.2
   "@fontsource-variable/roboto-flex": ^5.3.0
   "@tabler/icons-solidjs": ^3.50.0
   "@tiptap/core": ^3.33.0
