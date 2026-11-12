@@ -68,9 +68,28 @@ function SessionHeader() {
     window.addEventListener("scroll", onScroll, { passive: true });
   });
   onCleanup(() => window.removeEventListener("scroll", onScroll));
+  // Publish the bar's real height as --app-bar-height. Sticky things below it (editor toolbar,
+  // cook timers, the list's side panel) offset and size themselves from it, so they stay right
+  // when the reading text size changes the bar's height.
+  let bar: HTMLElement | undefined;
+  onMount(() => {
+    if (!bar) return;
+    const root = document.documentElement.style;
+    const observer = new ResizeObserver(([entry]) => {
+      const height = entry?.borderBoxSize[0]?.blockSize ?? bar?.offsetHeight ?? 0;
+      root.setProperty("--app-bar-height", `${height}px`);
+    });
+    observer.observe(bar);
+    onCleanup(() => observer.disconnect());
+  });
   return (
-    // Sticky: 64px tall. Sticky bars below it (editor toolbar, cook timers) start at top-16.
-    <AppBar scrolled={scrolled()} class="sticky top-0 z-30">
+    <AppBar
+      ref={(element) => {
+        bar = element;
+      }}
+      scrolled={scrolled()}
+      class="sticky top-0 z-30"
+    >
       <Show when={inner()}>
         <AppBarLeading>
           <UpButton pathname={location().pathname} />

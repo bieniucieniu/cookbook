@@ -175,7 +175,7 @@ export function RecipeEditor(props: {
       {/* Vibrant docked toolbar: the color marks edit mode; Save is the one filled action. */}
       <Toolbar
         color="vibrant"
-        class="sticky top-16 z-20 -mx-4 h-auto min-h-16 w-auto flex-wrap gap-y-2 py-2 medium:-mx-6 medium:px-6"
+        class="sticky top-(--app-bar-height) z-20 -mx-4 h-auto min-h-16 w-auto flex-wrap gap-y-2 py-2 medium:-mx-6 medium:px-6"
       >
         <h1 class="mr-auto flex items-center gap-2 typescale-title-large">
           <IconPencil class="size-6" aria-hidden="true" />
@@ -221,11 +221,11 @@ export function RecipeEditor(props: {
             <aside
               aria-label="Recipe summary"
               class={cn(
-                "flex-col expanded:sticky expanded:top-36 expanded:flex",
+                "flex-col expanded:sticky expanded:top-[calc(var(--app-bar-height)+5rem)] expanded:flex",
                 side() === "summary" ? "flex" : "hidden"
               )}
             >
-              <ScrollArea class="expanded:max-h-[calc(100dvh-10rem)] expanded:pr-2">
+              <ScrollArea class="expanded:max-h-[calc(100dvh-var(--app-bar-height)-6rem)] expanded:pr-2">
                 <SummaryPanel
                   draft={draft}
                   setDraft={setDraft}

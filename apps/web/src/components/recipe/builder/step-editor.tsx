@@ -75,7 +75,7 @@ export function StepEditor(props: {
         <article
           id={`step-${step().key}`}
           // Scrolled into view under the sticky app bar and editor toolbar.
-          class="flex scroll-mt-36 flex-col gap-6"
+          class="flex scroll-mt-[calc(var(--app-bar-height)+5rem)] flex-col gap-6"
           aria-label={`Step ${props.number}`}
         >
           <header class="flex items-center gap-2">
