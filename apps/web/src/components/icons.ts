@@ -2,6 +2,7 @@
 export {
   IconAlertTriangle,
   IconArrowDown,
+  IconArrowLeft,
   IconArrowUp,
   IconArrowsShuffle,
   IconArrowsSplit,

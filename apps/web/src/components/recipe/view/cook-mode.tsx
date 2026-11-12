@@ -6,17 +6,22 @@ import {
   IconClock,
   IconGitBranch,
   IconPlayerPlay,
-  IconX,
 } from "@/components/icons";
+import { Button, ToggleButton } from "@/components/m3/button";
+import { InputChip, InputChipRemove } from "@/components/m3/chip";
+import { ExtendedFab } from "@/components/m3/fab";
+import { IconButton } from "@/components/m3/icon-button";
+import { Progress, ProgressLabel, ProgressTrack, ProgressFill } from "@/components/m3/progress";
+import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/m3/tabs";
+import { Toolbar } from "@/components/m3/toolbar";
 import { AnimatePresence, motion } from "@/components/motion";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { notify } from "@/components/notify";
 import type { Catalog } from "@/lib/catalog";
 import type { DraftNode, RecipeDraft } from "@/lib/recipe-draft";
 import { lanes } from "@/lib/recipe-graph";
 import { formatDuration, scaleQty } from "@/lib/units";
 import { cn } from "@/lib/utils";
-import { createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Dynamic } from "solid-js/web";
 import { MarkdownView } from "../markdown";
@@ -53,6 +58,9 @@ function useWakeLock() {
  */
 export function CookMode(props: { draft: RecipeDraft; cooks: number; catalog: Catalog }) {
   useWakeLock();
+  // Snackbars (finished timers) sit above the floating toolbar: 64px bar + 16px gap.
+  onMount(() => document.documentElement.style.setProperty("--snackbar-offset", "5rem"));
+  onCleanup(() => document.documentElement.style.removeProperty("--snackbar-offset"));
   const rows = createMemo(() => lanes(props.draft.nodes, props.draft.edges));
   const [index, setIndex] = createSignal(0);
   const [direction, setDirection] = createSignal(1);
@@ -84,63 +92,66 @@ export function CookMode(props: { draft: RecipeDraft; cooks: number; catalog: Ca
 
   const remaining = (timer: Timer) => (timer.endsAt - now()) / 1000;
 
+  // Each finished timer announces itself once in a snackbar that stays until dismissed.
+  const announced = new Set<number>();
+  createEffect(() => {
+    for (const timer of timers()) {
+      if (remaining(timer) > 0 || announced.has(timer.id)) continue;
+      announced.add(timer.id);
+      notify(`Timer done: ${timer.label}`, { persistent: true });
+    }
+  });
+
   return (
-    <div class="flex flex-col gap-4">
+    // Bottom padding keeps the last line clear of the fixed toolbar.
+    <div class="flex flex-col gap-4 pb-20">
       <Show when={timers().length > 0}>
         <ul
-          class="sticky top-0 z-20 -mx-4 flex flex-wrap gap-2 border-b border-border bg-background/95 px-4 py-2 backdrop-blur"
+          class="sticky top-0 z-20 -mx-4 flex flex-wrap gap-2 bg-surface-container px-4 py-2 medium:-mx-6 medium:px-6"
           aria-label="Timers"
         >
           <For each={timers()}>
             {(timer) => (
-              <li
-                class={cn(
-                  "inline-flex items-center gap-2 rounded-full border px-3 py-1 text-sm",
-                  remaining(timer) <= 0
-                    ? "border-destructive bg-destructive/10 font-semibold"
-                    : "border-border"
-                )}
-                role="timer"
-              >
-                <IconClock size={16} aria-hidden="true" />
-                <span class="font-semibold tabular-nums">
-                  {remaining(timer) <= 0 ? "Done" : formatClock(remaining(timer))}
-                </span>
-                <span class="max-w-40 truncate text-muted-foreground">{timer.label}</span>
-                <button
-                  type="button"
-                  class="rounded-full p-0.5 hover:bg-muted"
-                  aria-label={`Stop timer ${timer.label}`}
-                  onClick={() => setTimers((list) => list.filter((item) => item.id !== timer.id))}
+              <li role="timer">
+                <InputChip
+                  class={cn(
+                    "h-10 pr-1",
+                    remaining(timer) <= 0 &&
+                      "border-transparent bg-error-container text-on-error-container"
+                  )}
                 >
-                  <IconX size={14} aria-hidden="true" />
-                </button>
+                  <Show when={remaining(timer) <= 0} fallback={<IconClock aria-hidden="true" />}>
+                    <IconCheck aria-hidden="true" />
+                  </Show>
+                  <span class="tabular-nums">
+                    {remaining(timer) <= 0 ? "Done" : formatClock(remaining(timer))}
+                  </span>
+                  <span class="max-w-40 truncate opacity-80">{timer.label}</span>
+                  <InputChipRemove
+                    aria-label={`Stop timer ${timer.label}`}
+                    onClick={() => setTimers((list) => list.filter((item) => item.id !== timer.id))}
+                  />
+                </InputChip>
               </li>
             )}
           </For>
         </ul>
       </Show>
 
-      <div
-        class="flex items-center justify-center gap-1.5"
-        role="progressbar"
-        aria-valuemin={1}
-        aria-valuemax={rows().length}
-        aria-valuenow={index() + 1}
-        aria-label="Progress"
-      >
+      <nav class="flex items-center justify-center gap-1.5" aria-label="Parts">
         <For each={rows()}>
           {(_, at) => (
             <button
               type="button"
               aria-label={`Go to part ${at() + 1}`}
+              aria-current={at() === index() ? "step" : undefined}
               class={cn(
-                "h-2.5 rounded-full transition-all",
+                "h-2.5 cursor-pointer rounded-full focus-ring motion-default",
                 at() === index()
                   ? "w-8 bg-primary"
                   : at() < index()
-                    ? "w-2.5 bg-primary/60"
-                    : "w-2.5 bg-border"
+                    ? "w-2.5 bg-primary/40"
+                    : "w-2.5 bg-outline-variant"
               )}
               onClick={() => {
                 setDirection(at() > index() ? 1 : -1);
@@ -149,16 +160,22 @@ export function CookMode(props: { draft: RecipeDraft; cooks: number; catalog: Ca
             />
           )}
         </For>
-      </div>
+      </nav>
 
       <div class="relative min-h-[50vh] overflow-hidden">
         <AnimatePresence each={[index()]} by={(value) => value} mode="wait">
           {() => (
             <motion.section
-              initial={{ opacity: 0, x: direction() * 40 }}
+              initial={{ opacity: 0, x: direction() * 48 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: direction() * -40 }}
-              transition={{ duration: 0.18 }}
+              exit={{ opacity: 0, x: direction() * -48 }}
+              // M3 fast spatial spring for the slide, fast effects curve for the fade.
+              transition={{
+                type: "spring",
+                visualDuration: 0.35,
+                bounce: 0.2,
+                opacity: { duration: 0.15, ease: [0.31, 0.94, 0.34, 1] },
+              }}
               class="flex flex-col gap-4"
             >
               <Show
@@ -177,30 +194,31 @@ export function CookMode(props: { draft: RecipeDraft; cooks: number; catalog: Ca
                   </Show>
                 }
               >
-                <Tabs defaultValue={row()[0]?.key}>
-                  <span class="mb-2 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                    <Dynamic
-                      component={rowMode(row()) === "xor" ? IconArrowsShuffle : IconGitBranch}
-                      size={18}
-                      aria-hidden="true"
-                    />
-                    {rowMode(row()) === "xor" ? "Pick one" : "Do these at the same time"}
-                  </span>
-                  <TabsList class="w-full">
+                <span class="inline-flex items-center gap-1.5 typescale-label-large text-on-surface-variant">
+                  <Dynamic
+                    component={rowMode(row()) === "xor" ? IconArrowsShuffle : IconGitBranch}
+                    size={18}
+                    aria-hidden="true"
+                  />
+                  {rowMode(row()) === "xor" ? "Pick one" : "Do these at the same time"}
+                </span>
+                <Tabs variant="secondary" defaultValue={row()[0]?.key}>
+                  <TabsList>
                     <For each={row()}>
                       {(node) => (
-                        <TabsTrigger value={node.key} class="gap-1.5 text-sm">
+                        <TabsTrigger value={node.key}>
                           <Show when={done[node.key]}>
-                            <IconCheck size={16} aria-hidden="true" />
+                            <IconCheck class="size-5" aria-hidden="true" />
                           </Show>
                           {node.title}
                         </TabsTrigger>
                       )}
                     </For>
+                    <TabsIndicator />
                   </TabsList>
                   <For each={row()}>
                     {(node) => (
-                      <TabsContent value={node.key} class="pt-4">
+                      <TabsContent value={node.key}>
                         <CookStep
                           node={node}
                           {...props}
@@ -218,31 +236,40 @@ export function CookMode(props: { draft: RecipeDraft; cooks: number; catalog: Ca
         </AnimatePresence>
       </div>
 
-      <div class="sticky bottom-0 -mx-4 flex items-center justify-between gap-2 border-t border-border bg-background/95 px-4 py-3 backdrop-blur">
-        <Button
-          type="button"
-          variant="outline"
-          size="lg"
-          class="h-12 px-5 text-base"
-          disabled={index() === 0}
-          onClick={() => go(-1)}
-        >
-          <IconChevronLeft aria-hidden="true" />
-          Back
-        </Button>
-        <span class="text-sm text-muted-foreground tabular-nums">
-          {index() + 1} / {rows().length}
-        </span>
-        <Button
-          type="button"
-          size="lg"
-          class="h-12 px-5 text-base"
+      {/* Floating toolbar paired with a FAB: the FAB carries the one emphasized action. */}
+      <div class="fixed inset-x-0 bottom-4 z-20 flex items-center justify-center gap-3 px-4">
+        <Toolbar variant="floating" class="min-w-0 flex-1 gap-3 pr-5 medium:max-w-md">
+          <IconButton
+            variant="tonal"
+            aria-label="Previous part"
+            disabled={index() === 0}
+            onClick={() => go(-1)}
+          >
+            <IconChevronLeft aria-hidden="true" />
+          </IconButton>
+          <Progress
+            value={index() + 1}
+            minValue={0}
+            maxValue={rows().length}
+            getValueLabel={({ value, max }) => `Part ${value} of ${max}`}
+            class="min-w-0 flex-1 gap-1"
+          >
+            <ProgressLabel class="typescale-label-large text-on-surface-variant tabular-nums">
+              Part {index() + 1} of {rows().length}
+            </ProgressLabel>
+            <ProgressTrack>
+              <ProgressFill wavy />
+            </ProgressTrack>
+          </Progress>
+        </Toolbar>
+        <ExtendedFab
+          variant="primary"
           disabled={index() >= rows().length - 1}
           onClick={() => go(1)}
         >
           Next
           <IconChevronRight aria-hidden="true" />
-        </Button>
+        </ExtendedFab>
       </div>
     </div>
   );
@@ -262,10 +289,12 @@ function CookStep(props: {
     qty == null ? qty : scaleQty(qty, props.draft.cooks, props.cooks);
   return (
     <div class="flex flex-col gap-5">
-      <h2 class="text-2xl leading-tight font-bold">
+      <h2 class="typescale-emphasized-headline-large text-on-surface">
         {props.node.title}
         <Show when={props.node.repeatMin > 1}>
-          <span class="ml-2 text-lg text-muted-foreground">×{props.node.repeatMin}</span>
+          <span class="ml-2 typescale-title-large text-on-surface-variant">
+            ×{props.node.repeatMin}
+          </span>
         </Show>
       </h2>
       <Show when={props.node.ingredients.length > 0}>
@@ -275,7 +304,8 @@ function CookStep(props: {
               <li>
                 <ItemChip
                   kind="ingredient"
-                  class="min-h-12 w-full justify-start rounded-lg text-lg"
+                  size="lg"
+                  class="w-full justify-start"
                   name={props.catalog.name("ingredient", item.ingredientId)}
                   qty={scale(item.qty)}
                   unit={item.unit}
@@ -286,7 +316,7 @@ function CookStep(props: {
                   onClick={() => setGot(item.ingredientId, (value) => !value)}
                 />
                 <Show when={(item.alts ?? []).length > 0}>
-                  <span class="pl-3 text-sm text-muted-foreground">
+                  <span class="pl-4 typescale-body-medium text-on-surface-variant">
                     or{" "}
                     {(item.alts ?? [])
                       .map((alt) => props.catalog.name("ingredient", alt.altIngredientId))
@@ -310,7 +340,7 @@ function CookStep(props: {
                   static
                 />
                 <Show when={(item.alts ?? []).length > 0}>
-                  <span class="ml-1 text-sm text-muted-foreground">
+                  <span class="ml-1 typescale-body-medium text-on-surface-variant">
                     or{" "}
                     {(item.alts ?? [])
                       .map((alt) => props.catalog.name("tool", alt.altToolId))
@@ -327,17 +357,17 @@ function CookStep(props: {
           <For each={props.node.spans}>
             {(span) => (
               <Button
-                type="button"
-                variant={span.kind === "wait" ? "outline" : "secondary"}
-                size="lg"
-                class={cn("h-12 gap-2 px-4 text-base", span.kind === "wait" && "border-dashed")}
+                variant={span.kind === "wait" ? "outlined" : "tonal"}
+                size="md"
+                class={cn(span.kind === "wait" && "border-dashed")}
+                aria-label={`Start a ${formatDuration(span.seconds)} ${spanLabel[span.kind].toLowerCase()} timer`}
                 onClick={() =>
                   props.onTimer(`${props.node.title} · ${spanLabel[span.kind]}`, span.seconds)
                 }
               >
                 <IconPlayerPlay aria-hidden="true" />
                 <Dynamic component={spanIcon[span.kind]} aria-hidden="true" />
-                <span class="font-semibold tabular-nums">{formatDuration(span.seconds)}</span>
+                <span class="tabular-nums">{formatDuration(span.seconds)}</span>
               </Button>
             )}
           </For>
@@ -346,17 +376,16 @@ function CookStep(props: {
       <Show when={props.node.body.trim()}>
         <MarkdownView value={props.node.body} class="text-base" />
       </Show>
-      <Button
-        type="button"
-        variant={props.done[props.node.key] ? "secondary" : "outline"}
-        size="lg"
-        class="h-12 w-fit px-5 text-base"
-        aria-pressed={props.done[props.node.key] ? "true" : "false"}
-        onClick={() => props.setDone(props.node.key, !props.done[props.node.key])}
+      <ToggleButton
+        variant="tonal"
+        size="md"
+        class="w-fit"
+        pressed={props.done[props.node.key] ?? false}
+        onChange={(pressed) => props.setDone(props.node.key, pressed)}
       >
         <IconCheck aria-hidden="true" />
         {props.done[props.node.key] ? "Done" : "Mark done"}
-      </Button>
+      </ToggleButton>
     </div>
   );
 }

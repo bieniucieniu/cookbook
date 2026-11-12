@@ -6,7 +6,7 @@ import { getGetRecipeQueryOptions, type getRecipeResponse } from "@/generated/re
 import { detailToDraft } from "@/lib/recipe-draft";
 import { ApiError } from "@/mutator";
 import { useQuery } from "@tanstack/solid-query";
-import { Link, createFileRoute } from "@tanstack/solid-router";
+import { createFileRoute } from "@tanstack/solid-router";
 import { Show } from "solid-js";
 
 export const Route = createFileRoute("/recipes/$id/edit")({
@@ -22,9 +22,6 @@ function EditRecipePage() {
   const detail = () => recipeDetail(recipe.data);
   return (
     <main class="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 pt-2">
-      <Link to="/recipes/$id" params={{ id: params().id }} class="text-sm text-muted-foreground">
-        Back to recipe
-      </Link>
       <Show when={recipe.isPending}>
         <Spinner />
       </Show>

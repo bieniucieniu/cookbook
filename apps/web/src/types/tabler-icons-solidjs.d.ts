@@ -13,6 +13,7 @@ declare module "@tabler/icons-solidjs" {
 
   export const IconAlertTriangle: TablerIcon;
   export const IconArrowDown: TablerIcon;
+  export const IconArrowLeft: TablerIcon;
   export const IconArrowUp: TablerIcon;
   export const IconArrowsShuffle: TablerIcon;
   export const IconArrowsSplit: TablerIcon;

@@ -45,16 +45,16 @@ export function RecipeList(props: {
   };
 
   return (
-    <div class="grid gap-8 lg:grid-cols-[minmax(0,20rem)_1fr]">
+    <div class="grid gap-8 expanded:grid-cols-[minmax(0,20rem)_1fr]">
       <aside class="flex flex-col gap-6">
         <section class="flex flex-col gap-3">
-          <h2 class="text-base font-semibold">
+          <h2 class="typescale-title-medium text-on-surface">
             <IconLabel icon={IconCarrot} label="Ingredients" />
           </h2>
           <ul class="flex flex-col gap-1.5">
             <For
               each={summary().ingredients}
-              fallback={<li class="text-sm text-muted-foreground">None listed.</li>}
+              fallback={<li class="typescale-body-medium text-on-surface-variant">None listed.</li>}
             >
               {(line) => (
                 <li class="flex flex-col gap-1">
@@ -64,7 +64,7 @@ export function RecipeList(props: {
                       return (
                         <ItemChip
                           kind="ingredient"
-                          class="w-full justify-start rounded-lg"
+                          class="w-full justify-start rounded-medium"
                           name={props.catalog.name("ingredient", line.id)}
                           qty={scale(amount.qty)}
                           unit={amount.unit}
@@ -78,7 +78,7 @@ export function RecipeList(props: {
                     }}
                   </For>
                   <Show when={line.alts.length > 0}>
-                    <span class="pl-3 text-xs text-muted-foreground">
+                    <span class="pl-3 typescale-body-small text-on-surface-variant">
                       {swapText(
                         "ingredient",
                         line.alts.map((alt) => alt.id)
@@ -92,7 +92,7 @@ export function RecipeList(props: {
         </section>
         <Show when={summary().tools.length > 0}>
           <section class="flex flex-col gap-3">
-            <h2 class="text-base font-semibold">
+            <h2 class="typescale-title-medium text-on-surface">
               <IconLabel icon={IconToolsKitchen2} label="Tools" />
             </h2>
             <ul class="flex flex-wrap gap-2">
@@ -109,7 +109,7 @@ export function RecipeList(props: {
                       onClick={() => setChecked(`tool:${line.id}`, (value) => !value)}
                     />
                     <Show when={line.alts.length > 0}>
-                      <span class="pl-3 text-xs text-muted-foreground">
+                      <span class="pl-3 typescale-body-small text-on-surface-variant">
                         {swapText(
                           "tool",
                           line.alts.map((alt) => alt.id)
@@ -124,7 +124,7 @@ export function RecipeList(props: {
         </Show>
         <Show when={props.draft.notes.trim()}>
           <section class="flex flex-col gap-2">
-            <h2 class="text-base font-semibold">Tips</h2>
+            <h2 class="typescale-title-medium text-on-surface">Tips</h2>
             <MarkdownView value={props.draft.notes} />
           </section>
         </Show>
@@ -135,7 +135,7 @@ export function RecipeList(props: {
           {(row) => (
             <li class="flex flex-col gap-2">
               <Show when={row().length > 1}>
-                <span class="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <span class="inline-flex items-center gap-1.5 typescale-label-large text-on-surface-variant">
                   <Show
                     when={rowMode(row()) === "xor"}
                     fallback={
@@ -150,21 +150,21 @@ export function RecipeList(props: {
                   </Show>
                 </span>
               </Show>
-              <div class={row().length > 1 ? "grid gap-3 sm:grid-cols-2" : "flex flex-col"}>
+              <div class={row().length > 1 ? "grid gap-3 medium:grid-cols-2" : "flex flex-col"}>
                 <For each={row()}>
                   {(node) => (
-                    <article class="flex flex-col gap-3 rounded-xl border border-border p-3">
+                    <article class="flex flex-col gap-3 rounded-large bg-surface-container-low p-4">
                       <header class="flex items-center gap-3">
                         <span
-                          class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground tabular-nums"
+                          class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary typescale-label-large text-on-primary tabular-nums"
                           aria-hidden="true"
                         >
                           {numbers().get(node.key)}
                         </span>
-                        <h3 class="text-base font-semibold">
+                        <h3 class="typescale-title-medium text-on-surface">
                           {node.title}
                           <Show when={node.repeatMin > 1}>
-                            <span class="ml-2 text-sm font-medium text-muted-foreground">
+                            <span class="ml-2 typescale-label-large text-on-surface-variant">
                               ×{node.repeatMin}
                             </span>
                           </Show>
@@ -186,7 +186,7 @@ export function RecipeList(props: {
                                   static
                                 />
                                 <Show when={(item.alts ?? []).length > 0}>
-                                  <span class="text-xs text-muted-foreground">
+                                  <span class="typescale-body-small text-on-surface-variant">
                                     {swapText(
                                       "ingredient",
                                       (item.alts ?? []).map((alt) => alt.altIngredientId)
@@ -206,7 +206,7 @@ export function RecipeList(props: {
                                   static
                                 />
                                 <Show when={(item.alts ?? []).length > 0}>
-                                  <span class="text-xs text-muted-foreground">
+                                  <span class="typescale-body-small text-on-surface-variant">
                                     {swapText(
                                       "tool",
                                       (item.alts ?? []).map((alt) => alt.altToolId)
@@ -222,7 +222,7 @@ export function RecipeList(props: {
                         </div>
                       </Show>
                       <Show when={node.body.trim()}>
-                        <MarkdownView value={node.body} class="text-muted-foreground" />
+                        <MarkdownView value={node.body} class="text-on-surface-variant" />
                       </Show>
                       {props.stepFooter?.(node.key)}
                     </article>
