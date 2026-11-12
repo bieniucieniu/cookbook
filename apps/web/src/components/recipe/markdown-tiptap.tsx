@@ -38,7 +38,7 @@ export function MarkdownEditor(props: {
   return (
     <div
       class={cn(
-        "markdown rounded-md border border-input bg-input/20 px-3 py-2 focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 dark:bg-input/30",
+        "markdown rounded-extra-small px-4 py-3 text-on-surface ring-1 ring-outline motion-fast ring-inset hover:ring-on-surface focus-within:ring-2 focus-within:ring-primary",
         props.class
       )}
     >

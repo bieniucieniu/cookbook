@@ -3,12 +3,22 @@ import {
   IconDeviceFloppy,
   IconLayoutList,
   IconPlus,
+  IconPencil,
   IconSitemap,
 } from "@/components/icons";
-import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Button, ToggleButton } from "@/components/m3/button";
+import { ButtonGroup } from "@/components/m3/button-group";
+import { ScrollArea } from "@/components/m3/scroll-area";
+import {
+  Snackbar,
+  SnackbarAction,
+  SnackbarClose,
+  SnackbarMessage,
+  snackbar,
+} from "@/components/m3/snackbar";
+import { Toolbar } from "@/components/m3/toolbar";
+import { notify } from "@/components/notify";
+import { EmptyState } from "@/components/page-state";
 import {
   getGetRecipeQueryKey,
   getListRecipesQueryKey,
@@ -23,7 +33,7 @@ import { summarize } from "@/lib/recipe-summary";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/solid-query";
 import { useNavigate } from "@tanstack/solid-router";
-import { createEffect, createMemo, createSignal, Match, Show, Switch } from "solid-js";
+import { createEffect, createMemo, createSignal, Match, onMount, Show, Switch } from "solid-js";
 import { createStore, reconcile } from "solid-js/store";
 import { createDraftActions } from "./actions";
 import { DetailsEditor } from "./details-editor";
@@ -53,8 +63,6 @@ export function RecipeEditor(props: {
   const catalog = useCatalog();
   const restored = loadDraft(props.recipeId);
   const [draft, setDraft] = createStore<RecipeDraft>(structuredClone(restored ?? props.initial));
-  const [showRestored, setShowRestored] = createSignal(restored !== undefined);
-  const [saveError, setSaveError] = createSignal<string>();
   const [generation, setGeneration] = createSignal(0);
   /** Phones only: which side is showing. */
   const [side, setSide] = createSignal<"summary" | "editor">("summary");
@@ -113,7 +121,6 @@ export function RecipeEditor(props: {
   };
 
   const save = async () => {
-    setSaveError(undefined);
     const first = blocking()[0];
     if (first) {
       fix(first);
@@ -134,107 +141,120 @@ export function RecipeEditor(props: {
       await queryClient.invalidateQueries({ queryKey: getGetRecipeQueryKey(id) });
       await navigate({ to: "/recipes/$id", params: { id } });
     } catch (error) {
-      setSaveError(error instanceof Error ? error.message : "Unknown error");
+      notify(`Could not save${error instanceof Error ? `: ${error.message}` : "."}`, {
+        persistent: true,
+      });
     }
   };
 
   const discardRestored = () => {
     clearDraft(props.recipeId);
     setDraft(reconcile(structuredClone(props.initial)));
-    setShowRestored(false);
     // Markdown editors take their text once; remount them on the restored draft.
     setGeneration((value) => value + 1);
   };
 
-  return (
-    <div class="flex flex-col gap-4 pb-8">
-      <div class="sticky top-0 z-20 -mx-4 flex flex-wrap items-center gap-2 border-b border-border bg-background/95 px-4 py-2 backdrop-blur">
-        <h1 class="mr-auto text-lg font-bold">{props.recipeId ? "Edit recipe" : "New recipe"}</h1>
-        <ToggleGroup
-          variant="outline"
-          size="sm"
-          value={props.pane}
-          aria-label="Right side"
-          onChange={(value) => {
-            if (value === "step" || value === "flow") {
-              props.onPane(value);
-              setSide("editor");
-            }
+  // A restored draft is announced once, with Discard as the snackbar action.
+  onMount(() => {
+    if (restored === undefined) return;
+    snackbar.show((toast) => (
+      <Snackbar toastId={toast.toastId} persistent>
+        <SnackbarMessage>Unsaved changes from your last visit restored.</SnackbarMessage>
+        <SnackbarAction
+          onClick={() => {
+            discardRestored();
+            snackbar.dismiss(toast.toastId);
           }}
         >
-          <ToggleGroupItem value="step" class="gap-1">
+          Discard
+        </SnackbarAction>
+        <SnackbarClose />
+      </Snackbar>
+    ));
+  });
+
+  return (
+    <div class="flex flex-col gap-4 pb-8">
+      {/* Vibrant docked toolbar: the color marks edit mode; Save is the one filled action. */}
+      <Toolbar
+        color="vibrant"
+        class="sticky top-0 z-20 -mx-4 h-auto min-h-16 w-auto flex-wrap gap-y-2 py-2 medium:-mx-6 medium:px-6"
+      >
+        <h1 class="mr-auto flex items-center gap-2 typescale-title-large">
+          <IconPencil class="size-6" aria-hidden="true" />
+          {props.recipeId ? "Edit recipe" : "New recipe"}
+        </h1>
+        <ButtonGroup variant="connected" size="sm" aria-label="Right side">
+          <ToggleButton
+            variant="tonal"
+            pressed={props.pane === "step"}
+            onChange={() => {
+              props.onPane("step");
+              setSide("editor");
+            }}
+          >
             <IconLayoutList aria-hidden="true" />
             Step
-          </ToggleGroupItem>
-          <ToggleGroupItem value="flow" class="gap-1">
+          </ToggleButton>
+          <ToggleButton
+            variant="tonal"
+            pressed={props.pane === "flow"}
+            onChange={() => {
+              props.onPane("flow");
+              setSide("editor");
+            }}
+          >
             <IconSitemap aria-hidden="true" />
             Flow
-          </ToggleGroupItem>
-        </ToggleGroup>
+          </ToggleButton>
+        </ButtonGroup>
         <Show when={props.recipeId}>{(id) => <ShareSheet recipeId={id()} />}</Show>
-        <Button type="button" size="lg" disabled={pending()} onClick={() => void save()}>
+        <Button size="sm" disabled={pending()} onClick={() => void save()}>
           <IconDeviceFloppy aria-hidden="true" />
           {pending() ? "Saving…" : "Save"}
         </Button>
-      </div>
-
-      <Show when={showRestored()}>
-        <Alert>
-          <AlertTitle>Unsaved changes restored</AlertTitle>
-          <AlertDescription>From your last visit on this device.</AlertDescription>
-          <AlertAction>
-            <Button type="button" size="sm" variant="outline" onClick={discardRestored}>
-              Discard
-            </Button>
-          </AlertAction>
-        </Alert>
-      </Show>
-      <Show when={saveError()}>
-        <Alert variant="destructive">
-          <AlertTitle>Could not save</AlertTitle>
-          <AlertDescription>{saveError()}</AlertDescription>
-        </Alert>
-      </Show>
+      </Toolbar>
 
       <Show when={generation() + 1} keyed>
         {(mount) => (
           <div
             data-mount={mount}
-            class="grid gap-6 lg:grid-cols-[minmax(20rem,28rem)_minmax(0,1fr)] lg:items-start"
+            class="grid gap-6 expanded:grid-cols-[minmax(20rem,28rem)_minmax(0,1fr)] expanded:items-start"
           >
             <aside
               aria-label="Recipe summary"
               class={cn(
-                "flex-col lg:sticky lg:top-16 lg:flex lg:max-h-[calc(100dvh-5rem)] lg:overflow-y-auto lg:pr-2",
+                "flex-col expanded:sticky expanded:top-20 expanded:flex",
                 side() === "summary" ? "flex" : "hidden"
               )}
             >
-              <SummaryPanel
-                draft={draft}
-                setDraft={setDraft}
-                actions={actions}
-                catalog={catalog}
-                summary={summary()}
-                warnings={warnings()}
-                numbers={numbers()}
-                selected={props.pane === "step" ? selection() : undefined}
-                onSelect={select}
-                onFix={fix}
-              />
+              <ScrollArea class="expanded:max-h-[calc(100dvh-6rem)] expanded:pr-2">
+                <SummaryPanel
+                  draft={draft}
+                  setDraft={setDraft}
+                  actions={actions}
+                  catalog={catalog}
+                  summary={summary()}
+                  warnings={warnings()}
+                  numbers={numbers()}
+                  selected={props.pane === "step" ? selection() : undefined}
+                  onSelect={select}
+                  onFix={fix}
+                />
+              </ScrollArea>
             </aside>
 
             <section
               aria-label="Editor"
               class={cn(
-                "min-w-0 flex-col gap-4 rounded-xl border border-border bg-card p-4 text-card-foreground lg:flex",
+                "min-w-0 flex-col gap-4 rounded-extra-large bg-surface-container-low p-4 text-on-surface [--text-field-notch:var(--md-sys-color-surface-container-low)] medium:p-6 expanded:flex",
                 side() === "editor" ? "flex" : "hidden"
               )}
             >
               <Button
-                type="button"
-                variant="ghost"
+                variant="text"
                 size="sm"
-                class="w-fit lg:hidden"
+                class="w-fit expanded:hidden"
                 onClick={() => setSide("summary")}
               >
                 <IconChevronLeft aria-hidden="true" />
@@ -264,16 +284,12 @@ export function RecipeEditor(props: {
                   )}
                 </Match>
                 <Match when={draft.nodes.length === 0}>
-                  <Empty class="border border-dashed py-12">
-                    <EmptyHeader>
-                      <EmptyTitle>No steps yet</EmptyTitle>
-                      <EmptyDescription>
-                        A recipe is its steps. Each step lists what it uses; the summary adds them
-                        up.
-                      </EmptyDescription>
-                    </EmptyHeader>
+                  <EmptyState
+                    icon={IconLayoutList}
+                    title="No steps yet"
+                    description="A recipe is its steps. Each step lists what it uses; the summary adds them up."
+                  >
                     <Button
-                      type="button"
                       onClick={() => {
                         const key = actions.addStep("next");
                         if (key) select(key);
@@ -282,7 +298,7 @@ export function RecipeEditor(props: {
                       <IconPlus aria-hidden="true" />
                       Add the first step
                     </Button>
-                  </Empty>
+                  </EmptyState>
                 </Match>
               </Switch>
             </section>

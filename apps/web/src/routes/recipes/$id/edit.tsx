@@ -1,5 +1,4 @@
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Spinner } from "@/components/ui/spinner";
+import { ErrorBlock, PageLoading } from "@/components/page-state";
 import { RecipeEditor, type EditorPane } from "@/components/recipe/builder/recipe-editor";
 import type { RecipeDetail } from "@/generated/model";
 import { getGetRecipeQueryOptions, type getRecipeResponse } from "@/generated/recipes/recipes";
@@ -21,19 +20,19 @@ function EditRecipePage() {
   const recipe = useQuery(() => getGetRecipeQueryOptions(params().id));
   const detail = () => recipeDetail(recipe.data);
   return (
-    <main class="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 pt-2">
+    <main class="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 medium:px-6">
       <Show when={recipe.isPending}>
-        <Spinner />
+        <PageLoading label="Loading the recipe" />
       </Show>
       <Show when={recipe.isError}>
-        <Alert variant="destructive">
-          <AlertTitle>
-            {recipe.error instanceof ApiError && recipe.error.status === 404
+        <ErrorBlock
+          title={
+            recipe.error instanceof ApiError && recipe.error.status === 404
               ? "Recipe not found"
-              : "Could not load the recipe"}
-          </AlertTitle>
-          <AlertDescription>{recipe.error?.message}</AlertDescription>
-        </Alert>
+              : "Could not load the recipe"
+          }
+          detail={recipe.error?.message}
+        />
       </Show>
       <Show when={detail()}>
         {(item) => (

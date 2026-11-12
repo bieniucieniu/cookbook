@@ -11,18 +11,23 @@ import {
   IconRepeat,
   IconToolsKitchen2,
   IconTrash,
-  IconX,
 } from "@/components/icons";
-import { Button } from "@/components/ui/button";
-import { Input, InputControl, InputLabel } from "@/components/ui/input";
-import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
+import { Button } from "@/components/m3/button";
+import { IconButton } from "@/components/m3/icon-button";
+import {
+  TextField,
+  TextFieldContainer,
+  TextFieldInput,
+  TextFieldLabel,
+} from "@/components/m3/text-field";
 import {
   Popover,
   PopoverContent,
   PopoverPortal,
   PopoverTitle,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/popover";
+import { SelectField } from "@/components/select-field";
 import type { Catalog, CatalogKind } from "@/lib/catalog";
 import type { DraftNode, RecipeDraft } from "@/lib/recipe-draft";
 import {
@@ -34,7 +39,7 @@ import {
 } from "@/lib/recipe-graph";
 import { createMemo, createSignal, For, type JSX, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
-import { IngredientEditor, SpanEditor, ToolEditor } from "../editors";
+import { IngredientEditor, RemoveButton, SpanEditor, ToolEditor } from "../editors";
 import { ItemPicker } from "../item-picker";
 import { MarkdownEditor } from "../markdown";
 import { IconLabel, ItemChip, Stepper } from "../parts";
@@ -74,7 +79,7 @@ export function StepEditor(props: {
         >
           <header class="flex items-center gap-2">
             <span
-              class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground tabular-nums"
+              class="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary typescale-label-large text-on-primary tabular-nums"
               aria-hidden="true"
             >
               {props.number}
@@ -84,16 +89,13 @@ export function StepEditor(props: {
                 // A new step opens ready to be named.
                 if (!step().title.trim()) queueMicrotask(() => element.focus());
               }}
-              class="min-w-0 flex-1 rounded-md bg-transparent px-1 py-1 text-xl font-bold outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring/40"
+              class="min-w-0 flex-1 rounded-small bg-transparent px-1 py-1 typescale-headline-small text-on-surface outline-none placeholder:text-on-surface-variant focus-ring"
               aria-label={`Step ${props.number} name`}
               placeholder="Name this step, e.g. Chop"
               value={step().title}
               onInput={(event) => props.actions.setStep(key(), "title", event.currentTarget.value)}
             />
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-lg"
+            <IconButton
               aria-label="Duplicate step"
               title="Duplicate"
               onClick={() => {
@@ -102,17 +104,14 @@ export function StepEditor(props: {
               }}
             >
               <IconCopy aria-hidden="true" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-lg"
+            </IconButton>
+            <IconButton
               aria-label="Delete step"
               title="Delete"
               onClick={() => props.actions.removeStep(key())}
             >
               <IconTrash aria-hidden="true" />
-            </Button>
+            </IconButton>
           </header>
 
           <PlacementRow
@@ -141,7 +140,8 @@ export function StepEditor(props: {
                       const swap = () =>
                         (item.alts ?? []).find((entry) => entry.altIngredientId === alt);
                       return (
-                        <Input
+                        <TextField
+                          variant="outlined"
                           value={String(swap()?.ratio ?? 1)}
                           onChange={(value) => {
                             const ratio = Number(value.replace(",", "."));
@@ -151,9 +151,11 @@ export function StepEditor(props: {
                               });
                           }}
                         >
-                          <InputLabel>Amount × (1 = same amount)</InputLabel>
-                          <InputControl inputMode="decimal" class="tabular-nums" />
-                        </Input>
+                          <TextFieldContainer>
+                            <TextFieldLabel>Amount × (1 = same amount)</TextFieldLabel>
+                            <TextFieldInput inputMode="decimal" class="tabular-nums" />
+                          </TextFieldContainer>
+                        </TextField>
                       );
                     }}
                   >
@@ -235,8 +237,7 @@ export function StepEditor(props: {
                 )}
               </For>
               <Button
-                type="button"
-                variant="outline"
+                variant="outlined"
                 size="sm"
                 onClick={() => props.actions.addSpan(key(), { kind: "active", seconds: 300 })}
               >
@@ -244,8 +245,7 @@ export function StepEditor(props: {
                 Hands on
               </Button>
               <Button
-                type="button"
-                variant="outline"
+                variant="outlined"
                 size="sm"
                 onClick={() => props.actions.addSpan(key(), { kind: "wait", seconds: 600 })}
               >
@@ -254,7 +254,11 @@ export function StepEditor(props: {
               </Button>
             </div>
             <div class="flex items-center gap-3">
-              <IconLabel icon={IconRepeat} label="Times" class="text-sm font-medium" />
+              <IconLabel
+                icon={IconRepeat}
+                label="Times"
+                class="typescale-label-large text-on-surface-variant"
+              />
               <Stepper
                 label="repeats"
                 value={step().repeatMin}
@@ -269,7 +273,7 @@ export function StepEditor(props: {
           <Show
             when={noteOpen()}
             fallback={
-              <Button type="button" variant="ghost" class="w-fit" onClick={() => setNoteOpen(true)}>
+              <Button variant="text" class="w-fit" onClick={() => setNoteOpen(true)}>
                 <IconNote aria-hidden="true" />
                 Add a note
               </Button>
@@ -285,7 +289,7 @@ export function StepEditor(props: {
             </Section>
           </Show>
 
-          <footer class="flex flex-wrap gap-2 border-t border-border pt-4">
+          <footer class="flex flex-wrap gap-2 border-t border-outline-variant pt-4">
             <AddButton relation="next" anchor={key()} actions={props.actions} onAdd={add} />
             <AddButton relation="alt" anchor={key()} actions={props.actions} onAdd={add} />
             <AddButton relation="parallel" anchor={key()} actions={props.actions} onAdd={add} />
@@ -311,7 +315,7 @@ function usedIds(draft: RecipeDraft, kind: CatalogKind): number[] {
 function Section(props: { icon: typeof IconCarrot; label: string; children: JSX.Element }) {
   return (
     <section class="flex flex-col gap-3">
-      <h3 class="text-base font-semibold">
+      <h3 class="typescale-title-medium text-on-surface">
         <IconLabel icon={props.icon} label={props.label} />
       </h3>
       {props.children}
@@ -348,22 +352,22 @@ function PlacementRow(props: {
 
   return (
     <section
-      class="flex flex-col gap-2 rounded-xl border border-border bg-muted/30 p-3"
+      class="flex flex-col gap-4 rounded-large bg-surface-container p-4 [--text-field-notch:var(--md-sys-color-surface-container)]"
       aria-label="Placement"
     >
-      <span class="text-xs font-medium text-muted-foreground">Placement</span>
+      <span class="typescale-label-large text-on-surface-variant">Placement</span>
       <Show
         when={props.actions.movable(props.node.key)}
         fallback={
-          <p class="text-sm text-muted-foreground">
+          <p class="typescale-body-medium text-on-surface-variant">
             Arms split or meet at this step. Move the steps around it, or use the flow.
           </p>
         }
       >
-        <div class="flex flex-wrap items-center gap-2">
-          <NativeSelect
-            aria-label="How this step runs"
-            class="w-44"
+        <div class="flex flex-wrap items-center gap-3">
+          <SelectField
+            label="How this step runs"
+            containerClass="w-44"
             value={current().relation}
             onChange={(event) => {
               const relation = event.currentTarget.value;
@@ -377,14 +381,12 @@ function PlacementRow(props: {
             }}
           >
             <For each={relations}>
-              {(relation) => (
-                <NativeSelectOption value={relation}>{relationLabel[relation]}</NativeSelectOption>
-              )}
+              {(relation) => <option value={relation}>{relationLabel[relation]}</option>}
             </For>
-          </NativeSelect>
-          <NativeSelect
-            aria-label="Relative to step"
-            class="min-w-48 flex-1"
+          </SelectField>
+          <SelectField
+            label="Relative to step"
+            containerClass="min-w-48 flex-1"
             value={current().anchor ?? ""}
             onChange={(event) => {
               const anchor = event.currentTarget.value;
@@ -393,19 +395,16 @@ function PlacementRow(props: {
             }}
           >
             <Show when={current().relation === "next"}>
-              <NativeSelectOption value="">Start (or after open arms)</NativeSelectOption>
+              <option value="">Start (or after open arms)</option>
             </Show>
             <For each={others()}>
               {(item) => (
-                <NativeSelectOption
-                  value={item.key}
-                  disabled={!check(current().relation, item.key).ok}
-                >
+                <option value={item.key} disabled={!check(current().relation, item.key).ok}>
                   {props.titleOf(item.key)}
-                </NativeSelectOption>
+                </option>
               )}
             </For>
-          </NativeSelect>
+          </SelectField>
         </div>
       </Show>
     </section>
@@ -446,8 +445,7 @@ export function AddButton(props: {
   return (
     <span title={reason()}>
       <Button
-        type="button"
-        variant="outline"
+        variant="outlined"
         size={props.size ?? "sm"}
         disabled={!check().ok}
         aria-label={`${relationButton[props.relation]}: ${reason()}`}
@@ -478,7 +476,7 @@ function ItemRow(props: {
       <For each={props.alts}>
         {(alt) => (
           <span class="inline-flex items-center gap-1">
-            <span class="text-xs text-muted-foreground">or</span>
+            <span class="typescale-label-medium text-on-surface-variant">or</span>
             <Popover>
               <PopoverTrigger
                 as={ItemChip}
@@ -487,19 +485,10 @@ function ItemRow(props: {
                 aria-label={`Edit swap ${props.catalog.name(props.kind, alt)}`}
               />
               <PopoverPortal>
-                <PopoverContent class="w-72">
-                  <PopoverTitle class="text-sm font-semibold">
-                    Swap: {props.catalog.name(props.kind, alt)}
-                  </PopoverTitle>
+                <PopoverContent>
+                  <PopoverTitle>Swap: {props.catalog.name(props.kind, alt)}</PopoverTitle>
                   {props.altDetail?.(alt)}
-                  <Button
-                    type="button"
-                    variant="destructive"
-                    onClick={() => props.onRemoveAlt(alt)}
-                  >
-                    <IconX aria-hidden="true" />
-                    Remove swap
-                  </Button>
+                  <RemoveButton label="Remove swap" onClick={() => props.onRemoveAlt(alt)} />
                 </PopoverContent>
               </PopoverPortal>
             </Popover>
@@ -507,7 +496,7 @@ function ItemRow(props: {
         )}
       </For>
       <Popover open={open()} onOpenChange={setOpen}>
-        <PopoverTrigger as={Button} variant="ghost" size="sm">
+        <PopoverTrigger as={Button} variant="text" size="sm">
           <IconArrowsShuffle aria-hidden="true" />
           Swap
         </PopoverTrigger>

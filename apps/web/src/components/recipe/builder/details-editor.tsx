@@ -1,7 +1,8 @@
 import { photoUrl } from "@/lib/api";
 import { IconLock, IconNote, IconPhoto, IconTrash, IconUsers, IconWorld } from "@/components/icons";
-import { Button } from "@/components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ToggleButton } from "@/components/m3/button";
+import { ButtonGroup } from "@/components/m3/button-group";
+import { IconButton } from "@/components/m3/icon-button";
 import { photoForUpload, uploadPhotoFile } from "@/lib/photos";
 import type { RecipeDraft } from "@/lib/recipe-draft";
 import { ApiError } from "@/mutator";
@@ -35,14 +36,14 @@ export function DetailsEditor(props: {
 
   return (
     <div class="flex flex-col gap-6">
-      <h2 class="text-lg font-bold">Recipe details</h2>
+      <h2 class="typescale-headline-small text-on-surface">Recipe details</h2>
       <section class="flex flex-col gap-2" aria-label="Photo">
         <Show
           when={props.draft.photos.length > 0}
           fallback={
             <button
               type="button"
-              class="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/40 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
+              class="relative flex aspect-video w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-extra-large border-2 border-dashed border-outline-variant bg-surface-container-low typescale-label-large text-on-surface-variant state-layer focus-ring"
               disabled={uploading()}
               onClick={() => fileInput?.click()}
               onDragOver={(event) => event.preventDefault()}
@@ -63,12 +64,10 @@ export function DetailsEditor(props: {
                   <img
                     src={photoUrl(photo.id)}
                     alt={photo.alt}
-                    class="h-40 rounded-xl object-cover"
+                    class="h-40 rounded-extra-large object-cover"
                   />
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="secondary"
+                  <IconButton
+                    variant="tonal"
                     class="absolute top-2 right-2"
                     aria-label="Remove photo"
                     onClick={() =>
@@ -76,13 +75,13 @@ export function DetailsEditor(props: {
                     }
                   >
                     <IconTrash aria-hidden="true" />
-                  </Button>
+                  </IconButton>
                 </figure>
               )}
             </For>
             <button
               type="button"
-              class="flex h-40 w-28 shrink-0 flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border text-xs text-muted-foreground hover:bg-muted"
+              class="relative flex h-40 w-28 shrink-0 cursor-pointer flex-col items-center justify-center gap-1 rounded-extra-large border-2 border-dashed border-outline-variant typescale-label-medium text-on-surface-variant state-layer focus-ring"
               disabled={uploading()}
               onClick={() => fileInput?.click()}
             >
@@ -104,7 +103,7 @@ export function DetailsEditor(props: {
           }}
         />
         <Show when={uploadError()}>
-          <p class="text-sm text-destructive" role="alert">
+          <p class="typescale-body-medium text-error" role="alert">
             {uploadError()}
           </p>
         </Show>
@@ -112,7 +111,11 @@ export function DetailsEditor(props: {
 
       <div class="flex flex-wrap items-end gap-6">
         <div class="flex flex-col gap-2">
-          <IconLabel icon={IconUsers} label="Cooks" class="text-sm font-medium" />
+          <IconLabel
+            icon={IconUsers}
+            label="Cooks"
+            class="typescale-label-large text-on-surface-variant"
+          />
           <Stepper
             label="cooks"
             value={props.draft.cooks}
@@ -121,29 +124,34 @@ export function DetailsEditor(props: {
           />
         </div>
         <div class="flex flex-col gap-2">
-          <span class="text-sm font-medium">Who can see it</span>
-          <ToggleGroup
-            variant="outline"
-            spacing={0}
-            value={props.draft.visibility}
-            onChange={(value) => {
-              if (value === "public" || value === "private") props.setDraft("visibility", value);
-            }}
-          >
-            <ToggleGroupItem value="public" class="h-10 gap-1.5 px-3 text-sm">
-              <IconWorld size={18} aria-hidden="true" />
+          <span class="typescale-label-large text-on-surface-variant">Who can see it</span>
+          <ButtonGroup variant="connected" size="sm" aria-label="Who can see it">
+            <ToggleButton
+              variant="tonal"
+              pressed={props.draft.visibility === "public"}
+              onChange={() => props.setDraft("visibility", "public")}
+            >
+              <IconWorld aria-hidden="true" />
               Everyone
-            </ToggleGroupItem>
-            <ToggleGroupItem value="private" class="h-10 gap-1.5 px-3 text-sm">
-              <IconLock size={18} aria-hidden="true" />
+            </ToggleButton>
+            <ToggleButton
+              variant="tonal"
+              pressed={props.draft.visibility === "private"}
+              onChange={() => props.setDraft("visibility", "private")}
+            >
+              <IconLock aria-hidden="true" />
               Only me
-            </ToggleGroupItem>
-          </ToggleGroup>
+            </ToggleButton>
+          </ButtonGroup>
         </div>
       </div>
 
       <div class="flex flex-col gap-2">
-        <IconLabel icon={IconNote} label="Tips" class="text-sm font-medium" />
+        <IconLabel
+          icon={IconNote}
+          label="Tips"
+          class="typescale-label-large text-on-surface-variant"
+        />
         <MarkdownEditor
           label="Tips"
           placeholder="Optional. Storage, serving, swaps."

@@ -39,6 +39,8 @@ UI: solid-kit registry. From `apps/web`, `pnpm dlx shadcn@latest add bieniucieni
 
 Material 3: new UI uses `m3-<item>` (installs into `components/m3/`). `components/ui/` stays until each screen moves over. Tokens live in `src/m3-tokens.css`: the color values come from seed `#B4532A` (tonal spot), and every typescale tracking adds `--reading-tracking` (Aa menu). Keep both when reinstalling `m3-theme`. `index.css` points the shadcn tokens at M3 roles so `ui` components follow the scheme. Use M3 utilities (`bg-surface-container`, `text-on-surface-variant`, `typescale-*`) in new code, not `muted` / `foreground`.
 
+Every `m3-<item>` pulls `m3-theme`, which overwrites `src/m3-tokens.css` and appends to `index.css`. Back both up before `shadcn add` and restore them after. M3 has no popover, select, combobox, alert, or empty state. The app fills those gaps in `components/`: `popover.tsx` (Kobalte popover on an M3 menu surface), `select-field.tsx` (native select as an outlined field), `recipe/item-picker.tsx` (Kobalte combobox), `page-state.tsx` (loading, error, empty), and `notify()` in `notify.tsx` (snackbar for action results). An outlined field on a surface other than `surface` needs `--text-field-notch` set to that surface color.
+
 <!-- intent-skills:start -->
 
 # TanStack Intent - before editing files, run the matching guidance command.

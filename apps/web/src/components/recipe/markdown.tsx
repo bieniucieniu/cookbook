@@ -27,7 +27,7 @@ export function MarkdownEditor(props: EditorProps) {
       fallback={
         <div
           class={cn(
-            "markdown min-h-16 rounded-md border border-input bg-input/20 px-3 py-2 whitespace-pre-wrap text-muted-foreground dark:bg-input/30",
+            "markdown min-h-16 rounded-extra-small px-4 py-3 whitespace-pre-wrap text-on-surface-variant ring-1 ring-outline ring-inset",
             props.class
           )}
           aria-busy="true"

@@ -1,6 +1,12 @@
 import { IconPencil, IconTrash } from "@/components/icons";
-import { Button } from "@/components/ui/button";
-import { Input, InputControl, InputLabel } from "@/components/ui/input";
+import { Button } from "@/components/m3/button";
+import { IconButton } from "@/components/m3/icon-button";
+import {
+  TextField,
+  TextFieldContainer,
+  TextFieldInput,
+  TextFieldLabel,
+} from "@/components/m3/text-field";
 import type { RecipeDraft } from "@/lib/recipe-draft";
 import type { GraphIssue } from "@/lib/recipe-graph";
 import { createMemo, createSignal, For, Show } from "solid-js";
@@ -24,7 +30,7 @@ export function FlowPane(props: {
 
   return (
     <div class="flex flex-col gap-3">
-      <p class="text-sm text-muted-foreground">
+      <p class="typescale-body-medium text-on-surface-variant">
         Drag from a step's right dot to another step's left dot. Select a line or step and press
         Delete to remove it.
       </p>
@@ -42,24 +48,21 @@ export function FlowPane(props: {
       <Show when={step()}>
         {(node) => (
           <section
-            class="flex flex-col gap-3 rounded-xl border border-border p-3"
+            class="flex flex-col gap-4 rounded-large bg-surface-container p-4 [--text-field-notch:var(--md-sys-color-surface-container)]"
             aria-label="Selected step"
           >
             <div class="flex items-center justify-between gap-2">
-              <h2 class="flex-1 text-base font-semibold">{node().title || node().key}</h2>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => props.onOpen(node().key)}
-              >
+              <h2 class="flex-1 typescale-title-medium text-on-surface">
+                {node().title || node().key}
+              </h2>
+              <Button variant="tonal" size="sm" onClick={() => props.onOpen(node().key)}>
                 <IconPencil aria-hidden="true" />
                 Edit step
               </Button>
               <Button
-                type="button"
-                variant="destructive"
+                variant="text"
                 size="sm"
+                class="text-error"
                 onClick={() => props.actions.removeStep(node().key)}
               >
                 <IconTrash aria-hidden="true" />
@@ -68,29 +71,29 @@ export function FlowPane(props: {
             </div>
             <Show
               when={out().length > 0}
-              fallback={<p class="text-sm text-muted-foreground">Last step.</p>}
+              fallback={<p class="typescale-body-medium text-on-surface-variant">Last step.</p>}
             >
               <ul class="flex flex-col gap-2">
                 <For each={out()}>
                   {(edge) => (
-                    <li class="flex items-end gap-2">
-                      <Input
+                    <li class="flex items-center gap-2">
+                      <TextField
+                        variant="outlined"
                         class="flex-1"
                         value={edge.label}
                         onChange={(value) => props.actions.setEdgeLabel(edge.from, edge.to, value)}
                       >
-                        <InputLabel>Then {titleOf(edge.to)} · label</InputLabel>
-                        <InputControl placeholder="Optional, e.g. if crispy" />
-                      </Input>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-lg"
+                        <TextFieldContainer>
+                          <TextFieldLabel>Then {titleOf(edge.to)} · label</TextFieldLabel>
+                          <TextFieldInput placeholder="Optional, e.g. if crispy" />
+                        </TextFieldContainer>
+                      </TextField>
+                      <IconButton
                         aria-label={`Unlink ${titleOf(edge.to)}`}
                         onClick={() => props.actions.removeEdge(edge.from, edge.to)}
                       >
                         <IconTrash aria-hidden="true" />
-                      </Button>
+                      </IconButton>
                     </li>
                   )}
                 </For>

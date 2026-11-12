@@ -125,8 +125,8 @@
   text-decoration: underline;
 }
 .markdown code {
-  border-radius: 0.25rem;
-  background: var(--muted);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: var(--md-sys-color-surface-container-highest);
   padding: 0 0.25rem;
 }
 .markdown .ProseMirror {
@@ -138,5 +138,5 @@
   float: left;
   height: 0;
   pointer-events: none;
-  color: var(--muted-foreground);
+  color: var(--md-sys-color-on-surface-variant);
 }
