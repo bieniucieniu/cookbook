@@ -1,16 +1,5 @@
 import { IconCarrot, IconPlus, IconToolsKitchen2 } from "@/components/icons";
 import { Combobox as ComboboxPrimitive } from "@kobalte/core/combobox";
-import {
-  ComboboxContent,
-  ComboboxControl,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxItemLabel,
-  ComboboxLabel,
-  ComboboxListbox,
-  ComboboxPortal,
-  ComboboxSection,
-} from "@/components/ui/combobox";
 import type { Catalog, CatalogKind } from "@/lib/catalog";
 import { createMemo, createSignal, Match, Show, Switch } from "solid-js";
 import { Dynamic } from "solid-js/web";
@@ -27,6 +16,9 @@ type Group = { label: string; options: Option[] };
 const kindLabel: Record<CatalogKind, string> = { ingredient: "Ingredient", tool: "Tool" };
 
 /**
+ * M3 has no combobox. This is Kobalte's, drawn as an outlined text field with a menu-style list
+ * (surface-container, 48px rows, state layer on the highlighted row).
+ *
  * Combobox over the catalog. Items already picked for the recipe come first. Typing a name
  * that is not there offers "Create". Picking resets the field, so it works as an "add" box.
  */
@@ -99,8 +91,8 @@ export function ItemPicker(props: {
     // Keyed on `version`: a fresh combobox after each pick clears its text field.
     <Show when={version() + 1} keyed>
       <ComboboxPrimitive<Option, Group>
-        gutter={6}
-        class="flex flex-col gap-2 text-xs text-foreground data-disabled:opacity-50"
+        gutter={4}
+        class="flex flex-col gap-1 data-disabled:opacity-38"
         options={groups()}
         optionValue="key"
         optionLabel="name"
@@ -115,59 +107,72 @@ export function ItemPicker(props: {
           option.group === "create" || option.name.toLowerCase().includes(input.toLowerCase())
         }
         sectionComponent={(section) => (
-          <ComboboxSection>{section.section.rawValue.label}</ComboboxSection>
+          <ComboboxPrimitive.Section class="px-3 pt-2 pb-1 typescale-label-medium text-on-surface-variant">
+            {section.section.rawValue.label}
+          </ComboboxPrimitive.Section>
         )}
         itemComponent={(item) => (
-          <ComboboxItem item={item.item} class="min-h-9 text-sm">
-            <ComboboxItemLabel class="flex items-center gap-2">
+          <ComboboxPrimitive.Item
+            item={item.item}
+            class="relative flex min-h-12 cursor-pointer items-center px-3 typescale-body-large text-on-surface outline-none select-none data-highlighted:bg-on-surface/10"
+          >
+            <ComboboxPrimitive.ItemLabel class="flex items-center gap-3">
               <Switch>
                 <Match when={item.item.rawValue.group === "create"}>
-                  <IconPlus size={16} aria-hidden="true" />
+                  <IconPlus class="size-5 text-primary" aria-hidden="true" />
                   <span>
-                    Create <strong>{item.item.rawValue.name}</strong>
+                    Create <strong class="font-medium">{item.item.rawValue.name}</strong>
                   </span>
                 </Match>
                 <Match when={true}>
-                  <Dynamic component={icon()} size={16} stroke={1.75} aria-hidden="true" />
+                  <Dynamic
+                    component={icon()}
+                    class="size-5 text-on-surface-variant"
+                    stroke={1.75}
+                    aria-hidden="true"
+                  />
                   <span>{item.item.rawValue.name}</span>
                 </Match>
               </Switch>
-            </ComboboxItemLabel>
-          </ComboboxItem>
+            </ComboboxPrimitive.ItemLabel>
+          </ComboboxPrimitive.Item>
         )}
       >
-        <Show when={props.label}>
-          <ComboboxLabel>{props.label}</ComboboxLabel>
-        </Show>
-        <ComboboxControl
-          class="h-10 gap-2 pl-2.5"
-          aria-label={props.label ?? kindLabel[props.kind]}
-        >
-          <Dynamic
-            component={icon()}
-            size={18}
-            stroke={1.75}
-            aria-hidden="true"
-            class="shrink-0 text-muted-foreground"
-          />
-          <ComboboxInput
-            class="text-sm"
-            ref={(element: HTMLInputElement) => {
-              // `autofocus` only works on page load. Pickers open later, so focus by hand.
-              if (props.autofocus || version() > 0) queueMicrotask(() => element.focus());
-            }}
-          />
-        </ComboboxControl>
+        <div class="group/picker relative">
+          <Show when={props.label}>
+            <ComboboxPrimitive.Label class="pointer-events-none absolute -top-2 left-3 z-10 bg-(--text-field-notch,var(--md-sys-color-surface)) px-1 typescale-body-small text-on-surface-variant group-focus-within/picker:text-primary">
+              {props.label}
+            </ComboboxPrimitive.Label>
+          </Show>
+          <ComboboxPrimitive.Control
+            class="flex h-14 items-center gap-3 rounded-extra-small px-3 ring-1 ring-outline ring-inset motion-fast hover:ring-on-surface focus-within:ring-2 focus-within:ring-primary"
+            aria-label={props.label ?? kindLabel[props.kind]}
+          >
+            <Dynamic
+              component={icon()}
+              class="size-6 shrink-0 text-on-surface-variant"
+              stroke={1.75}
+              aria-hidden="true"
+            />
+            <ComboboxPrimitive.Input
+              class="h-full min-w-0 flex-1 bg-transparent typescale-body-large text-on-surface caret-primary outline-none placeholder:text-on-surface-variant"
+              ref={(element: HTMLInputElement) => {
+                // `autofocus` only works on page load. Pickers open later, so focus by hand.
+                if (props.autofocus || version() > 0) queueMicrotask(() => element.focus());
+              }}
+            />
+          </ComboboxPrimitive.Control>
+        </div>
         <Show when={error()}>
-          <p class="text-xs text-destructive" role="alert">
+          <p class="px-4 typescale-body-small text-error" role="alert">
             {error()}
           </p>
         </Show>
-        <ComboboxPortal>
-          <ComboboxContent>
-            <ComboboxListbox class="max-h-72 overflow-y-auto" />
-          </ComboboxContent>
-        </ComboboxPortal>
+        <ComboboxPrimitive.Portal>
+          <ComboboxPrimitive.Content class="z-50 w-(--kb-popper-anchor-width) min-w-56 origin-(--kb-combobox-content-transform-origin) overflow-hidden rounded-extra-small bg-surface-container py-2 shadow-level-2 data-expanded:animate-in data-expanded:fade-in-0 data-closed:animate-out data-closed:fade-out-0">
+            <ComboboxPrimitive.Listbox class="max-h-72 overflow-y-auto outline-none" />
+          </ComboboxPrimitive.Content>
+        </ComboboxPrimitive.Portal>
       </ComboboxPrimitive>
     </Show>
   );

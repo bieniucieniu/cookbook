@@ -6,8 +6,8 @@ import {
   IconGitBranch,
   IconSitemap,
 } from "@/components/icons";
-import { Button } from "@/components/ui/button";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Button, ToggleButton } from "@/components/m3/button";
+import { ButtonGroup } from "@/components/m3/button-group";
 import {
   Flow,
   Handle,
@@ -56,14 +56,14 @@ export function StepNode(props: NodeComponentProps) {
   return (
     <div
       class={cn(
-        "flex w-52 flex-col gap-1.5 rounded-lg border bg-card p-2.5 text-left text-card-foreground shadow-sm",
-        props.node.selected ? "border-ring ring-2 ring-ring/40" : "border-border",
-        data().issue && "border-destructive"
+        "flex w-52 flex-col gap-1.5 rounded-medium border bg-surface-container-low p-2.5 text-left text-on-surface shadow-level-1",
+        props.node.selected ? "border-primary ring-2 ring-primary" : "border-outline-variant",
+        data().issue && "border-error"
       )}
     >
       <Handle type="target" position={Position.Left} />
-      <span class="line-clamp-2 text-sm font-semibold">{data().title || "Untitled step"}</span>
-      <div class="flex flex-wrap items-center gap-2 text-xs text-muted-foreground tabular-nums">
+      <span class="line-clamp-2 typescale-title-small">{data().title || "Untitled step"}</span>
+      <div class="flex flex-wrap items-center gap-2 typescale-label-medium text-on-surface-variant tabular-nums">
         <Show when={data().ingredients > 0}>
           <span class="inline-flex items-center gap-1">
             <IconCarrot size={14} aria-hidden="true" />
@@ -79,7 +79,7 @@ export function StepNode(props: NodeComponentProps) {
       </div>
       <Show when={data().issue}>
         {(issue) => (
-          <span class="inline-flex items-center gap-1 text-xs font-medium text-destructive">
+          <span class="inline-flex items-center gap-1 typescale-label-medium text-error">
             <IconAlertTriangle size={14} aria-hidden="true" />
             {issueLabel(issue())}
           </span>
@@ -89,7 +89,7 @@ export function StepNode(props: NodeComponentProps) {
         <Show
           when={actions.editable()}
           fallback={
-            <span class="inline-flex items-center gap-1 text-xs">
+            <span class="inline-flex items-center gap-1 typescale-label-medium">
               {data().branchMode === "xor" ? (
                 <IconArrowsShuffle size={14} aria-hidden="true" />
               ) : (
@@ -99,25 +99,26 @@ export function StepNode(props: NodeComponentProps) {
             </span>
           }
         >
-          <ToggleGroup
-            variant="outline"
-            size="sm"
-            spacing={0}
-            class="nodrag nopan"
-            value={data().branchMode === "xor" ? "xor" : "and"}
-            onChange={(value) => {
-              if (value === "and" || value === "xor") actions.onBranchMode(data().key, value);
-            }}
-          >
-            <ToggleGroupItem value="and" aria-label="Do all arms" class="gap-1">
-              <IconGitBranch size={14} aria-hidden="true" />
+          <ButtonGroup variant="connected" size="xs" class="nodrag nopan" aria-label="Arms">
+            <ToggleButton
+              variant="tonal"
+              aria-label="Do all arms"
+              pressed={data().branchMode !== "xor"}
+              onChange={() => actions.onBranchMode(data().key, "and")}
+            >
+              <IconGitBranch aria-hidden="true" />
               All
-            </ToggleGroupItem>
-            <ToggleGroupItem value="xor" aria-label="Pick one arm" class="gap-1">
-              <IconArrowsShuffle size={14} aria-hidden="true" />
+            </ToggleButton>
+            <ToggleButton
+              variant="tonal"
+              aria-label="Pick one arm"
+              pressed={data().branchMode === "xor"}
+              onChange={() => actions.onBranchMode(data().key, "xor")}
+            >
+              <IconArrowsShuffle aria-hidden="true" />
               One
-            </ToggleGroupItem>
-          </ToggleGroup>
+            </ToggleButton>
+          </ButtonGroup>
         </Show>
       </Show>
       <Handle type="source" position={Position.Right} />
@@ -243,19 +244,18 @@ export function RecipeFlow(props: {
         onBranchMode: (key, mode) => props.onBranchMode?.(key, mode),
       }}
     >
-      <div class={cn("relative overflow-hidden rounded-lg ring-1 ring-foreground/10", props.class)}>
+      <div
+        class={cn(
+          "relative overflow-hidden rounded-large ring-1 ring-outline-variant",
+          props.class
+        )}
+      >
         <Flow flow={flow} class="h-full w-full">
           <Background />
           <Controls />
         </Flow>
         <Show when={props.editable}>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            class="absolute top-2 right-2 z-10 bg-card"
-            onClick={tidy}
-          >
+          <Button variant="elevated" size="sm" class="absolute top-2 right-2 z-10" onClick={tidy}>
             <IconSitemap aria-hidden="true" />
             Tidy
           </Button>
