@@ -11,6 +11,8 @@
   /* Reading preferences (Aa menu). m3-tokens.css adds the tracking to every typescale. */
   --reading-tracking: 0em;
   --reading-word-spacing: normal;
+  /* Measured by the app bar in __root.tsx; this is its height before the first measurement. */
+  --app-bar-height: 4rem;
 
   /* bg-primary and bg-secondary read these (m3-tokens.css maps them to Tailwind). */
   --primary: var(--md-sys-color-primary);

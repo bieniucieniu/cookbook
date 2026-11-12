@@ -20,36 +20,99 @@ export function StepCard(props: {
   cooks: number;
   footer?: JSX.Element;
   class?: string;
+  /**
+   * One of several "pick one" options. The header becomes a button that chooses this step.
+   * Collapsed: another option was chosen, so only the header shows, quieter, as a button that
+   * switches to this one.
+   */
+  choice?: { chosen: boolean; collapsed: boolean; onToggle: () => void };
 }) {
   const scale = (qty: number | null | undefined) =>
     qty == null ? qty : scaleQty(qty, props.draftCooks, props.cooks);
   const swapText = (kind: "ingredient" | "tool", ids: number[]) =>
     ids.length === 0 ? "" : `or ${ids.map((id) => props.catalog.name(kind, id)).join(", ")}`;
+  const collapsed = () => props.choice?.collapsed ?? false;
+  const title = () => (
+    <>
+      <span
+        class={cn(
+          "flex size-8 shrink-0 items-center justify-center rounded-full typescale-label-large tabular-nums",
+          collapsed()
+            ? "bg-surface-container-highest text-on-surface-variant"
+            : "bg-primary text-on-primary"
+        )}
+        aria-hidden="true"
+      >
+        {props.number}
+      </span>
+      <span
+        class={collapsed() ? "typescale-title-small" : "typescale-title-medium text-on-surface"}
+      >
+        {props.node.title}
+        <Show when={props.node.repeatMin > 1}>
+          <span class="ml-2 typescale-label-large text-on-surface-variant">
+            ×{props.node.repeatMin}
+          </span>
+        </Show>
+      </span>
+    </>
+  );
   return (
     <article
       class={cn(
-        "@container flex flex-col gap-3 rounded-large bg-surface-container-low p-4",
+        "@container flex flex-col gap-3 rounded-large motion-default",
+        collapsed()
+          ? "bg-surface-container-lowest p-2 text-on-surface-variant"
+          : "bg-surface-container-low p-4",
+        props.choice?.chosen && "ring-2 ring-primary",
         props.class
       )}
     >
-      <header class="flex items-center gap-3">
-        <span
-          class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary typescale-label-large text-on-primary tabular-nums"
-          aria-hidden="true"
-        >
-          {props.number}
-        </span>
-        <h3 class="typescale-title-medium text-on-surface">
-          {props.node.title}
-          <Show when={props.node.repeatMin > 1}>
-            <span class="ml-2 typescale-label-large text-on-surface-variant">
-              ×{props.node.repeatMin}
-            </span>
-          </Show>
-        </h3>
-      </header>
       <Show
-        when={props.node.ingredients.length + props.node.tools.length + props.node.spans.length > 0}
+        when={props.choice}
+        fallback={
+          <header class="flex items-center gap-3">
+            <h3 class="flex items-center gap-3">{title()}</h3>
+          </header>
+        }
+      >
+        {(choice) => (
+          <h3>
+            <button
+              type="button"
+              aria-pressed={choice().chosen}
+              aria-label={
+                choice().chosen
+                  ? `${props.node.title}, chosen. Show all options`
+                  : collapsed()
+                    ? `Choose ${props.node.title} instead`
+                    : `Choose ${props.node.title}`
+              }
+              class="relative flex w-full cursor-pointer items-center gap-3 rounded-medium p-1 text-left state-layer focus-ring"
+              onClick={() => choice().onToggle()}
+            >
+              {title()}
+              {/* Radio mark: the choice reads as one of a set, not a toggle on each card. */}
+              <span
+                class={cn(
+                  "ml-auto flex size-5 shrink-0 items-center justify-center rounded-full border-2",
+                  choice().chosen ? "border-primary" : "border-outline"
+                )}
+                aria-hidden="true"
+              >
+                <Show when={choice().chosen}>
+                  <span class="size-2.5 rounded-full bg-primary" />
+                </Show>
+              </span>
+            </button>
+          </h3>
+        )}
+      </Show>
+      <Show
+        when={
+          !collapsed() &&
+          props.node.ingredients.length + props.node.tools.length + props.node.spans.length > 0
+        }
       >
         {/* Ingredients and tools side by side once the card has room; times below. */}
         <div class="flex flex-col gap-3">
@@ -116,10 +179,10 @@ export function StepCard(props: {
           </Show>
         </div>
       </Show>
-      <Show when={props.node.body.trim()}>
+      <Show when={!collapsed() && props.node.body.trim()}>
         <MarkdownView value={props.node.body} class="text-on-surface-variant" />
       </Show>
-      {props.footer}
+      <Show when={!collapsed()}>{props.footer}</Show>
     </article>
   );
 }
