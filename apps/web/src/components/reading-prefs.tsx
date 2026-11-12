@@ -1,16 +1,32 @@
 import { IconTextSize } from "@/components/icons";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/m3/icon-button";
 import {
-  Popover,
-  PopoverContent,
-  PopoverPortal,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { createEffect, createSignal } from "solid-js";
+  Menu,
+  MenuContent,
+  MenuGroup,
+  MenuGroupLabel,
+  MenuItemIndicator,
+  MenuItemLabel,
+  MenuPortal,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuSeparator,
+  MenuTrigger,
+} from "@/components/m3/menu";
+import { createEffect, createSignal, For } from "solid-js";
 
 type Prefs = { scale: "1" | "1.125" | "1.25"; spacing: "normal" | "wide" };
+
+const scales: { value: Prefs["scale"]; label: string }[] = [
+  { value: "1", label: "Default" },
+  { value: "1.125", label: "Large" },
+  { value: "1.25", label: "Larger" },
+];
+
+const spacings: { value: Prefs["spacing"]; label: string }[] = [
+  { value: "normal", label: "Normal" },
+  { value: "wide", label: "Wide" },
+];
 
 const storageKey = "cookbook:reading";
 const fallback: Prefs = { scale: "1", spacing: "normal" };
@@ -32,7 +48,10 @@ function load(): Prefs {
   }
 }
 
-/** Text size and letter spacing for this browser. Sets the tokens read in index.css. */
+/**
+ * Text size and letter spacing for this browser. Sets the tokens read in index.css and
+ * m3-tokens.css. The menu stays open on a pick so the change can be seen.
+ */
 export function ReadingPrefs() {
   const [prefs, setPrefs] = createSignal(load());
 
@@ -40,7 +59,7 @@ export function ReadingPrefs() {
     const current = prefs();
     const root = document.documentElement.style;
     root.setProperty("--reading-scale", current.scale);
-    root.setProperty("--reading-tracking", current.spacing === "wide" ? "0.04em" : "normal");
+    root.setProperty("--reading-tracking", current.spacing === "wide" ? "0.04em" : "0em");
     root.setProperty("--reading-word-spacing", current.spacing === "wide" ? "0.12em" : "normal");
     try {
       localStorage.setItem(storageKey, JSON.stringify(current));
@@ -50,55 +69,53 @@ export function ReadingPrefs() {
   });
 
   return (
-    <Popover>
-      <PopoverTrigger as={Button} variant="ghost" size="lg" aria-label="Reading settings">
+    <Menu placement="bottom-end">
+      <MenuTrigger as={IconButton} aria-label="Reading settings">
         <IconTextSize aria-hidden="true" />
-        Aa
-      </PopoverTrigger>
-      <PopoverPortal>
-        <PopoverContent>
-          <PopoverTitle class="text-sm font-semibold">Reading</PopoverTitle>
-          <div class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-muted-foreground">Text size</span>
-            <ToggleGroup
-              variant="outline"
-              spacing={0}
+      </MenuTrigger>
+      <MenuPortal>
+        <MenuContent class="min-w-48">
+          <MenuGroup>
+            <MenuGroupLabel>Text size</MenuGroupLabel>
+            <MenuRadioGroup
               value={prefs().scale}
               onChange={(value) => {
                 if (value === "1" || value === "1.125" || value === "1.25")
                   setPrefs((current) => ({ ...current, scale: value }));
               }}
             >
-              <ToggleGroupItem value="1" class="text-xs">
-                A
-              </ToggleGroupItem>
-              <ToggleGroupItem value="1.125" class="text-sm">
-                A
-              </ToggleGroupItem>
-              <ToggleGroupItem value="1.25" class="text-base">
-                A
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-          <div class="flex flex-col gap-1">
-            <span class="text-xs font-medium text-muted-foreground">Letter spacing</span>
-            <ToggleGroup
-              variant="outline"
-              spacing={0}
+              <For each={scales}>
+                {(option) => (
+                  <MenuRadioItem value={option.value} closeOnSelect={false}>
+                    <MenuItemLabel>{option.label}</MenuItemLabel>
+                    <MenuItemIndicator />
+                  </MenuRadioItem>
+                )}
+              </For>
+            </MenuRadioGroup>
+          </MenuGroup>
+          <MenuSeparator />
+          <MenuGroup>
+            <MenuGroupLabel>Letter spacing</MenuGroupLabel>
+            <MenuRadioGroup
               value={prefs().spacing}
               onChange={(value) => {
                 if (value === "normal" || value === "wide")
                   setPrefs((current) => ({ ...current, spacing: value }));
               }}
             >
-              <ToggleGroupItem value="normal">Normal</ToggleGroupItem>
-              <ToggleGroupItem value="wide" class="tracking-wider">
-                Wide
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </div>
-        </PopoverContent>
-      </PopoverPortal>
-    </Popover>
+              <For each={spacings}>
+                {(option) => (
+                  <MenuRadioItem value={option.value} closeOnSelect={false}>
+                    <MenuItemLabel>{option.label}</MenuItemLabel>
+                    <MenuItemIndicator />
+                  </MenuRadioItem>
+                )}
+              </For>
+            </MenuRadioGroup>
+          </MenuGroup>
+        </MenuContent>
+      </MenuPortal>
+    </Menu>
   );
 }

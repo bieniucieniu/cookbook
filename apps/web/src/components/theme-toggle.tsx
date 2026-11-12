@@ -1,14 +1,16 @@
 import { IconDeviceDesktop, IconMoon, IconSun, type TablerIcon } from "@/components/icons";
-import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/m3/icon-button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItemIndicator,
-  DropdownMenuPortal,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Menu,
+  MenuContent,
+  MenuItemIcon,
+  MenuItemIndicator,
+  MenuItemLabel,
+  MenuPortal,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuTrigger,
+} from "@/components/m3/menu";
 import { createSignal, For } from "solid-js";
 import { Dynamic } from "solid-js/web";
 
@@ -74,35 +76,31 @@ window.addEventListener("storage", (event) => {
 /** Light, dark, or follow the OS. The `.dark` class on <html> picks the trigger icon. */
 export function ThemeToggle() {
   return (
-    <DropdownMenu placement="bottom-end">
-      <DropdownMenuTrigger
-        as={Button}
-        type="button"
-        variant="ghost"
-        size="icon-lg"
-        aria-label="Theme"
-      >
+    <Menu placement="bottom-end">
+      <MenuTrigger as={IconButton} aria-label="Theme">
         <IconSun class="dark:hidden" aria-hidden="true" />
         <IconMoon class="hidden dark:inline" aria-hidden="true" />
-      </DropdownMenuTrigger>
-      <DropdownMenuPortal>
-        <DropdownMenuContent class="min-w-32">
-          <DropdownMenuRadioGroup
+      </MenuTrigger>
+      <MenuPortal>
+        <MenuContent class="min-w-40">
+          <MenuRadioGroup
             value={preference()}
             onChange={(value) => setThemePreference(parsePreference(value))}
           >
             <For each={options}>
               {(option) => (
-                <DropdownMenuRadioItem value={option.value} class="gap-2 text-sm">
-                  <Dynamic component={option.icon} size={16} aria-hidden="true" />
-                  {option.label}
-                  <DropdownMenuItemIndicator />
-                </DropdownMenuRadioItem>
+                <MenuRadioItem value={option.value}>
+                  <MenuItemIcon>
+                    <Dynamic component={option.icon} aria-hidden="true" />
+                  </MenuItemIcon>
+                  <MenuItemLabel>{option.label}</MenuItemLabel>
+                  <MenuItemIndicator />
+                </MenuRadioItem>
               )}
             </For>
-          </DropdownMenuRadioGroup>
-        </DropdownMenuContent>
-      </DropdownMenuPortal>
-    </DropdownMenu>
+          </MenuRadioGroup>
+        </MenuContent>
+      </MenuPortal>
+    </Menu>
   );
 }

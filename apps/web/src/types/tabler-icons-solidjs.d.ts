@@ -33,6 +33,7 @@ declare module "@tabler/icons-solidjs" {
   export const IconHourglass: TablerIcon;
   export const IconLayoutList: TablerIcon;
   export const IconLock: TablerIcon;
+  export const IconLogout: TablerIcon;
   export const IconMinus: TablerIcon;
   export const IconMoon: TablerIcon;
   export const IconNote: TablerIcon;
@@ -49,6 +50,7 @@ declare module "@tabler/icons-solidjs" {
   export const IconTextSize: TablerIcon;
   export const IconToolsKitchen2: TablerIcon;
   export const IconTrash: TablerIcon;
+  export const IconUserCircle: TablerIcon;
   export const IconUsers: TablerIcon;
   export const IconWorld: TablerIcon;
   export const IconX: TablerIcon;

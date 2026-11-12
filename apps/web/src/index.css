@@ -1,5 +1,7 @@
+@import "@fontsource-variable/roboto-flex";
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./m3-tokens.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -32,25 +34,42 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --md-ref-typeface-brand: "Roboto Flex Variable", Roboto, system-ui, sans-serif;
+  --md-ref-typeface-plain: "Roboto Flex Variable", Roboto, system-ui, sans-serif;
+  /* Reading preferences (Aa menu). m3-tokens.css adds the tracking to every typescale. */
+  --reading-tracking: 0em;
+  --reading-word-spacing: normal;
+
+  /* bg-primary and bg-secondary read these (m3-tokens.css maps them to Tailwind). */
+  --primary: var(--md-sys-color-primary);
+  --secondary: var(--md-sys-color-secondary);
+
+  /*
+   * shadcn tokens for the `ui` components not yet moved to `m3`, pointed at M3 roles so the
+   * whole app follows the M3 scheme in light and dark. Remove once nothing reads them.
+   */
+  --radius: 0.75rem;
+  --background: var(--md-sys-color-surface);
+  --foreground: var(--md-sys-color-on-surface);
+  --card: var(--md-sys-color-surface-container-low);
+  --card-foreground: var(--md-sys-color-on-surface);
+  --popover: var(--md-sys-color-surface-container);
+  --popover-foreground: var(--md-sys-color-on-surface);
+  --primary-foreground: var(--md-sys-color-on-primary);
+  --secondary-foreground: var(--md-sys-color-on-secondary);
+  --muted: var(--md-sys-color-surface-container-high);
+  --muted-foreground: var(--md-sys-color-on-surface-variant);
+  --accent: var(--md-sys-color-secondary-container);
+  --accent-foreground: var(--md-sys-color-on-secondary-container);
+  --destructive: var(--md-sys-color-error);
+  --border: var(--md-sys-color-outline-variant);
+  --input: var(--md-sys-color-outline);
+  --ring: var(--md-sys-color-secondary);
+}
+
+.dark {
+  /* Native controls, scrollbars and form fields follow the theme. */
+  color-scheme: dark;
 }
 
 @layer base {
@@ -58,14 +77,12 @@
     @apply border-border outline-ring/50;
   }
   html {
-    /* Reading preferences (Aa menu). Scale the whole UI, widen letter and word spacing. */
+    /* Reading preferences (Aa menu). Scale the whole UI (typescales are in rem). */
     font-size: calc(100% * var(--reading-scale, 1));
   }
   body {
-    @apply bg-background text-foreground;
-    font-family: ui-sans-serif, system-ui, sans-serif;
-    letter-spacing: var(--reading-tracking, normal);
-    word-spacing: var(--reading-word-spacing, normal);
+    @apply bg-surface text-on-surface typescale-body-medium;
+    word-spacing: var(--reading-word-spacing);
   }
   em,
   i {
@@ -122,27 +139,4 @@
   height: 0;
   pointer-events: none;
   color: var(--muted-foreground);
-}
-
-.dark {
-  /* Native controls, scrollbars and form fields follow the theme. */
-  color-scheme: dark;
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.371 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
 }
