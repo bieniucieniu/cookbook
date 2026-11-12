@@ -26,7 +26,7 @@ export const Ingredient: Story = {
           picked={picked()}
           onPick={(id) => setPicked((ids) => [...ids, id])}
         />
-        <p class="text-xs text-muted-foreground">
+        <p class="typescale-body-small text-on-surface-variant">
           Picked:{" "}
           {picked()
             .map((id) => args.catalog.name(args.kind, id))

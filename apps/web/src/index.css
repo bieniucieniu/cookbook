@@ -5,34 +5,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
-}
-
 :root {
   --md-ref-typeface-brand: "Roboto Flex Variable", Roboto, system-ui, sans-serif;
   --md-ref-typeface-plain: "Roboto Flex Variable", Roboto, system-ui, sans-serif;
@@ -43,28 +15,6 @@
   /* bg-primary and bg-secondary read these (m3-tokens.css maps them to Tailwind). */
   --primary: var(--md-sys-color-primary);
   --secondary: var(--md-sys-color-secondary);
-
-  /*
-   * shadcn tokens for the `ui` components not yet moved to `m3`, pointed at M3 roles so the
-   * whole app follows the M3 scheme in light and dark. Remove once nothing reads them.
-   */
-  --radius: 0.75rem;
-  --background: var(--md-sys-color-surface);
-  --foreground: var(--md-sys-color-on-surface);
-  --card: var(--md-sys-color-surface-container-low);
-  --card-foreground: var(--md-sys-color-on-surface);
-  --popover: var(--md-sys-color-surface-container);
-  --popover-foreground: var(--md-sys-color-on-surface);
-  --primary-foreground: var(--md-sys-color-on-primary);
-  --secondary-foreground: var(--md-sys-color-on-secondary);
-  --muted: var(--md-sys-color-surface-container-high);
-  --muted-foreground: var(--md-sys-color-on-surface-variant);
-  --accent: var(--md-sys-color-secondary-container);
-  --accent-foreground: var(--md-sys-color-on-secondary-container);
-  --destructive: var(--md-sys-color-error);
-  --border: var(--md-sys-color-outline-variant);
-  --input: var(--md-sys-color-outline);
-  --ring: var(--md-sys-color-secondary);
 }
 
 .dark {
@@ -72,9 +22,33 @@
   color-scheme: dark;
 }
 
+/*
+ * The flow canvas (components/xyflow) on M3 roles. Its own dark defaults key off `.xy-flow.dark`,
+ * but the app puts `.dark` on <html>, so the roles carry light and dark here.
+ */
+.xy-flow {
+  --xy-background-color: transparent;
+  --xy-background-pattern-dots-color: var(--md-sys-color-outline-variant);
+  --xy-edge-stroke: var(--md-sys-color-outline);
+  --xy-edge-stroke-selected: var(--md-sys-color-primary);
+  --xy-connectionline-stroke: var(--md-sys-color-primary);
+  --xy-edge-label-background-color: var(--md-sys-color-surface-container-high);
+  --xy-edge-label-color: var(--md-sys-color-on-surface);
+  --xy-handle-background-color: var(--md-sys-color-outline);
+  --xy-handle-border-color: var(--md-sys-color-surface);
+  --xy-selection-background-color: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent);
+  --xy-selection-border: 1px dotted var(--md-sys-color-primary);
+  --xy-controls-box-shadow: var(--md-sys-elevation-level1);
+  --xy-controls-button-background-color: var(--md-sys-color-surface-container);
+  --xy-controls-button-background-color-hover: var(--md-sys-color-surface-container-highest);
+  --xy-controls-button-color: var(--md-sys-color-on-surface-variant);
+  --xy-controls-button-color-hover: var(--md-sys-color-on-surface);
+  --xy-controls-button-border-color: var(--md-sys-color-outline-variant);
+}
+
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-outline-variant;
   }
   html {
     /* Reading preferences (Aa menu). Scale the whole UI (typescales are in rem). */
