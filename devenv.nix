@@ -83,6 +83,15 @@ in
         name = "cookbook";
         user = "cookbook";
         pass = "cookbook";
+        # Runs once, as the superuser, when .devenv/state/postgres is created.
+        # SET ROLE so the schema is owned by `cookbook`. The API's migrate() reapplies
+        # 0001_init.sql on start; every statement there is `if not exists`.
+        initialSQL = ''
+          \set ON_ERROR_STOP on
+          set role cookbook;
+        ''
+        + builtins.readFile ./apps/api/db/migrations/0001_init.sql
+        + builtins.readFile ./apps/api/db/seed.sql;
       }
     ];
   };
@@ -117,7 +126,10 @@ in
     server = {
       module = {
         processes.server = {
-          after = [ "devenv:processes:postgres" "devenv:processes:seaweed" ];
+          after = [
+            "devenv:processes:postgres"
+            "devenv:processes:seaweed"
+          ];
           exec = ''
             set -eu
             unset DEVELOPER_DIR
