@@ -59,6 +59,17 @@ export function ranks(
   return { rank, cyclic };
 }
 
+/** Step numbers as the list, graph, and editor show them: lane by lane, in `ord` order. */
+export function stepNumbers(
+  nodes: { key: string; ord: number }[],
+  edges: GraphEdge[]
+): Map<string, number> {
+  const result = new Map<string, number>();
+  let next = 1;
+  for (const row of lanes(nodes, edges)) for (const node of row) result.set(node.key, next++);
+  return result;
+}
+
 /** Steps grouped by depth, each group in `ord` order. Same group = may run side by side. */
 export function lanes<T extends { key: string; ord: number }>(
   nodes: T[],

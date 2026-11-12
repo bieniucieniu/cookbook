@@ -136,95 +136,94 @@ function RecipePage() {
           );
           return (
             <>
-              <Show when={view() !== "cook"}>
-                <header class="flex flex-col gap-5">
-                  <Show when={item().photos?.[0]}>
-                    {(photo) => (
-                      <img
-                        src={photoUrl(photo().id)}
-                        alt={photo().alt ?? ""}
-                        class="aspect-[21/9] max-h-80 w-full rounded-extra-large object-cover"
+              {/* Shown in every view, so switching List / Cook / Graph keeps the recipe in place. */}
+              <header class="flex flex-col gap-5">
+                <Show when={item().photos?.[0]}>
+                  {(photo) => (
+                    <img
+                      src={photoUrl(photo().id)}
+                      alt={photo().alt ?? ""}
+                      class="aspect-[21/9] max-h-80 w-full rounded-extra-large object-cover"
+                    />
+                  )}
+                </Show>
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                  <div class="flex min-w-0 flex-col gap-2">
+                    <h1 class="typescale-emphasized-headline-large text-on-surface">
+                      {item().title}
+                    </h1>
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 typescale-label-large text-on-surface-variant">
+                      <IconLabel
+                        icon={IconClock}
+                        label={formatSpan(item().elapsedMinSeconds, item().elapsedMaxSeconds)}
                       />
-                    )}
-                  </Show>
-                  <div class="flex flex-wrap items-start justify-between gap-4">
-                    <div class="flex min-w-0 flex-col gap-2">
-                      <h1 class="typescale-emphasized-headline-large text-on-surface">
-                        {item().title}
-                      </h1>
-                      <div class="flex flex-wrap items-center gap-x-4 gap-y-1 typescale-label-large text-on-surface-variant">
-                        <IconLabel
-                          icon={IconClock}
-                          label={formatSpan(item().elapsedMinSeconds, item().elapsedMaxSeconds)}
-                        />
-                        <IconLabel
-                          icon={IconHandStop}
-                          label={`${formatSpan(item().handsOnMinSeconds, item().handsOnMaxSeconds)} hands on`}
-                        />
-                        <Show when={item().visibility === "private"}>
-                          <IconLabel icon={IconLock} label="Only you" />
-                        </Show>
-                      </div>
+                      <IconLabel
+                        icon={IconHandStop}
+                        label={`${formatSpan(item().handsOnMinSeconds, item().handsOnMaxSeconds)} hands on`}
+                      />
+                      <Show when={item().visibility === "private"}>
+                        <IconLabel icon={IconLock} label="Only you" />
+                      </Show>
                     </div>
-                    <Show when={user()}>
-                      <div class="flex items-center gap-1">
-                        <Button
-                          onClick={() =>
-                            void navigate({
-                              to: "/recipes/$id/edit",
-                              params: { id: params().id },
-                              search: {},
-                            })
-                          }
-                        >
-                          <IconPencil aria-hidden="true" />
-                          Edit
-                        </Button>
-                        <Menu placement="bottom-end">
-                          <MenuTrigger as={IconButton} aria-label="More actions">
-                            <IconDots aria-hidden="true" />
-                          </MenuTrigger>
-                          <MenuPortal>
-                            <MenuContent class="min-w-48">
-                              <MenuItem onSelect={() => setConfirmDelete(true)}>
-                                <MenuItemIcon>
-                                  <IconTrash aria-hidden="true" />
-                                </MenuItemIcon>
-                                <MenuItemLabel>Delete recipe</MenuItemLabel>
-                              </MenuItem>
-                            </MenuContent>
-                          </MenuPortal>
-                        </Menu>
-                        <Dialog open={confirmDelete()} onOpenChange={setConfirmDelete}>
-                          <DialogPortal>
-                            <DialogOverlay />
-                            <DialogContent>
-                              <DialogIcon>
-                                <IconTrash aria-hidden="true" />
-                              </DialogIcon>
-                              <DialogHeadline>Delete “{item().title}”?</DialogHeadline>
-                              <DialogDescription>This cannot be undone.</DialogDescription>
-                              <DialogActions>
-                                <DialogClose>Keep</DialogClose>
-                                <Button
-                                  variant="text"
-                                  disabled={remove.isPending}
-                                  onClick={() => void onDelete()}
-                                >
-                                  Delete
-                                </Button>
-                              </DialogActions>
-                            </DialogContent>
-                          </DialogPortal>
-                        </Dialog>
-                      </div>
-                    </Show>
                   </div>
-                  <Show when={item().description.trim()}>
-                    <MarkdownView value={item().description} />
+                  <Show when={user()}>
+                    <div class="flex items-center gap-1">
+                      <Button
+                        onClick={() =>
+                          void navigate({
+                            to: "/recipes/$id/edit",
+                            params: { id: params().id },
+                            search: {},
+                          })
+                        }
+                      >
+                        <IconPencil aria-hidden="true" />
+                        Edit
+                      </Button>
+                      <Menu placement="bottom-end">
+                        <MenuTrigger as={IconButton} aria-label="More actions">
+                          <IconDots aria-hidden="true" />
+                        </MenuTrigger>
+                        <MenuPortal>
+                          <MenuContent class="min-w-48">
+                            <MenuItem onSelect={() => setConfirmDelete(true)}>
+                              <MenuItemIcon>
+                                <IconTrash aria-hidden="true" />
+                              </MenuItemIcon>
+                              <MenuItemLabel>Delete recipe</MenuItemLabel>
+                            </MenuItem>
+                          </MenuContent>
+                        </MenuPortal>
+                      </Menu>
+                      <Dialog open={confirmDelete()} onOpenChange={setConfirmDelete}>
+                        <DialogPortal>
+                          <DialogOverlay />
+                          <DialogContent>
+                            <DialogIcon>
+                              <IconTrash aria-hidden="true" />
+                            </DialogIcon>
+                            <DialogHeadline>Delete “{item().title}”?</DialogHeadline>
+                            <DialogDescription>This cannot be undone.</DialogDescription>
+                            <DialogActions>
+                              <DialogClose>Keep</DialogClose>
+                              <Button
+                                variant="text"
+                                disabled={remove.isPending}
+                                onClick={() => void onDelete()}
+                              >
+                                Delete
+                              </Button>
+                            </DialogActions>
+                          </DialogContent>
+                        </DialogPortal>
+                      </Dialog>
+                    </div>
                   </Show>
-                </header>
-              </Show>
+                </div>
+                <Show when={item().description.trim()}>
+                  <MarkdownView value={item().description} />
+                </Show>
+              </header>
 
               <div class="flex flex-wrap items-center justify-between gap-3">
                 <ButtonGroup variant="connected" size="sm" aria-label="View">
@@ -264,7 +263,12 @@ function RecipePage() {
                   <CookMode draft={draft()} cooks={cooks()} catalog={catalog} />
                 </Match>
                 <Match when={view() === "graph"}>
-                  <GraphView draft={draft()} catalog={catalog} stepFooter={footer} />
+                  <GraphView
+                    draft={draft()}
+                    catalog={catalog}
+                    cooks={cooks()}
+                    stepFooter={footer}
+                  />
                 </Match>
               </Switch>
             </>

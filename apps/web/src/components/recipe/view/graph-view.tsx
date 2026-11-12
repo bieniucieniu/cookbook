@@ -1,4 +1,3 @@
-import { IconCarrot } from "@/components/icons";
 import {
   BottomSheet,
   BottomSheetBody,
@@ -9,11 +8,11 @@ import {
   BottomSheetTitle,
 } from "@/components/m3/bottom-sheet";
 import type { Catalog } from "@/lib/catalog";
-import type { DraftNode, RecipeDraft } from "@/lib/recipe-draft";
-import { createMemo, createSignal, For, onCleanup, onMount, Show, type JSX } from "solid-js";
-import { MarkdownView } from "../markdown";
-import { ItemChip, SpanBadge } from "../parts";
+import type { RecipeDraft } from "@/lib/recipe-draft";
+import { stepNumbers } from "@/lib/recipe-graph";
+import { createMemo, createSignal, onCleanup, onMount, Show, type JSX } from "solid-js";
 import { RecipeFlow } from "../recipe-flow";
+import { StepCard } from "./step-card";
 
 function useWide(): () => boolean {
   // M3 expanded breakpoint (840px): two panes from here up.
@@ -28,20 +27,22 @@ function useWide(): () => boolean {
 }
 
 /**
- * Read-only graph. A selected step opens in a supporting pane beside it from the expanded
- * breakpoint up, and in a bottom sheet below that.
+ * Read-only graph. A selected step opens as the same card the list view shows: in a supporting
+ * pane beside the graph from the expanded breakpoint up, and in a bottom sheet below that.
  */
 export function GraphView(props: {
   draft: RecipeDraft;
   catalog: Catalog;
+  cooks: number;
   stepFooter?: (stepKey: string) => JSX.Element;
 }) {
   const wide = useWide();
   const [selected, setSelected] = createSignal<string>();
   const step = createMemo(() => props.draft.nodes.find((node) => node.key === selected()));
+  const numbers = createMemo(() => stepNumbers(props.draft.nodes, props.draft.edges));
 
   return (
-    <div class="grid gap-4 expanded:grid-cols-[1fr_22rem]">
+    <div class="grid gap-4 expanded:grid-cols-[1fr_24rem]">
       <RecipeFlow draft={props.draft} class="h-[65vh] min-h-80" onSelect={setSelected} />
       <Show
         when={wide()}
@@ -57,11 +58,14 @@ export function GraphView(props: {
                 <Show when={step()}>
                   {(node) => (
                     <>
-                      <BottomSheetTitle class="pb-3">{node().title}</BottomSheetTitle>
+                      <BottomSheetTitle class="sr-only">{node().title}</BottomSheetTitle>
                       <BottomSheetBody>
-                        <StepDetail
+                        <StepCard
                           node={node()}
+                          number={numbers().get(node().key)}
                           catalog={props.catalog}
+                          draftCooks={props.draft.cooks}
+                          cooks={props.cooks}
                           footer={props.stepFooter?.(node().key)}
                         />
                       </BottomSheetBody>
@@ -73,71 +77,28 @@ export function GraphView(props: {
           </BottomSheet>
         }
       >
-        <aside class="flex flex-col gap-3 self-start rounded-large bg-surface-container-low p-4">
+        <aside class="self-start" aria-label="Selected step">
           <Show
             when={step()}
             fallback={
-              <p class="typescale-body-medium text-on-surface-variant">
+              <p class="rounded-large bg-surface-container-low p-4 typescale-body-medium text-on-surface-variant">
                 Tap a step to see what it needs.
               </p>
             }
           >
             {(node) => (
-              <>
-                <h2 class="typescale-title-large text-on-surface">{node().title}</h2>
-                <StepDetail
-                  node={node()}
-                  catalog={props.catalog}
-                  footer={props.stepFooter?.(node().key)}
-                />
-              </>
+              <StepCard
+                node={node()}
+                number={numbers().get(node().key)}
+                catalog={props.catalog}
+                draftCooks={props.draft.cooks}
+                cooks={props.cooks}
+                footer={props.stepFooter?.(node().key)}
+              />
             )}
           </Show>
         </aside>
       </Show>
-    </div>
-  );
-}
-
-function StepDetail(props: { node: DraftNode; catalog: Catalog; footer?: JSX.Element }) {
-  return (
-    <div class="flex flex-col gap-3">
-      <Show
-        when={props.node.ingredients.length + props.node.tools.length + props.node.spans.length > 0}
-        fallback={
-          <span class="inline-flex items-center gap-1.5 typescale-body-medium text-on-surface-variant">
-            <IconCarrot size={16} aria-hidden="true" />
-            Nothing listed
-          </span>
-        }
-      >
-        <div class="flex flex-wrap gap-2">
-          <For each={props.node.ingredients}>
-            {(item) => (
-              <ItemChip
-                kind="ingredient"
-                name={props.catalog.name("ingredient", item.ingredientId)}
-                qty={item.qty}
-                unit={item.unit}
-                optional={item.optional}
-                static
-              />
-            )}
-          </For>
-          <For each={props.node.tools}>
-            {(item) => (
-              <ItemChip kind="tool" name={props.catalog.name("tool", item.toolId)} static />
-            )}
-          </For>
-          <For each={props.node.spans}>
-            {(span) => <SpanBadge kind={span.kind} seconds={span.seconds} static />}
-          </For>
-        </div>
-      </Show>
-      <Show when={props.node.body.trim()}>
-        <MarkdownView value={props.node.body} />
-      </Show>
-      {props.footer}
     </div>
   );
 }

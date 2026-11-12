@@ -6,13 +6,14 @@ import {
 } from "@/components/icons";
 import type { Catalog } from "@/lib/catalog";
 import type { RecipeDraft } from "@/lib/recipe-draft";
-import { lanes } from "@/lib/recipe-graph";
+import { lanes, stepNumbers } from "@/lib/recipe-graph";
 import { summarize } from "@/lib/recipe-summary";
 import { scaleQty } from "@/lib/units";
 import { createMemo, For, Index, Show, type JSX } from "solid-js";
 import { createStore } from "solid-js/store";
 import { MarkdownView } from "../markdown";
-import { IconLabel, ItemChip, SpanBadge } from "../parts";
+import { StepCard } from "./step-card";
+import { IconLabel, ItemChip } from "../parts";
 
 /**
  * Everything on one page: a checklist of what to get out, then compact steps with their own
@@ -31,12 +32,7 @@ export function RecipeList(props: {
   const summary = createMemo(() => summarize(props.draft));
   const swapText = (kind: "ingredient" | "tool", ids: number[]) =>
     ids.length === 0 ? "" : `or ${ids.map((id) => props.catalog.name(kind, id)).join(", ")}`;
-  const numbers = createMemo(() => {
-    const result = new Map<string, number>();
-    let next = 1;
-    for (const row of rows()) for (const node of row) result.set(node.key, next++);
-    return result;
-  });
+  const numbers = createMemo(() => stepNumbers(props.draft.nodes, props.draft.edges));
   const rowMode = (row: { key: string }[]) => {
     const parent = props.draft.edges.find((edge) => edge.to === row[0]?.key)?.from;
     return props.draft.nodes.find((node) => node.key === parent)?.branchMode === "xor"
@@ -153,104 +149,14 @@ export function RecipeList(props: {
               <div class={row().length > 1 ? "grid gap-3 medium:grid-cols-2" : "flex flex-col"}>
                 <For each={row()}>
                   {(node) => (
-                    <article class="@container flex flex-col gap-3 rounded-large bg-surface-container-low p-4">
-                      <header class="flex items-center gap-3">
-                        <span
-                          class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary typescale-label-large text-on-primary tabular-nums"
-                          aria-hidden="true"
-                        >
-                          {numbers().get(node.key)}
-                        </span>
-                        <h3 class="typescale-title-medium text-on-surface">
-                          {node.title}
-                          <Show when={node.repeatMin > 1}>
-                            <span class="ml-2 typescale-label-large text-on-surface-variant">
-                              ×{node.repeatMin}
-                            </span>
-                          </Show>
-                        </h3>
-                      </header>
-                      <Show
-                        when={node.ingredients.length + node.tools.length + node.spans.length > 0}
-                      >
-                        {/* Ingredients and tools side by side once the card has room; times below. */}
-                        <div class="flex flex-col gap-3">
-                          <Show when={node.ingredients.length + node.tools.length > 0}>
-                            <div class="grid gap-x-4 gap-y-3 @xs:grid-cols-2">
-                              <Show when={node.ingredients.length > 0}>
-                                <ul
-                                  class="flex flex-col items-start gap-1.5"
-                                  aria-label="Ingredients"
-                                >
-                                  <For each={node.ingredients}>
-                                    {(item) => (
-                                      <li class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                                        <ItemChip
-                                          kind="ingredient"
-                                          name={props.catalog.name("ingredient", item.ingredientId)}
-                                          qty={scale(item.qty)}
-                                          unit={item.unit}
-                                          optional={item.optional}
-                                          static
-                                        />
-                                        <Show when={(item.alts ?? []).length > 0}>
-                                          <span class="typescale-body-small text-on-surface-variant">
-                                            {swapText(
-                                              "ingredient",
-                                              (item.alts ?? []).map((alt) => alt.altIngredientId)
-                                            )}
-                                          </span>
-                                        </Show>
-                                      </li>
-                                    )}
-                                  </For>
-                                </ul>
-                              </Show>
-                              <Show when={node.tools.length > 0}>
-                                <ul
-                                  class="flex flex-col items-start gap-1.5 @xs:col-start-2"
-                                  aria-label="Tools"
-                                >
-                                  <For each={node.tools}>
-                                    {(item) => (
-                                      <li class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                                        <ItemChip
-                                          kind="tool"
-                                          name={props.catalog.name("tool", item.toolId)}
-                                          optional={item.optional}
-                                          static
-                                        />
-                                        <Show when={(item.alts ?? []).length > 0}>
-                                          <span class="typescale-body-small text-on-surface-variant">
-                                            {swapText(
-                                              "tool",
-                                              (item.alts ?? []).map((alt) => alt.altToolId)
-                                            )}
-                                          </span>
-                                        </Show>
-                                      </li>
-                                    )}
-                                  </For>
-                                </ul>
-                              </Show>
-                            </div>
-                          </Show>
-                          <Show when={node.spans.length > 0}>
-                            <div class="flex flex-wrap gap-2" aria-label="Time">
-                              <For each={node.spans}>
-                                {(span) => (
-                                  <SpanBadge kind={span.kind} seconds={span.seconds} static />
-                                )}
-                              </For>
-                            </div>
-                          </Show>
-                        </div>
-                      </Show>
-                      <Show when={node.body.trim()}>
-                        <MarkdownView value={node.body} class="text-on-surface-variant" />
-                      </Show>
-                      {props.stepFooter?.(node.key)}
-                    </article>
+                    <StepCard
+                      node={node}
+                      number={numbers().get(node.key)}
+                      catalog={props.catalog}
+                      draftCooks={props.draft.cooks}
+                      cooks={props.cooks}
+                      footer={props.stepFooter?.(node.key)}
+                    />
                   )}
                 </For>
               </div>

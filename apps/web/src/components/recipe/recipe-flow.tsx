@@ -21,13 +21,14 @@ import { Background, Controls } from "@/components/xyflow/panels";
 import "@/components/xyflow/style.css";
 import type { NodeWriteBranchMode } from "@/generated/model";
 import { stepSeconds, type RecipeDraft } from "@/lib/recipe-draft";
-import { issueLabel, layout, type GraphIssue } from "@/lib/recipe-graph";
+import { issueLabel, layout, stepNumbers, type GraphIssue } from "@/lib/recipe-graph";
 import { formatDuration } from "@/lib/units";
 import { cn } from "@/lib/utils";
 import { createContext, createEffect, createMemo, on, Show, untrack, useContext } from "solid-js";
 
 type StepData = {
   key: string;
+  number: number | undefined;
   title: string;
   ingredients: number;
   seconds: number;
@@ -56,13 +57,22 @@ export function StepNode(props: NodeComponentProps) {
   return (
     <div
       class={cn(
-        "flex w-52 flex-col gap-1.5 rounded-medium border bg-surface-container-low p-2.5 text-left text-on-surface shadow-level-1",
-        props.node.selected ? "border-primary ring-2 ring-primary" : "border-outline-variant",
-        data().issue && "border-error"
+        // The list view's step card (StepCard), sized for the canvas.
+        "flex w-52 flex-col gap-2 rounded-large bg-surface-container-low p-3 text-left text-on-surface",
+        props.node.selected && "ring-2 ring-primary",
+        data().issue && "ring-2 ring-error"
       )}
     >
       <Handle type="target" position={Position.Left} />
-      <span class="line-clamp-2 typescale-title-small">{data().title || "Untitled step"}</span>
+      <header class="flex items-center gap-2">
+        <span
+          class="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary typescale-label-medium text-on-primary tabular-nums"
+          aria-hidden="true"
+        >
+          {data().number}
+        </span>
+        <span class="line-clamp-2 typescale-title-small">{data().title || "Untitled step"}</span>
+      </header>
       <div class="flex flex-wrap items-center gap-2 typescale-label-medium text-on-surface-variant tabular-nums">
         <Show when={data().ingredients > 0}>
           <span class="inline-flex items-center gap-1">
@@ -150,11 +160,13 @@ export function RecipeFlow(props: {
   const nodes = createMemo<FlowNode[]>(() => {
     const auto = layout(props.draft.nodes, props.draft.edges);
     const issueByKey = new Map((props.issues ?? []).map((item) => [item.nodeKey, item.issue]));
+    const numbers = stepNumbers(props.draft.nodes, props.draft.edges);
     return props.draft.nodes.map((node) => {
       const position = untrack(() => positions.get(node.key)) ??
         auto.get(node.key) ?? { x: 0, y: 0 };
       const data: StepData = {
         key: node.key,
+        number: numbers.get(node.key),
         title: node.title,
         ingredients: node.ingredients.length,
         seconds: stepSeconds(node),

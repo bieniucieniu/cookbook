@@ -28,7 +28,7 @@ import {
 import { useCatalog } from "@/lib/catalog";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/draft-storage";
 import { draftToWrite, type RecipeDraft } from "@/lib/recipe-draft";
-import { lanes, validateGraph } from "@/lib/recipe-graph";
+import { stepNumbers, validateGraph } from "@/lib/recipe-graph";
 import { summarize } from "@/lib/recipe-summary";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/solid-query";
@@ -84,13 +84,7 @@ export function RecipeEditor(props: {
   const summary = createMemo(() => summarize(draft));
   const warnings = createMemo(() => draftWarnings(draft, issues(), summary(), catalog));
   const blocking = () => warnings().filter((warning) => warning.blocking);
-  const numbers = createMemo(() => {
-    const result = new Map<string, number>();
-    let next = 1;
-    for (const row of lanes(draft.nodes, draft.edges))
-      for (const node of row) result.set(node.key, next++);
-    return result;
-  });
+  const numbers = createMemo(() => stepNumbers(draft.nodes, draft.edges));
   const pending = () => create.isPending || update.isPending;
 
   /** The step shown on the right: the one asked for, else the first. */
