@@ -125,7 +125,7 @@ export function CookMode(props: { draft: RecipeDraft; cooks: number; catalog: Ca
     <div class="flex flex-col gap-4 pb-20">
       <Show when={timers().length > 0}>
         <ul
-          class="sticky top-0 z-20 -mx-4 flex flex-wrap gap-2 bg-surface-container px-4 py-2 medium:-mx-6 medium:px-6"
+          class="sticky top-16 z-20 -mx-4 flex flex-wrap gap-2 bg-surface-container px-4 py-2 medium:-mx-6 medium:px-6"
           aria-label="Timers"
         >
           <For each={timers()}>

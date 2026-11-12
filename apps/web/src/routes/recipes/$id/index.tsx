@@ -107,7 +107,7 @@ function RecipePage() {
   };
 
   return (
-    <main class="mx-auto flex w-full max-w-6xl flex-col gap-6 px-4 pt-2 pb-8 medium:px-6">
+    <main class="flex w-full flex-col gap-6 px-4 pt-2 pb-8 medium:px-6">
       <Show when={recipe.isPending}>
         <PageLoading label="Loading the recipe" />
       </Show>

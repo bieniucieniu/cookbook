@@ -29,7 +29,7 @@ import { ReadingPrefs } from "@/components/reading-prefs";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Link, Outlet, createRootRoute, useLocation } from "@tanstack/solid-router";
 import { TanStackRouterDevtools } from "@tanstack/solid-router-devtools";
-import { Match, Show, Switch } from "solid-js";
+import { createSignal, Match, onCleanup, onMount, Show, Switch } from "solid-js";
 import { Portal } from "solid-js/web";
 
 export const Route = createRootRoute({
@@ -53,15 +53,24 @@ function RootLayout() {
 }
 
 /**
- * Small top app bar: up navigation on inner pages, the app name, then reading, theme, and
+ * Small top app bar, sticky: up navigation on inner pages, the app name, then reading, theme, and
  * account actions.
  */
 function SessionHeader() {
   const session = useCurrentUser();
   const location = useLocation();
   const inner = () => location().pathname !== "/";
+  // M3: the bar sits on surface at the top and turns surface-container once content scrolls under.
+  const [scrolled, setScrolled] = createSignal(false);
+  const onScroll = () => setScrolled(window.scrollY > 0);
+  onMount(() => {
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+  });
+  onCleanup(() => window.removeEventListener("scroll", onScroll));
   return (
-    <AppBar>
+    // Sticky: 64px tall. Sticky bars below it (editor toolbar, cook timers) start at top-16.
+    <AppBar scrolled={scrolled()} class="sticky top-0 z-30">
       <Show when={inner()}>
         <AppBarLeading>
           <UpButton pathname={location().pathname} />

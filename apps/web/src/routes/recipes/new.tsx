@@ -11,7 +11,7 @@ function NewRecipePage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   return (
-    <main class="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 medium:px-6">
+    <main class="flex w-full flex-col gap-2 px-4 medium:px-6">
       <RecipeEditor
         initial={blankDraft()}
         selected={search().step}

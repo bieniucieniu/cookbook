@@ -20,7 +20,7 @@ function EditRecipePage() {
   const recipe = useQuery(() => getGetRecipeQueryOptions(params().id));
   const detail = () => recipeDetail(recipe.data);
   return (
-    <main class="mx-auto flex w-full max-w-7xl flex-col gap-2 px-4 medium:px-6">
+    <main class="flex w-full flex-col gap-2 px-4 medium:px-6">
       <Show when={recipe.isPending}>
         <PageLoading label="Loading the recipe" />
       </Show>

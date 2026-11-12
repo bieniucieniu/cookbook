@@ -153,7 +153,7 @@ export function RecipeList(props: {
               <div class={row().length > 1 ? "grid gap-3 medium:grid-cols-2" : "flex flex-col"}>
                 <For each={row()}>
                   {(node) => (
-                    <article class="flex flex-col gap-3 rounded-large bg-surface-container-low p-4">
+                    <article class="@container flex flex-col gap-3 rounded-large bg-surface-container-low p-4">
                       <header class="flex items-center gap-3">
                         <span
                           class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary typescale-label-large text-on-primary tabular-nums"
@@ -173,52 +173,77 @@ export function RecipeList(props: {
                       <Show
                         when={node.ingredients.length + node.tools.length + node.spans.length > 0}
                       >
-                        <div class="flex flex-wrap gap-2">
-                          <For each={node.ingredients}>
-                            {(item) => (
-                              <span class="inline-flex items-center gap-1.5">
-                                <ItemChip
-                                  kind="ingredient"
-                                  name={props.catalog.name("ingredient", item.ingredientId)}
-                                  qty={scale(item.qty)}
-                                  unit={item.unit}
-                                  optional={item.optional}
-                                  static
-                                />
-                                <Show when={(item.alts ?? []).length > 0}>
-                                  <span class="typescale-body-small text-on-surface-variant">
-                                    {swapText(
-                                      "ingredient",
-                                      (item.alts ?? []).map((alt) => alt.altIngredientId)
+                        {/* Ingredients and tools side by side once the card has room; times below. */}
+                        <div class="flex flex-col gap-3">
+                          <Show when={node.ingredients.length + node.tools.length > 0}>
+                            <div class="grid gap-x-4 gap-y-3 @xs:grid-cols-2">
+                              <Show when={node.ingredients.length > 0}>
+                                <ul
+                                  class="flex flex-col items-start gap-1.5"
+                                  aria-label="Ingredients"
+                                >
+                                  <For each={node.ingredients}>
+                                    {(item) => (
+                                      <li class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                        <ItemChip
+                                          kind="ingredient"
+                                          name={props.catalog.name("ingredient", item.ingredientId)}
+                                          qty={scale(item.qty)}
+                                          unit={item.unit}
+                                          optional={item.optional}
+                                          static
+                                        />
+                                        <Show when={(item.alts ?? []).length > 0}>
+                                          <span class="typescale-body-small text-on-surface-variant">
+                                            {swapText(
+                                              "ingredient",
+                                              (item.alts ?? []).map((alt) => alt.altIngredientId)
+                                            )}
+                                          </span>
+                                        </Show>
+                                      </li>
                                     )}
-                                  </span>
-                                </Show>
-                              </span>
-                            )}
-                          </For>
-                          <For each={node.tools}>
-                            {(item) => (
-                              <span class="inline-flex items-center gap-1.5">
-                                <ItemChip
-                                  kind="tool"
-                                  name={props.catalog.name("tool", item.toolId)}
-                                  optional={item.optional}
-                                  static
-                                />
-                                <Show when={(item.alts ?? []).length > 0}>
-                                  <span class="typescale-body-small text-on-surface-variant">
-                                    {swapText(
-                                      "tool",
-                                      (item.alts ?? []).map((alt) => alt.altToolId)
+                                  </For>
+                                </ul>
+                              </Show>
+                              <Show when={node.tools.length > 0}>
+                                <ul
+                                  class="flex flex-col items-start gap-1.5 @xs:col-start-2"
+                                  aria-label="Tools"
+                                >
+                                  <For each={node.tools}>
+                                    {(item) => (
+                                      <li class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+                                        <ItemChip
+                                          kind="tool"
+                                          name={props.catalog.name("tool", item.toolId)}
+                                          optional={item.optional}
+                                          static
+                                        />
+                                        <Show when={(item.alts ?? []).length > 0}>
+                                          <span class="typescale-body-small text-on-surface-variant">
+                                            {swapText(
+                                              "tool",
+                                              (item.alts ?? []).map((alt) => alt.altToolId)
+                                            )}
+                                          </span>
+                                        </Show>
+                                      </li>
                                     )}
-                                  </span>
-                                </Show>
-                              </span>
-                            )}
-                          </For>
-                          <For each={node.spans}>
-                            {(span) => <SpanBadge kind={span.kind} seconds={span.seconds} static />}
-                          </For>
+                                  </For>
+                                </ul>
+                              </Show>
+                            </div>
+                          </Show>
+                          <Show when={node.spans.length > 0}>
+                            <div class="flex flex-wrap gap-2" aria-label="Time">
+                              <For each={node.spans}>
+                                {(span) => (
+                                  <SpanBadge kind={span.kind} seconds={span.seconds} static />
+                                )}
+                              </For>
+                            </div>
+                          </Show>
                         </div>
                       </Show>
                       <Show when={node.body.trim()}>

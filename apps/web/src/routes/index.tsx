@@ -27,7 +27,7 @@ function Home() {
   const recipes = useListRecipes();
   const session = useCurrentUser();
   return (
-    <main class="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 pt-2 pb-28 medium:px-6">
+    <main class="flex w-full flex-col gap-4 px-4 pt-2 pb-28 medium:px-6">
       <h1 class="typescale-headline-small text-on-surface">Recipes</h1>
       <Show when={recipes.isPending}>
         <PageLoading label="Loading recipes" />
@@ -51,7 +51,7 @@ function Home() {
               />
             }
           >
-            <ul class="grid gap-3 medium:grid-cols-2 medium:gap-4 expanded:grid-cols-3">
+            <ul class="grid gap-3 medium:grid-cols-2 medium:gap-4 expanded:grid-cols-3 large:grid-cols-4 extra-large:grid-cols-5">
               <For each={items()}>
                 {(recipe) => (
                   <li>
