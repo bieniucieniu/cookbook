@@ -61,6 +61,7 @@ Commands:
 - All: `devenv --profile all up` (same as web)
 - Manual: `gradle :apps:api:runDebugExecutableNative` / `pnpm --filter web dev`
 - Seed: `gradle :apps:api:seed` (debug binary arg `seed`; needs Postgres and the S3 gateway; does not start the HTTP server)
+- Dev SQL seed: `apps/api/db/seed.sql` runs with `0001_init.sql` through devenv `initialSQL` when Postgres first creates `.devenv/state/postgres`. To reseed, stop devenv, delete that dir, and run `devenv up`. Keep it in step with `features/seed/Seed.kt` (it skips the photo)
 - Tests: `gradle test` (`nativeTest` on `:apps:api`, `:packages:core`, `:packages:workos`, and `:packages:s3`)
 - JS install: on devenv enter (`languages.javascript.pnpm.install.enable`)
 - JS check: `pnpm exec vp check` (Oxfmt, Oxlint, typecheck). Dev and build stay `pnpm --filter web dev` / `build`. Those scripts call `vp`.
