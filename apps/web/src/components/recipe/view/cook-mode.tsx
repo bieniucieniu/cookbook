@@ -8,6 +8,7 @@ import {
   IconPlayerPlay,
 } from "@/components/icons";
 import { Button } from "@/components/m3/button";
+import { Card, CardContent, CardHeader } from "@/components/m3/card";
 import { InputChip, InputChipRemove } from "@/components/m3/chip";
 import { ExtendedFab } from "@/components/m3/fab";
 import { IconButton } from "@/components/m3/icon-button";
@@ -359,24 +360,26 @@ function CookStep(props: {
     qty == null ? qty : scaleQty(qty, props.draft.cooks, props.cooks);
   const done = () => props.done[props.node.key] ?? false;
   return (
-    <div class="flex flex-col gap-5">
-      <h2 class="typescale-emphasized-headline-large text-on-surface">
-        {props.node.title}
-        <Show when={props.node.repeatMin > 1}>
-          <span class="ml-2 typescale-title-large text-on-surface-variant">
-            ×{props.node.repeatMin}
-          </span>
-        </Show>
-      </h2>
+    <Card variant="outlined" class="gap-5">
+      <CardHeader>
+        <h2 class="typescale-emphasized-headline-large text-on-surface">
+          {props.node.title}
+          <Show when={props.node.repeatMin > 1}>
+            <span class="ml-2 typescale-title-large text-on-surface-variant">
+              ×{props.node.repeatMin}
+            </span>
+          </Show>
+        </h2>
+      </CardHeader>
       {/*
         What you need on the left, what to do on the right from the expanded breakpoint. Stacked
         below it, needs first. The stage controls (parts nav and toolbar) stay outside.
       */}
-      <div class="grid gap-x-8 gap-y-5 expanded:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] expanded:items-start">
+      <CardContent class="grid gap-x-8 gap-y-5 text-on-surface expanded:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] expanded:items-start">
         <Show when={props.node.ingredients.length + props.node.tools.length > 0}>
           <div class="flex flex-col gap-4">
             <Show when={props.node.ingredients.length > 0}>
-              {/* Rows reach the page edge on the left; on wide screens not into the gap. */}
+              {/* Rows reach the card edge on the left; on wide screens not into the gap. */}
               <IngredientList aria-label="Ingredients for this step" class="-mx-4 expanded:mr-0">
                 <For each={props.node.ingredients}>
                   {(item) => (
@@ -463,7 +466,7 @@ function CookStep(props: {
           </Button>
           <Show when={props.comments}>{(comments) => comments()(props.node.key)}</Show>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }

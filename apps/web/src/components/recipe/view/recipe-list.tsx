@@ -86,8 +86,7 @@ export function RecipeList(props: {
   const hasRows = () => rows().some((row) => row.length > 1);
   const card = (
     node: RecipeDraft["nodes"][number],
-    choice?: { chosen: boolean; collapsed: boolean; onToggle: () => void },
-    extra = ""
+    choice?: { chosen: boolean; collapsed: boolean; onToggle: () => void }
   ) => (
     <StepCard
       choice={choice}
@@ -97,7 +96,7 @@ export function RecipeList(props: {
       draftCooks={props.draft.cooks}
       cooks={props.cooks}
       action={props.stepAction?.(node)}
-      class={`w-full ${extra}`}
+      class="w-full"
     />
   );
 
@@ -176,27 +175,19 @@ export function RecipeList(props: {
             </FilterChip>
           </div>
         </Show>
-        {/* No cards: rows are split by full-width dividers, steps in a row by inset ones. */}
-        <ol class="flex w-full flex-col items-center">
+        {/* Each step is a card; rows and the steps inside a row are split by gaps. */}
+        <ol class="flex w-full flex-col items-center gap-6">
           <Index each={rows()}>
             {(row) => (
-              <li
-                class={`border-t border-outline-variant py-6 first:border-t-0 first:pt-0 ${
-                  row().length > 1 ? "flex w-full flex-col gap-2" : stepWidth
-                }`}
-              >
+              <li class={row().length > 1 ? "flex w-full flex-col gap-2" : stepWidth}>
                 <Show when={row().length > 1} fallback={card(row()[0]!)}>
                   <Show
                     when={sideBySide()}
                     fallback={
                       <div class={`flex flex-col gap-2 self-center ${stepWidth}`}>
                         <RowLabel mode={rowMode(row())} />
-                        <div class="flex flex-col divide-y divide-outline-variant">
-                          <For each={row()}>
-                            {(node) =>
-                              card(node, choiceFor(row(), node.key), "py-4 first:pt-0 last:pb-0")
-                            }
-                          </For>
+                        <div class="flex flex-col gap-3">
+                          <For each={row()}>{(node) => card(node, choiceFor(row(), node.key))}</For>
                         </div>
                       </div>
                     }

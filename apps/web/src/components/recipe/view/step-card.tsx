@@ -13,12 +13,13 @@ import {
   ListItemLeading,
   ListItemSupportingText,
 } from "@/components/m3/list";
+import { Card, CardContent, CardHeader } from "@/components/m3/card";
 import { Dynamic } from "solid-js/web";
 import { SpanBadge } from "../parts";
 
 /**
- * One step as a plain section (no container; the list puts dividers between steps): number and name, then ingredients and tools side by side once the card
- * is 20rem wide, times below them, and the note. Used by the list view. `action` sits at the
+ * One step as an outlined M3 card: number and name, then ingredients and tools side by side once
+ * the card is 20rem wide, times below them, and the note. Used by the list view. `action` sits at the
  * top right of the header (the list puts a link to the step in cook mode there).
  */
 export function StepCard(props: {
@@ -67,14 +68,15 @@ export function StepCard(props: {
     </>
   );
   return (
-    <article
+    <Card
+      variant="outlined"
       class={cn(
-        "@container flex flex-col gap-3 motion-default",
+        "@container gap-3 motion-default",
         collapsed() && "text-on-surface-variant",
         props.class
       )}
     >
-      <header class="flex items-center gap-2">
+      <CardHeader class="flex items-center gap-2">
         <Show
           when={props.choice}
           fallback={<h3 class="flex min-w-0 flex-1 items-center gap-3">{title()}</h3>}
@@ -116,7 +118,7 @@ export function StepCard(props: {
           )}
         </Show>
         <Show when={!collapsed() && props.action}>{props.action}</Show>
-      </header>
+      </CardHeader>
       <Show
         when={
           !collapsed() &&
@@ -124,7 +126,7 @@ export function StepCard(props: {
         }
       >
         {/* Ingredients and tools side by side once the card has room; times below. */}
-        <div class="flex flex-col gap-3">
+        <CardContent class="flex flex-col gap-3">
           <Show when={props.node.ingredients.length + props.node.tools.length > 0}>
             <div class="grid gap-x-4 gap-y-3 @xs:grid-cols-2">
               <Show when={props.node.ingredients.length > 0}>
@@ -169,18 +171,20 @@ export function StepCard(props: {
               </For>
             </div>
           </Show>
-        </div>
+        </CardContent>
       </Show>
       <Show when={!collapsed() && props.node.body.trim()}>
-        <MarkdownView value={props.node.body} class="text-on-surface-variant" />
+        <CardContent>
+          <MarkdownView value={props.node.body} class="text-on-surface-variant" />
+        </CardContent>
       </Show>
-    </article>
+    </Card>
   );
 }
 
 /**
  * One ingredient or tool in a step: icon, amount and name, and "optional" and swaps as
- * supporting text. No side padding, so the icons line up with the card's content edge.
+ * supporting text. No side padding, so the icons line up with the card content's edge.
  */
 function StepItem(props: {
   icon: TablerIcon;
