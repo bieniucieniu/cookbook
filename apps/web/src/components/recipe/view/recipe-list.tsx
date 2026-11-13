@@ -10,7 +10,7 @@ import { lanes, stepNumbers } from "@/lib/recipe-graph";
 import { summarize } from "@/lib/recipe-summary";
 import { scaleQty } from "@/lib/units";
 import { FilterChip } from "@/components/m3/chip";
-import { createMemo, createSignal, For, Index, Show } from "solid-js";
+import { createMemo, createSignal, For, Index, Show, type JSX } from "solid-js";
 import { createStore } from "solid-js/store";
 import { MarkdownView } from "../markdown";
 import { IngredientList, IngredientListItem } from "./ingredient-list";
@@ -37,9 +37,15 @@ const stepWidth = "w-full max-w-[50rem]";
 
 /**
  * Everything on one page: a checklist of what to get out, then compact steps with their own
- * items. Check marks live for this visit only.
+ * items. Check marks live for this visit only. `stepAction` fills the top right of each step
+ * card (the route puts a link to that step in cook mode there).
  */
-export function RecipeList(props: { draft: RecipeDraft; cooks: number; catalog: Catalog }) {
+export function RecipeList(props: {
+  draft: RecipeDraft;
+  cooks: number;
+  catalog: Catalog;
+  stepAction?: (node: RecipeDraft["nodes"][number]) => JSX.Element;
+}) {
   const [checked, setChecked] = createStore<Record<string, boolean>>({});
   const [sideBySide, setSideBySide] = createSignal(loadSideBySide());
   /** The option chosen in each "pick one" row, keyed by the row's step keys. This visit only. */
@@ -91,26 +97,16 @@ export function RecipeList(props: { draft: RecipeDraft; cooks: number; catalog: 
       catalog={props.catalog}
       draftCooks={props.draft.cooks}
       cooks={props.cooks}
+      action={props.stepAction?.(node)}
       class="w-full"
     />
   );
 
   return (
     <div class="grid gap-8 expanded:grid-cols-[minmax(0,20rem)_minmax(0,1fr)] expanded:items-start">
-      {/*
-        From the expanded breakpoint the checklist sticks under the app bar and scrolls on its
-        own: viewport height minus the bar (--app-bar-height) and a 1rem gap above and below.
-      */}
-      <aside
-        aria-label="What you need"
-        class="expanded:sticky expanded:top-[calc(var(--app-bar-height)+1rem)]"
-      >
-        {/*
-          Not the m3 ScrollArea: its overflow and overscroll-contain apply at every width. On a
-          phone the panel is part of the page and must not catch the swipe, so the scroll
-          container only exists from the expanded breakpoint, where the panel sticks.
-        */}
-        <div class="flex flex-col gap-6 expanded:max-h-[calc(100dvh-var(--app-bar-height)-2rem)] expanded:overflow-y-auto expanded:overscroll-contain expanded:pr-2 expanded:[scrollbar-color:var(--md-sys-color-outline)_transparent] expanded:[scrollbar-width:thin]">
+      {/* The checklist scrolls with the page, next to the steps. No scroll area of its own. */}
+      <aside aria-label="What you need">
+        <div class="flex flex-col gap-6">
           <section class="flex flex-col gap-3">
             <h2 class="typescale-title-medium text-on-surface">
               <IconLabel icon={IconCarrot} label="Ingredients" />
@@ -119,7 +115,7 @@ export function RecipeList(props: { draft: RecipeDraft; cooks: number; catalog: 
               when={summary().ingredients.length > 0}
               fallback={<p class="typescale-body-medium text-on-surface-variant">None listed.</p>}
             >
-              <IngredientList aria-label="Ingredients" class="-mx-4">
+              <IngredientList aria-label="Ingredients">
                 <For each={summary().ingredients}>
                   {(line) => (
                     <For each={line.amounts}>
