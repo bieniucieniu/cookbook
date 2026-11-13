@@ -1,10 +1,20 @@
 import type { Catalog } from "@/lib/catalog";
 import type { DraftNode } from "@/lib/recipe-draft";
-import { scaleQty } from "@/lib/units";
+import { formatAmount, scaleQty } from "@/lib/units";
 import { cn } from "@/lib/utils";
 import { For, type JSX, Show } from "solid-js";
 import { MarkdownView } from "../markdown";
-import { ItemChip, SpanBadge } from "../parts";
+import { IconCarrot, IconToolsKitchen2, type TablerIcon } from "@/components/icons";
+import {
+  List,
+  ListItem,
+  ListItemContent,
+  ListItemHeadline,
+  ListItemLeading,
+  ListItemSupportingText,
+} from "@/components/m3/list";
+import { Dynamic } from "solid-js/web";
+import { SpanBadge } from "../parts";
 
 /**
  * One step as a card: number and name, then ingredients and tools side by side once the card
@@ -30,8 +40,6 @@ export function StepCard(props: {
 }) {
   const scale = (qty: number | null | undefined) =>
     qty == null ? qty : scaleQty(qty, props.draftCooks, props.cooks);
-  const swapText = (kind: "ingredient" | "tool", ids: number[]) =>
-    ids.length === 0 ? "" : `or ${ids.map((id) => props.catalog.name(kind, id)).join(", ")}`;
   const collapsed = () => props.choice?.collapsed ?? false;
   const title = () => (
     <>
@@ -119,54 +127,37 @@ export function StepCard(props: {
           <Show when={props.node.ingredients.length + props.node.tools.length > 0}>
             <div class="grid gap-x-4 gap-y-3 @xs:grid-cols-2">
               <Show when={props.node.ingredients.length > 0}>
-                <ul class="flex flex-col items-start gap-1.5" aria-label="Ingredients">
+                <List aria-label="Ingredients" class="py-0">
                   <For each={props.node.ingredients}>
                     {(item) => (
-                      <li class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                        <ItemChip
-                          kind="ingredient"
-                          name={props.catalog.name("ingredient", item.ingredientId)}
-                          qty={scale(item.qty)}
-                          unit={item.unit}
-                          optional={item.optional}
-                          static
-                        />
-                        <Show when={(item.alts ?? []).length > 0}>
-                          <span class="typescale-body-small text-on-surface-variant">
-                            {swapText(
-                              "ingredient",
-                              (item.alts ?? []).map((alt) => alt.altIngredientId)
-                            )}
-                          </span>
-                        </Show>
-                      </li>
+                      <StepItem
+                        icon={IconCarrot}
+                        name={props.catalog.name("ingredient", item.ingredientId)}
+                        amount={formatAmount(scale(item.qty), item.unit)}
+                        optional={item.optional}
+                        alts={(item.alts ?? []).map((alt) =>
+                          props.catalog.name("ingredient", alt.altIngredientId)
+                        )}
+                      />
                     )}
                   </For>
-                </ul>
+                </List>
               </Show>
               <Show when={props.node.tools.length > 0}>
-                <ul class="flex flex-col items-start gap-1.5 @xs:col-start-2" aria-label="Tools">
+                <List aria-label="Tools" class="py-0 @xs:col-start-2">
                   <For each={props.node.tools}>
                     {(item) => (
-                      <li class="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                        <ItemChip
-                          kind="tool"
-                          name={props.catalog.name("tool", item.toolId)}
-                          optional={item.optional}
-                          static
-                        />
-                        <Show when={(item.alts ?? []).length > 0}>
-                          <span class="typescale-body-small text-on-surface-variant">
-                            {swapText(
-                              "tool",
-                              (item.alts ?? []).map((alt) => alt.altToolId)
-                            )}
-                          </span>
-                        </Show>
-                      </li>
+                      <StepItem
+                        icon={IconToolsKitchen2}
+                        name={props.catalog.name("tool", item.toolId)}
+                        optional={item.optional}
+                        alts={(item.alts ?? []).map((alt) =>
+                          props.catalog.name("tool", alt.altToolId)
+                        )}
+                      />
                     )}
                   </For>
-                </ul>
+                </List>
               </Show>
             </div>
           </Show>
@@ -183,5 +174,40 @@ export function StepCard(props: {
         <MarkdownView value={props.node.body} class="text-on-surface-variant" />
       </Show>
     </article>
+  );
+}
+
+/**
+ * One ingredient or tool in a step: icon, amount and name, and "optional" and swaps as
+ * supporting text. No side padding, so the icons line up with the card's content edge.
+ */
+function StepItem(props: {
+  icon: TablerIcon;
+  name: string;
+  amount?: string;
+  optional?: boolean;
+  alts: string[];
+}) {
+  const supporting = () =>
+    [props.optional ? "optional" : "", props.alts.length > 0 ? `or ${props.alts.join(", ")}` : ""]
+      .filter(Boolean)
+      .join(" · ");
+  return (
+    <ListItem class="px-0">
+      <ListItemLeading class="text-primary">
+        <Dynamic component={props.icon} stroke={1.75} aria-hidden="true" />
+      </ListItemLeading>
+      <ListItemContent>
+        <ListItemHeadline>
+          <Show when={props.amount}>
+            <span class="font-semibold tabular-nums">{props.amount} </span>
+          </Show>
+          {props.name}
+        </ListItemHeadline>
+        <Show when={supporting()}>
+          <ListItemSupportingText>{supporting()}</ListItemSupportingText>
+        </Show>
+      </ListItemContent>
+    </ListItem>
   );
 }
