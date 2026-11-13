@@ -22,7 +22,14 @@ function CookStepPage() {
       catalog={view.catalog}
       stepKey={params().step}
       onStep={(step, replace) =>
-        void navigate({ to: "/recipes/$id/$step", params: { id: params().id, step }, replace })
+        // CookMode scrolls the page to its stage itself; the router's reset to the top would
+        // undo that.
+        void navigate({
+          to: "/recipes/$id/$step",
+          params: { id: params().id, step },
+          replace,
+          resetScroll: false,
+        })
       }
       comments={(stepKey) => (
         <StepComments

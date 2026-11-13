@@ -9,13 +9,15 @@ import type { RecipeDraft } from "@/lib/recipe-draft";
 import { lanes, stepNumbers } from "@/lib/recipe-graph";
 import { summarize } from "@/lib/recipe-summary";
 import { scaleQty } from "@/lib/units";
+import type { CardVariant } from "@/components/m3/card";
 import { FilterChip } from "@/components/m3/chip";
-import { createMemo, createSignal, For, Index, Show, type JSX } from "solid-js";
+import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/m3/tabs";
+import { createMemo, createSignal, For, Index, Match, Show, Switch, type JSX } from "solid-js";
 import { createStore } from "solid-js/store";
 import { MarkdownView } from "../markdown";
 import { IngredientList, IngredientListItem } from "./ingredient-list";
 import { StepCard } from "./step-card";
-import { growItem, StepCarousel } from "./step-carousel";
+import { StepCarousel } from "./step-carousel";
 import { IconLabel } from "../parts";
 
 /** Side-by-side rows are on unless the reader turned them off on this device. */
@@ -48,21 +50,6 @@ export function RecipeList(props: {
 }) {
   const [checked, setChecked] = createStore<Record<string, boolean>>({});
   const [sideBySide, setSideBySide] = createSignal(loadSideBySide());
-  /** The option chosen in each "pick one" row, keyed by the row's step keys. This visit only. */
-  const [chosen, setChosen] = createStore<Record<string, string | undefined>>({});
-  const rowKey = (row: { key: string }[]) => row.map((node) => node.key).join("|");
-  const choose = (row: { key: string }[], key: string) =>
-    setChosen(rowKey(row), (current) => (current === key ? undefined : key));
-  /** Pick-one rows get choice cards; once one is chosen the others collapse. */
-  const choiceFor = (row: { key: string }[], key: string) => {
-    if (rowMode(row) !== "xor") return undefined;
-    const picked = chosen[rowKey(row)];
-    return {
-      chosen: picked === key,
-      collapsed: picked !== undefined && picked !== key,
-      onToggle: () => choose(row, key),
-    };
-  };
   const toggleSideBySide = (on: boolean) => {
     setSideBySide(on);
     try {
@@ -83,13 +70,11 @@ export function RecipeList(props: {
       : "and";
   };
 
-  const hasRows = () => rows().some((row) => row.length > 1);
-  const card = (
-    node: RecipeDraft["nodes"][number],
-    choice?: { chosen: boolean; collapsed: boolean; onToggle: () => void }
-  ) => (
+  /** The side-by-side switch only matters for rows done at the same time. */
+  const hasRows = () => rows().some((row) => row.length > 1 && rowMode(row) === "and");
+  const card = (node: RecipeDraft["nodes"][number], variant?: CardVariant) => (
     <StepCard
-      choice={choice}
+      variant={variant}
       node={node}
       number={numbers().get(node.key)}
       catalog={props.catalog}
@@ -180,36 +165,48 @@ export function RecipeList(props: {
           <Index each={rows()}>
             {(row) => (
               <li class={row().length > 1 ? "flex w-full flex-col gap-2" : stepWidth}>
-                <Show when={row().length > 1} fallback={card(row()[0]!)}>
-                  <Show
-                    when={sideBySide()}
-                    fallback={
-                      <div class={`flex flex-col gap-2 self-center ${stepWidth}`}>
-                        <RowLabel mode={rowMode(row())} />
-                        <div class="flex flex-col gap-3">
-                          <For each={row()}>{(node) => card(node, choiceFor(row(), node.key))}</For>
-                        </div>
-                      </div>
-                    }
-                  >
+                <Switch>
+                  <Match when={row().length === 1}>{card(row()[0]!)}</Match>
+                  {/* Pick one: the options are tabs, one filled card at a time. */}
+                  <Match when={rowMode(row()) === "xor"}>
+                    <div class={`flex flex-col gap-2 self-center ${stepWidth}`}>
+                      <RowLabel mode="xor" />
+                      <Tabs variant="secondary" defaultValue={row()[0]?.key}>
+                        <TabsList aria-label="Steps to pick from">
+                          <For each={row()}>
+                            {(node) => <TabsTrigger value={node.key}>{node.title}</TabsTrigger>}
+                          </For>
+                          <TabsIndicator />
+                        </TabsList>
+                        <For each={row()}>
+                          {(node) => (
+                            <TabsContent value={node.key} class="pt-3">
+                              {card(node, "filled")}
+                            </TabsContent>
+                          )}
+                        </For>
+                      </Tabs>
+                    </div>
+                  </Match>
+                  {/* At the same time: elevated cards side by side, or stacked. */}
+                  <Match when={sideBySide()}>
                     <StepCarousel
                       each={row()}
-                      itemClass={(node) =>
-                        choiceFor(row(), node.key)?.collapsed
-                          ? "w-[min(14rem,60%)] flex-none self-start"
-                          : growItem
-                      }
-                      label={<RowLabel mode={rowMode(row())} />}
-                      name={
-                        rowMode(row()) === "xor"
-                          ? "Steps to pick from"
-                          : "Steps to do at the same time"
-                      }
+                      label={<RowLabel mode="and" />}
+                      name="Steps to do at the same time"
                     >
-                      {(node) => card(node, choiceFor(row(), node.key))}
+                      {(node) => card(node, "elevated")}
                     </StepCarousel>
-                  </Show>
-                </Show>
+                  </Match>
+                  <Match when>
+                    <div class={`flex flex-col gap-2 self-center ${stepWidth}`}>
+                      <RowLabel mode="and" />
+                      <div class="flex flex-col gap-3">
+                        <For each={row()}>{(node) => card(node, "elevated")}</For>
+                      </div>
+                    </div>
+                  </Match>
+                </Switch>
               </li>
             )}
           </Index>

@@ -13,12 +13,12 @@ import {
   ListItemLeading,
   ListItemSupportingText,
 } from "@/components/m3/list";
-import { Card, CardContent, CardHeader } from "@/components/m3/card";
+import { Card, CardContent, CardHeader, type CardVariant } from "@/components/m3/card";
 import { Dynamic } from "solid-js/web";
 import { SpanBadge } from "../parts";
 
 /**
- * One step as an outlined M3 card: number and name, then ingredients and tools side by side once
+ * One step as an M3 card: number and name, then ingredients and tools side by side once
  * the card is 20rem wide, times below them, and the note. Used by the list view. `action` sits at the
  * top right of the header (the list puts a link to the step in cook mode there).
  */
@@ -30,100 +30,39 @@ export function StepCard(props: {
   draftCooks: number;
   cooks: number;
   class?: string;
-  /** Top right of the header. Hidden while the card is a collapsed choice. */
+  /** Top right of the header. */
   action?: JSX.Element;
   /**
-   * One of several "pick one" options. The header becomes a button that chooses this step.
-   * Collapsed: another option was chosen, so only the header shows, quieter, as a button that
-   * switches to this one.
+   * Card style: outlined for a step on its own (default), elevated for one of several done at
+   * the same time, filled for one option of a "pick one" row.
    */
-  choice?: { chosen: boolean; collapsed: boolean; onToggle: () => void };
+  variant?: CardVariant;
 }) {
   const scale = (qty: number | null | undefined) =>
     qty == null ? qty : scaleQty(qty, props.draftCooks, props.cooks);
-  const collapsed = () => props.choice?.collapsed ?? false;
-  const title = () => (
-    <>
-      <span
-        class={cn(
-          "flex size-8 shrink-0 items-center justify-center rounded-full typescale-label-large tabular-nums",
-          collapsed()
-            ? "bg-surface-container-highest text-on-surface-variant"
-            : "bg-primary text-on-primary"
-        )}
-        aria-hidden="true"
-      >
-        {props.number}
-      </span>
-      <span
-        class={collapsed() ? "typescale-title-small" : "typescale-title-medium text-on-surface"}
-      >
-        {props.node.title}
-        <Show when={props.node.repeatMin > 1}>
-          <span class="ml-2 typescale-label-large text-on-surface-variant">
-            ×{props.node.repeatMin}
-          </span>
-        </Show>
-      </span>
-    </>
-  );
   return (
-    <Card
-      variant="outlined"
-      class={cn(
-        "@container gap-3 motion-default",
-        collapsed() && "text-on-surface-variant",
-        props.class
-      )}
-    >
+    <Card variant={props.variant ?? "outlined"} class={cn("@container gap-3", props.class)}>
       <CardHeader class="flex items-center gap-2">
-        <Show
-          when={props.choice}
-          fallback={<h3 class="flex min-w-0 flex-1 items-center gap-3">{title()}</h3>}
-        >
-          {(choice) => (
-            <h3 class="min-w-0 flex-1">
-              <button
-                type="button"
-                aria-pressed={choice().chosen}
-                aria-label={
-                  choice().chosen
-                    ? `${props.node.title}, chosen. Show all options`
-                    : collapsed()
-                      ? `Choose ${props.node.title} instead`
-                      : `Choose ${props.node.title}`
-                }
-                // Chosen reads like a selected M3 list item: a secondary-container fill.
-                class={cn(
-                  "relative -mx-1 flex w-[calc(100%+0.5rem)] cursor-pointer items-center gap-3 rounded-full p-1 pr-3 text-left state-layer focus-ring motion-fast",
-                  choice().chosen && "bg-secondary-container text-on-secondary-container"
-                )}
-                onClick={() => choice().onToggle()}
-              >
-                {title()}
-                {/* Radio mark: the choice reads as one of a set, not a toggle on each card. */}
-                <span
-                  class={cn(
-                    "ml-auto flex size-5 shrink-0 items-center justify-center rounded-full border-2",
-                    choice().chosen ? "border-primary" : "border-outline"
-                  )}
-                  aria-hidden="true"
-                >
-                  <Show when={choice().chosen}>
-                    <span class="size-2.5 rounded-full bg-primary" />
-                  </Show>
-                </span>
-              </button>
-            </h3>
-          )}
-        </Show>
-        <Show when={!collapsed() && props.action}>{props.action}</Show>
+        <h3 class="flex min-w-0 flex-1 items-center gap-3">
+          <span
+            class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary typescale-label-large text-on-primary tabular-nums"
+            aria-hidden="true"
+          >
+            {props.number}
+          </span>
+          <span class="typescale-title-medium text-on-surface">
+            {props.node.title}
+            <Show when={props.node.repeatMin > 1}>
+              <span class="ml-2 typescale-label-large text-on-surface-variant">
+                ×{props.node.repeatMin}
+              </span>
+            </Show>
+          </span>
+        </h3>
+        <Show when={props.action}>{props.action}</Show>
       </CardHeader>
       <Show
-        when={
-          !collapsed() &&
-          props.node.ingredients.length + props.node.tools.length + props.node.spans.length > 0
-        }
+        when={props.node.ingredients.length + props.node.tools.length + props.node.spans.length > 0}
       >
         {/* Ingredients and tools side by side once the card has room; times below. */}
         <CardContent class="flex flex-col gap-3">
@@ -173,7 +112,7 @@ export function StepCard(props: {
           </Show>
         </CardContent>
       </Show>
-      <Show when={!collapsed() && props.node.body.trim()}>
+      <Show when={props.node.body.trim()}>
         <CardContent>
           <MarkdownView value={props.node.body} class="text-on-surface-variant" />
         </CardContent>

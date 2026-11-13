@@ -8,14 +8,13 @@ import {
   IconPlayerPlay,
 } from "@/components/icons";
 import { Button } from "@/components/m3/button";
-import { Card, CardContent, CardHeader } from "@/components/m3/card";
+import { Card, CardContent, CardHeader, type CardVariant } from "@/components/m3/card";
 import { InputChip, InputChipRemove } from "@/components/m3/chip";
 import { ExtendedFab } from "@/components/m3/fab";
 import { IconButton } from "@/components/m3/icon-button";
 import { Progress, ProgressLabel, ProgressTrack, ProgressFill } from "@/components/m3/progress";
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/m3/tabs";
 import { Toolbar } from "@/components/m3/toolbar";
-import { AnimatePresence, motion } from "@/components/motion";
 import { notify } from "@/components/notify";
 import type { Catalog } from "@/lib/catalog";
 import type { DraftNode, RecipeDraft } from "@/lib/recipe-draft";
@@ -28,15 +27,18 @@ import {
   createSignal,
   For,
   type JSX,
+  Match,
   onCleanup,
   onMount,
   Show,
+  Switch,
 } from "solid-js";
 import { createStore } from "solid-js/store";
 import { Dynamic } from "solid-js/web";
 import { MarkdownView } from "../markdown";
 import { ItemChip, spanLabel } from "../parts";
 import { IngredientList, IngredientListItem } from "./ingredient-list";
+import { StepCarousel } from "./step-carousel";
 
 type Timer = { id: number; label: string; endsAt: number; seconds: number };
 
@@ -82,8 +84,8 @@ function useWakeLock() {
 }
 
 /**
- * One screen per row of the recipe. Parallel steps show as tabs, a "pick one" split as a
- * choice. The open step comes from the route (`stepKey`); moving on calls `onStep`, and a tab
+ * One screen per row of the recipe. Parallel steps sit side by side in an inner carousel, a
+ * "pick one" split shows its options as tabs. The open step comes from the route (`stepKey`); moving on calls `onStep`, and a tab
  * switch replaces the history entry. Timers start from a step and keep their label when you
  * move on.
  */
@@ -108,15 +110,6 @@ export function CookMode(props: {
       rows().findIndex((row) => row.some((node) => node.key === props.stepKey))
     )
   );
-  // Slide forward or back depending on where the new row sits relative to the last one.
-  const motionState = createMemo<{ index: number; direction: number }>(
-    (prev) => ({
-      index: index(),
-      direction: index() === prev.index ? prev.direction : index() > prev.index ? 1 : -1,
-    }),
-    { index: index(), direction: 1 }
-  );
-  const direction = () => motionState().direction;
   const openRow = (at: number) => {
     const key = rows()[at]?.[0]?.key;
     if (key) props.onStep(key);
@@ -134,7 +127,6 @@ export function CookMode(props: {
   const tick = setInterval(() => setNow(Date.now()), 500);
   onCleanup(() => clearInterval(tick));
 
-  const row = () => rows()[index()] ?? [];
   const go = (delta: number) => {
     openRow(Math.min(rows().length - 1, Math.max(0, index() + delta)));
   };
@@ -144,6 +136,113 @@ export function CookMode(props: {
       ? "xor"
       : "and";
   };
+
+  /*
+   * Parts sit side by side in a scroll-snap track, one full-width slide each. Swiping settles on
+   * a slide and opens it; a route change (dots, toolbar, back button) scrolls to its slide.
+   */
+  let track: HTMLDivElement | undefined;
+  const slides: HTMLElement[] = [];
+  /** Slide a programmatic scroll is heading to; settling ignores the slides it passes. */
+  let target: number | undefined;
+  let settleTimer: ReturnType<typeof setTimeout> | undefined;
+  const visibleSlide = () =>
+    track && track.clientWidth > 0 ? Math.round(track.scrollLeft / track.clientWidth) : index();
+  const settle = (ended: boolean) => {
+    const at = visibleSlide();
+    if (target !== undefined) {
+      if (at !== target && !ended) return;
+      target = undefined;
+    }
+    sizeFor(at, at);
+    if (at !== index()) openRow(at);
+  };
+  const onScroll = () => {
+    clearTimeout(settleTimer);
+    // Fallback where `scrollend` is missing.
+    settleTimer = setTimeout(() => settle(false), 150);
+  };
+  const onScrollEnd = () => {
+    clearTimeout(settleTimer);
+    settle(true);
+  };
+  const userScroll = () => {
+    target = undefined;
+    // About to swipe: room for either neighbour before anything moves.
+    const at = restingSlide();
+    if (at !== undefined) sizeFor(at - 1, at + 1);
+  };
+  onCleanup(() => clearTimeout(settleTimer));
+  /*
+   * The router's scroll restoration records every scrolled element (a capture listener on
+   * document) and writes the old scrollLeft back after each step navigation, which cancels the
+   * scroll to the new slide. The route already says which slide is open, so the track's scroll
+   * stops at window and never reaches that listener.
+   */
+  onMount(() => {
+    const hideScroll = (event: Event) => {
+      if (event.target !== track) return;
+      event.stopPropagation();
+      onScroll();
+    };
+    window.addEventListener("scroll", hideScroll, { capture: true, passive: true });
+    onCleanup(() => window.removeEventListener("scroll", hideScroll, { capture: true }));
+  });
+
+  /** Wraps the track. On a part change the page scrolls so it sits under the app bar. */
+  let stage: HTMLDivElement | undefined;
+  let placed = false;
+  createEffect(() => {
+    const at = index();
+    const changed = placed;
+    const smooth = changed && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    placed = true;
+    // Opening the page keeps the recipe header in view; moving between parts does not.
+    if (changed) stage?.scrollIntoView({ block: "start", behavior: smooth ? "smooth" : "instant" });
+    if (!track || visibleSlide() === at) return;
+    if (smooth) target = at;
+    // Room for every slide the scroll passes, set before it starts.
+    sizeFor(visibleSlide(), at);
+    track.scrollTo({ left: at * track.clientWidth, behavior: smooth ? "smooth" : "instant" });
+  });
+
+  /*
+   * The track is as tall as the open part at rest, so a long part does not leave a gap under a
+   * short one. Changing its height while it scrolls makes the browser re-snap, which stops the
+   * scroll on the wrong part, so it only grows before a scroll starts (to fit every part the
+   * scroll will pass) and shrinks once the scroll has settled. Set on the element directly: the
+   * new height has to be laid out before `scrollTo` runs.
+   */
+  function sizeFor(from: number, to: number) {
+    if (!track) return;
+    let tallest = 0;
+    for (let at = Math.max(0, Math.min(from, to)); at <= Math.max(from, to); at++)
+      tallest = Math.max(tallest, slides[at]?.offsetHeight ?? 0);
+    if (tallest === 0) return;
+    track.style.height = `${tallest}px`;
+    void track.offsetHeight;
+  }
+  /** Slide the track sits on, or undefined while it is between two. */
+  function restingSlide() {
+    if (!track || track.clientWidth === 0) return undefined;
+    const x = track.scrollLeft / track.clientWidth;
+    const at = Math.round(x);
+    return Math.abs(x - at) < 0.01 ? at : undefined;
+  }
+  onMount(() => {
+    // A part that grows or shrinks (comments opened, a window resize) refits at rest.
+    const observer = new ResizeObserver(() => {
+      const at = restingSlide();
+      if (at !== undefined && target === undefined) sizeFor(at, at);
+    });
+    createEffect(() => {
+      observer.disconnect();
+      for (const slide of slides.slice(0, rows().length)) if (slide) observer.observe(slide);
+      const at = restingSlide();
+      if (at !== undefined) sizeFor(at, at);
+    });
+    onCleanup(() => observer.disconnect());
+  });
 
   const startTimer = (label: string, seconds: number) =>
     setTimers((list) => [
@@ -199,51 +298,51 @@ export function CookMode(props: {
         </ul>
       </Show>
 
-      <nav class="flex items-center justify-center gap-1.5" aria-label="Parts">
-        <For each={rows()}>
-          {(_, at) => (
-            <button
-              type="button"
-              aria-label={`Go to part ${at() + 1}`}
-              aria-current={at() === index() ? "step" : undefined}
-              class={cn(
-                "h-2.5 cursor-pointer rounded-full focus-ring motion-default",
-                at() === index()
-                  ? "w-8 bg-primary"
-                  : at() < index()
-                    ? "w-2.5 bg-primary/40"
-                    : "w-2.5 bg-outline-variant"
-              )}
-              onClick={() => openRow(at())}
-            />
-          )}
-        </For>
-      </nav>
-
       {/*
-        Clips the slide between parts. It spans the page gutter (negative margin, matching
-        padding) so content that bleeds into the gutter, like the ingredient rows, is not cut off.
+        The stage fills the screen between the app bar and the floating toolbar (5rem, the same
+        as the bottom padding above), less its 1rem padding top and bottom (2rem). It can scroll
+        up to sit right below the app bar even when the open part is short. Where you are is in
+        the toolbar.
       */}
-      <div class="relative -mx-4 min-h-[50vh] overflow-hidden px-4 medium:-mx-6 medium:px-6">
-        <AnimatePresence each={[index()]} by={(value) => value} mode="wait">
-          {() => (
-            <motion.section
-              initial={{ opacity: 0, x: direction() * 48 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: direction() * -48 }}
-              // M3 fast spatial spring for the slide, fast effects curve for the fade.
-              transition={{
-                type: "spring",
-                visualDuration: 0.35,
-                bounce: 0.2,
-                opacity: { duration: 0.15, ease: [0.31, 0.94, 0.34, 1] },
-              }}
-              class="flex flex-col gap-4"
-            >
-              <Show
-                when={row().length > 1}
-                fallback={
-                  <Show when={row()[0]}>
+      <div
+        ref={(element) => {
+          stage = element;
+        }}
+        class="flex min-h-[calc(100dvh-var(--app-bar-height)-5rem-2rem)] scroll-mt-(--app-bar-height) flex-col py-4"
+      >
+        {/*
+        Spans the page gutter (negative margin) so each slide is the full width and its content,
+        padded back in, can bleed into the gutter like the ingredient rows do.
+      */}
+        <div
+          ref={(element) => {
+            track = element;
+          }}
+          role="region"
+          aria-roledescription="carousel"
+          aria-label="Recipe parts"
+          class="-mx-4 flex snap-x snap-mandatory items-start overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] medium:-mx-6"
+          on:scrollend={onScrollEnd}
+          onPointerDown={userScroll}
+          onWheel={userScroll}
+          onTouchStart={userScroll}
+        >
+          <For each={rows()}>
+            {(nodes, at) => (
+              <section
+                ref={(element) => {
+                  slides[at()] = element;
+                }}
+                role="group"
+                aria-roledescription="slide"
+                aria-label={`Part ${at() + 1} of ${rows().length}`}
+                // Off-screen parts stay out of tab order and the a11y tree; a swipe on them falls
+                // through to the track.
+                inert={at() !== index() ? true : undefined}
+                class="flex w-full shrink-0 snap-start snap-always flex-col gap-4 px-4 medium:px-6"
+              >
+                <Switch>
+                  <Match when={nodes.length === 1 && nodes[0]}>
                     {(node) => (
                       <CookStep
                         node={node()}
@@ -254,56 +353,75 @@ export function CookMode(props: {
                         comments={props.comments}
                       />
                     )}
-                  </Show>
-                }
-              >
-                <span class="inline-flex items-center gap-1.5 typescale-label-large text-on-surface-variant">
-                  <Dynamic
-                    component={rowMode(row()) === "xor" ? IconArrowsShuffle : IconGitBranch}
-                    size={18}
-                    aria-hidden="true"
-                  />
-                  {rowMode(row()) === "xor" ? "Pick one" : "Do these at the same time"}
-                </span>
-                <Tabs
-                  variant="secondary"
-                  value={
-                    row().some((node) => node.key === props.stepKey) ? props.stepKey : row()[0]?.key
-                  }
-                  onChange={(key) => props.onStep(key, true)}
-                >
-                  <TabsList>
-                    <For each={row()}>
+                  </Match>
+                  {/* Pick one: the options are tabs, one filled card at a time. */}
+                  <Match when={rowMode(nodes) === "xor"}>
+                    <RowLabel mode="xor" />
+                    <Tabs
+                      variant="secondary"
+                      value={
+                        nodes.some((node) => node.key === props.stepKey)
+                          ? props.stepKey
+                          : nodes[0]?.key
+                      }
+                      onChange={(key) => props.onStep(key, true)}
+                    >
+                      <TabsList aria-label="Steps to pick from">
+                        <For each={nodes}>
+                          {(node) => (
+                            <TabsTrigger value={node.key}>
+                              <Show when={done[node.key]}>
+                                <IconCheck class="size-5" aria-hidden="true" />
+                              </Show>
+                              {node.title}
+                            </TabsTrigger>
+                          )}
+                        </For>
+                        <TabsIndicator />
+                      </TabsList>
+                      <For each={nodes}>
+                        {(node) => (
+                          <TabsContent value={node.key} class="pt-4">
+                            <CookStep
+                              node={node}
+                              variant="filled"
+                              {...props}
+                              done={done}
+                              setDone={setDone}
+                              onTimer={startTimer}
+                              comments={props.comments}
+                            />
+                          </TabsContent>
+                        )}
+                      </For>
+                    </Tabs>
+                  </Match>
+                  {/* At the same time: elevated cards side by side in their own carousel. */}
+                  <Match when>
+                    <StepCarousel
+                      each={nodes}
+                      label={<RowLabel mode="and" />}
+                      name="Steps to do at the same time"
+                    >
                       {(node) => (
-                        <TabsTrigger value={node.key}>
-                          <Show when={done[node.key]}>
-                            <IconCheck class="size-5" aria-hidden="true" />
-                          </Show>
-                          {node.title}
-                        </TabsTrigger>
-                      )}
-                    </For>
-                    <TabsIndicator />
-                  </TabsList>
-                  <For each={row()}>
-                    {(node) => (
-                      <TabsContent value={node.key}>
                         <CookStep
                           node={node}
+                          variant="elevated"
                           {...props}
                           done={done}
                           setDone={setDone}
                           onTimer={startTimer}
                           comments={props.comments}
+                          class="w-full"
                         />
-                      </TabsContent>
-                    )}
-                  </For>
-                </Tabs>
-              </Show>
-            </motion.section>
-          )}
-        </AnimatePresence>
+                      )}
+                    </StepCarousel>
+                  </Match>
+                </Switch>
+              </section>
+            )}
+          </For>
+        </div>
       </div>
 
       {/* Floating toolbar paired with a FAB: the FAB carries the one emphasized action. */}
@@ -345,8 +463,28 @@ export function CookMode(props: {
   );
 }
 
+/** "Pick one" for alternatives, "Do these at the same time" for parallel steps. */
+function RowLabel(props: { mode: "and" | "xor" }) {
+  return (
+    <span class="inline-flex items-center gap-1.5 typescale-label-large text-on-surface-variant">
+      <Dynamic
+        component={props.mode === "xor" ? IconArrowsShuffle : IconGitBranch}
+        size={18}
+        aria-hidden="true"
+      />
+      {props.mode === "xor" ? "Pick one" : "Do these at the same time"}
+    </span>
+  );
+}
+
 function CookStep(props: {
   node: DraftNode;
+  /**
+   * Outlined for a step on its own (default), elevated for one of several done at the same
+   * time, filled for one option of a "pick one" row.
+   */
+  variant?: CardVariant;
+  class?: string;
   draft: RecipeDraft;
   cooks: number;
   catalog: Catalog;
@@ -360,7 +498,7 @@ function CookStep(props: {
     qty == null ? qty : scaleQty(qty, props.draft.cooks, props.cooks);
   const done = () => props.done[props.node.key] ?? false;
   return (
-    <Card variant="outlined" class="gap-5">
+    <Card variant={props.variant ?? "outlined"} class={cn("@container gap-5", props.class)}>
       <CardHeader>
         <h2 class="typescale-emphasized-headline-large text-on-surface">
           {props.node.title}
@@ -372,15 +510,16 @@ function CookStep(props: {
         </h2>
       </CardHeader>
       {/*
-        What you need on the left, what to do on the right from the expanded breakpoint. Stacked
-        below it, needs first. The stage controls (parts nav and toolbar) stay outside.
+        What you need on the left, what to do on the right once the card is 48rem wide (a card in
+        a side-by-side row is narrower than the screen). Stacked below that, needs first. The
+        stage controls (parts nav and toolbar) stay outside.
       */}
-      <CardContent class="grid gap-x-8 gap-y-5 text-on-surface expanded:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] expanded:items-start">
+      <CardContent class="grid gap-x-8 gap-y-5 text-on-surface @3xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] @3xl:items-start">
         <Show when={props.node.ingredients.length + props.node.tools.length > 0}>
           <div class="flex flex-col gap-4">
             <Show when={props.node.ingredients.length > 0}>
-              {/* Rows reach the card edge on the left; on wide screens not into the gap. */}
-              <IngredientList aria-label="Ingredients for this step" class="-mx-4 expanded:mr-0">
+              {/* Rows reach the card edge on the left; in two columns not into the gap. */}
+              <IngredientList aria-label="Ingredients for this step" class="-mx-4 @3xl:mr-0">
                 <For each={props.node.ingredients}>
                   {(item) => (
                     <IngredientListItem
@@ -424,7 +563,7 @@ function CookStep(props: {
             </Show>
           </div>
         </Show>
-        <div class="flex min-w-0 flex-col gap-5 expanded:col-start-2">
+        <div class="flex min-w-0 flex-col gap-5 @3xl:col-start-2">
           <Show when={props.node.body.trim()}>
             <MarkdownView value={props.node.body} class="typescale-body-large" />
           </Show>
