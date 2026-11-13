@@ -219,7 +219,11 @@ export function CookMode(props: {
         </For>
       </nav>
 
-      <div class="relative min-h-[50vh] overflow-hidden">
+      {/*
+        Clips the slide between parts. It spans the page gutter (negative margin, matching
+        padding) so content that bleeds into the gutter, like the ingredient rows, is not cut off.
+      */}
+      <div class="relative -mx-4 min-h-[50vh] overflow-hidden px-4 medium:-mx-6 medium:px-6">
         <AnimatePresence each={[index()]} by={(value) => value} mode="wait">
           {() => (
             <motion.section
