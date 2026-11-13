@@ -60,8 +60,8 @@ Commands:
 - Web + Storybook: `devenv --profile web --profile storybook up` (`:3000` and `:6006`)
 - All: `devenv --profile all up` (same as web)
 - Manual: `gradle :apps:api:runDebugExecutableNative` / `pnpm --filter web dev`
-- Seed: `gradle :apps:api:seed` (debug binary arg `seed`; needs Postgres and the S3 gateway; does not start the HTTP server)
-- Dev SQL seed: `apps/api/db/seed.sql` runs with `0001_init.sql` through devenv `initialSQL` when Postgres first creates `.devenv/state/postgres`. To reseed, stop devenv, delete that dir, and run `devenv up`. Keep it in step with `features/seed/Seed.kt` (it skips the photo)
+- Seed: `seed` (devenv script; runs `apps/api/db/seed.sql` through psql against the running dev Postgres; safe to rerun). Keep it in step with `features/seed/Seed.kt` (it skips the photo). `gradle :apps:api:seed` is the Kotlin seed with the photo (debug binary arg `seed`; needs Postgres and the S3 gateway; does not start the HTTP server)
+- Database shell: `pg` (devenv script; psql logged in as `cookbook` to the local `cookbook` database; extra args go to psql). Devenv `initialSQL` only applies `0001_init.sql` when Postgres first creates `.devenv/state/postgres`. To reset, stop devenv, delete that dir, run `devenv up`, then `seed`
 - Tests: `gradle test` (`nativeTest` on `:apps:api`, `:packages:core`, `:packages:workos`, and `:packages:s3`)
 - JS install: on devenv enter (`languages.javascript.pnpm.install.enable`)
 - JS check: `pnpm exec vp check` (Oxfmt, Oxlint, typecheck). Dev and build stay `pnpm --filter web dev` / `build`. Those scripts call `vp`.

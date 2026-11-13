@@ -12,6 +12,10 @@ let
     cd "${root}"
     exec pnpm --filter @cookbook/storybook dev
   '';
+  # Local dev database, same as services.postgres.initialDatabases below.
+  pgEnv = ''
+    export PGHOST=127.0.0.1 PGPORT=5432 PGDATABASE=cookbook PGUSER=cookbook PGPASSWORD=cookbook
+  '';
 in
 {
   dotenv.enable = true;
@@ -86,15 +90,28 @@ in
         # Runs once, as the superuser, when .devenv/state/postgres is created.
         # SET ROLE so the schema is owned by `cookbook`. The API's migrate() reapplies
         # 0001_init.sql on start; every statement there is `if not exists`.
+        # Seed data is not loaded here; run `seed`.
         initialSQL = ''
           \set ON_ERROR_STOP on
           set role cookbook;
         ''
-        + builtins.readFile ./apps/api/db/migrations/0001_init.sql
-        + builtins.readFile ./apps/api/db/seed.sql;
+        + builtins.readFile ./apps/api/db/migrations/0001_init.sql;
       }
     ];
   };
+
+  # psql into the local dev database. Extra args go to psql (`pg -c 'select 1'`).
+  scripts.pg.exec = ''
+    ${pgEnv}
+    exec psql "$@"
+  '';
+
+  # Load apps/api/db/seed.sql into the local dev database. Safe to rerun.
+  scripts.seed.exec = ''
+    set -eu
+    ${pgEnv}
+    exec psql -v ON_ERROR_STOP=1 -q -f "${root}/apps/api/db/seed.sql"
+  '';
 
   enterShell = ''
     unset DEVELOPER_DIR
