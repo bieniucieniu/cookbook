@@ -56,6 +56,18 @@
     /* Reading preferences (Aa menu). Scale the whole UI (typescales are in rem). */
     font-size: calc(100% * var(--reading-scale, 1));
   }
+  /* Touch screens (phones and tablets): no double-tap zoom. Pinch-zoom still works. */
+  @media (pointer: coarse) {
+    html {
+      touch-action: manipulation;
+    }
+    /* iOS Safari zooms into a focused field under 16px. A typescale-* class on the field still wins. */
+    input,
+    textarea,
+    select {
+      font-size: max(16px, 1em);
+    }
+  }
   body {
     @apply bg-surface text-on-surface typescale-body-medium;
     word-spacing: var(--reading-word-spacing);
@@ -110,6 +122,12 @@
   .markdown .ProseMirror {
     outline: none;
     min-height: 4rem;
+  }
+  /* The editor is a contenteditable. iOS Safari zooms into it under 16px too. */
+  @media (pointer: coarse) {
+    .markdown .ProseMirror[contenteditable="true"] {
+      font-size: max(16px, 1em);
+    }
   }
   .markdown p.is-editor-empty:first-child::before {
     content: attr(data-placeholder);
