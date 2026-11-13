@@ -353,7 +353,7 @@ function PlacementRow(props: {
 
   return (
     <section
-      class="flex flex-col gap-4 rounded-large bg-surface-container p-4 [--text-field-notch:var(--md-sys-color-surface-container)]"
+      class="flex flex-col gap-4 border-t border-outline-variant pt-4"
       aria-label="Placement"
     >
       <span class="typescale-label-large text-on-surface-variant">Placement</span>

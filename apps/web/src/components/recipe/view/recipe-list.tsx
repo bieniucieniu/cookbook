@@ -16,7 +16,7 @@ import { MarkdownView } from "../markdown";
 import { IngredientList, IngredientListItem } from "./ingredient-list";
 import { StepCard } from "./step-card";
 import { growItem, StepCarousel } from "./step-carousel";
-import { IconLabel, ItemChip } from "../parts";
+import { IconLabel } from "../parts";
 
 /** Side-by-side rows are on unless the reader turned them off on this device. */
 const sideBySideKey = "cookbook:side-by-side";
@@ -75,8 +75,6 @@ export function RecipeList(props: {
     qty == null ? qty : scaleQty(qty, props.draft.cooks, props.cooks);
   const rows = createMemo(() => lanes(props.draft.nodes, props.draft.edges));
   const summary = createMemo(() => summarize(props.draft));
-  const swapText = (kind: "ingredient" | "tool", ids: number[]) =>
-    ids.length === 0 ? "" : `or ${ids.map((id) => props.catalog.name(kind, id)).join(", ")}`;
   const numbers = createMemo(() => stepNumbers(props.draft.nodes, props.draft.edges));
   const rowMode = (row: { key: string }[]) => {
     const parent = props.draft.edges.find((edge) => edge.to === row[0]?.key)?.from;
@@ -88,7 +86,8 @@ export function RecipeList(props: {
   const hasRows = () => rows().some((row) => row.length > 1);
   const card = (
     node: RecipeDraft["nodes"][number],
-    choice?: { chosen: boolean; collapsed: boolean; onToggle: () => void }
+    choice?: { chosen: boolean; collapsed: boolean; onToggle: () => void },
+    extra = ""
   ) => (
     <StepCard
       choice={choice}
@@ -98,7 +97,7 @@ export function RecipeList(props: {
       draftCooks={props.draft.cooks}
       cooks={props.cooks}
       action={props.stepAction?.(node)}
-      class="w-full"
+      class={`w-full ${extra}`}
     />
   );
 
@@ -144,31 +143,19 @@ export function RecipeList(props: {
               <h2 class="typescale-title-medium text-on-surface">
                 <IconLabel icon={IconToolsKitchen2} label="Tools" />
               </h2>
-              <ul class="flex flex-wrap gap-2">
+              <IngredientList aria-label="Tools">
                 <For each={summary().tools}>
                   {(line) => (
-                    <li class="flex flex-col gap-1">
-                      <ItemChip
-                        kind="tool"
-                        name={props.catalog.name("tool", line.id)}
-                        optional={line.optional}
-                        muted={checked[`tool:${line.id}`]}
-                        role="checkbox"
-                        aria-checked={checked[`tool:${line.id}`] ? "true" : "false"}
-                        onClick={() => setChecked(`tool:${line.id}`, (value) => !value)}
-                      />
-                      <Show when={line.alts.length > 0}>
-                        <span class="pl-3 typescale-body-small text-on-surface-variant">
-                          {swapText(
-                            "tool",
-                            line.alts.map((alt) => alt.id)
-                          )}
-                        </span>
-                      </Show>
-                    </li>
+                    <IngredientListItem
+                      name={props.catalog.name("tool", line.id)}
+                      optional={line.optional}
+                      alts={line.alts.map((alt) => props.catalog.name("tool", alt.id))}
+                      checked={checked[`tool:${line.id}`] ?? false}
+                      onChange={(value) => setChecked(`tool:${line.id}`, value)}
+                    />
                   )}
                 </For>
-              </ul>
+              </IngredientList>
             </section>
           </Show>
           <Show when={props.draft.notes.trim()}>
@@ -189,17 +176,28 @@ export function RecipeList(props: {
             </FilterChip>
           </div>
         </Show>
-        <ol class="flex w-full flex-col items-center gap-4">
+        {/* No cards: rows are split by full-width dividers, steps in a row by inset ones. */}
+        <ol class="flex w-full flex-col items-center">
           <Index each={rows()}>
             {(row) => (
-              <li class={row().length > 1 ? "flex w-full flex-col gap-2" : stepWidth}>
+              <li
+                class={`border-t border-outline-variant py-6 first:border-t-0 first:pt-0 ${
+                  row().length > 1 ? "flex w-full flex-col gap-2" : stepWidth
+                }`}
+              >
                 <Show when={row().length > 1} fallback={card(row()[0]!)}>
                   <Show
                     when={sideBySide()}
                     fallback={
                       <div class={`flex flex-col gap-2 self-center ${stepWidth}`}>
                         <RowLabel mode={rowMode(row())} />
-                        <For each={row()}>{(node) => card(node, choiceFor(row(), node.key))}</For>
+                        <div class="flex flex-col divide-y divide-outline-variant">
+                          <For each={row()}>
+                            {(node) =>
+                              card(node, choiceFor(row(), node.key), "py-4 first:pt-0 last:pb-0")
+                            }
+                          </For>
+                        </div>
                       </div>
                     }
                   >

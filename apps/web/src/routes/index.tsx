@@ -1,5 +1,5 @@
 import { IconChefHat, IconClock, IconHandStop, IconLock, IconPlus } from "@/components/icons";
-import { Card } from "@/components/m3/card";
+import { List, ListItem, ListItemContent, ListItemLeading } from "@/components/m3/list";
 import { fabVariants } from "@/components/m3/fab";
 import { EmptyState, ErrorBlock, PageLoading } from "@/components/page-state";
 import { IconLabel } from "@/components/recipe/parts";
@@ -15,14 +15,14 @@ export const Route = createFileRoute("/")({
   component: Home,
 });
 
-/** Tile colors cycle through the three accent containers so neighbouring cards differ. */
+/** Tile colors cycle through the three accent containers so neighbouring rows differ. */
 const tiles = [
   "bg-primary-container text-on-primary-container",
   "bg-secondary-container text-on-secondary-container",
   "bg-tertiary-container text-on-tertiary-container",
 ];
 
-/** M3 feed layout: one column on compact, a card grid from medium up. */
+/** M3 list of recipes: one column on compact, columns of rows from medium up. No cards. */
 function Home() {
   const recipes = useListRecipes();
   const session = useCurrentUser();
@@ -51,15 +51,12 @@ function Home() {
               />
             }
           >
-            <ul class="grid gap-3 medium:grid-cols-2 medium:gap-4 expanded:grid-cols-3 large:grid-cols-4 extra-large:grid-cols-5">
-              <For each={items()}>
-                {(recipe) => (
-                  <li>
-                    <RecipeCard recipe={recipe} />
-                  </li>
-                )}
-              </For>
-            </ul>
+            <List
+              aria-label="Recipes"
+              class="-mx-4 grid py-0 medium:mx-0 medium:grid-cols-2 medium:gap-x-4 expanded:grid-cols-3 large:grid-cols-4 extra-large:grid-cols-5"
+            >
+              <For each={items()}>{(recipe) => <RecipeRow recipe={recipe} />}</For>
+            </List>
           </Show>
         )}
       </Show>
@@ -79,22 +76,21 @@ function Home() {
   );
 }
 
-/** The whole card is the link: the title's link stretches over it. */
-function RecipeCard(props: { recipe: RecipeListItem }) {
+/** One list row; the title's link stretches over the whole row. */
+function RecipeRow(props: { recipe: RecipeListItem }) {
   return (
-    <Card
-      variant="filled"
-      interactive
-      class="h-full flex-row items-center gap-0 py-0 has-[a:focus-visible]:outline-3 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-secondary"
-    >
-      <span
-        class={`m-3 flex size-16 shrink-0 items-center justify-center rounded-large ${tiles[props.recipe.id % tiles.length]}`}
-        aria-hidden="true"
-      >
-        <IconChefHat class="size-8" stroke={1.5} />
-      </span>
-      <div class="flex min-w-0 flex-1 flex-col gap-1 py-3 pr-4">
-        <h2 class="typescale-title-large text-on-surface">
+    <ListItem class="cursor-pointer rounded-large state-layer [--state-layer-color:var(--md-sys-color-on-surface)] has-[a:focus-visible]:outline-3 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-secondary">
+      <ListItemLeading>
+        <span
+          class={`flex size-14 items-center justify-center rounded-large ${tiles[props.recipe.id % tiles.length]}`}
+          aria-hidden="true"
+        >
+          <IconChefHat class="size-7" stroke={1.5} />
+        </span>
+      </ListItemLeading>
+      <ListItemContent class="gap-1">
+        {/* Not ListItemHeadline: cn does not merge typescale-*, so its body-large would compete. */}
+        <h2 class="truncate typescale-title-medium text-on-surface">
           <Link
             to="/recipes/$id"
             params={{ id: String(props.recipe.id) }}
@@ -116,8 +112,8 @@ function RecipeCard(props: { recipe: RecipeListItem }) {
             <IconLabel icon={IconLock} label="Only you" />
           </Show>
         </div>
-      </div>
-    </Card>
+      </ListItemContent>
+    </ListItem>
   );
 }
 

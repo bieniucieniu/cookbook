@@ -2,11 +2,11 @@ import { IconChevronLeft, IconChevronRight } from "@/components/icons";
 import { IconButton } from "@/components/m3/icon-button";
 import { createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
 
-/** A card that grows to fill the row, never narrower than 22rem (85% on a phone). */
+/** A step that grows to fill the row, never narrower than 22rem (85% on a phone). */
 export const growItem = "min-w-[min(22rem,85%)] flex-1";
 
 /**
- * Steps that share a row, side by side. Cards grow to fill the row and never shrink below 22rem
+ * Steps that share a row, side by side, split by vertical dividers. Steps grow to fill the row and never shrink below 22rem
  * (or 85% of the row on a phone); past that the row scrolls sideways with snapping, and
  * previous / next buttons appear next to the label.
  */
@@ -80,11 +80,13 @@ export function StepCarousel<T>(props: {
         aria-roledescription="carousel"
         aria-label={props.name}
         tabIndex={overflow() ? 0 : -1}
-        class="flex snap-x snap-mandatory gap-3 overflow-x-auto overscroll-x-contain scroll-smooth rounded-large pb-2 outline-none [scrollbar-color:var(--md-sys-color-outline)_transparent] [scrollbar-width:thin] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+        class="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain scroll-smooth rounded-large pb-2 outline-none [scrollbar-color:var(--md-sys-color-outline)_transparent] [scrollbar-width:thin] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-secondary"
       >
         <For each={props.each}>
           {(item) => (
-            <div class={`flex snap-start ${props.itemClass?.(item) ?? growItem}`}>
+            <div
+              class={`flex snap-start border-l border-outline-variant pl-4 first:border-l-0 first:pl-0 ${props.itemClass?.(item) ?? growItem}`}
+            >
               {props.children(item)}
             </div>
           )}

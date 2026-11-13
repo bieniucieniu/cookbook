@@ -16,7 +16,7 @@ import { formatAmount } from "@/lib/units";
 import { cn } from "@/lib/utils";
 import { type JSX, Show } from "solid-js";
 
-/** M3 list of ingredients to tick off. Children are IngredientListItem rows. */
+/** M3 list of ingredients or tools to tick off. Children are IngredientListItem rows. */
 export function IngredientList(props: {
   "aria-label"?: string;
   class?: string;
@@ -30,7 +30,7 @@ export function IngredientList(props: {
 }
 
 /**
- * One ingredient: a leading checkbox, then amount and name, with swaps as supporting text. The
+ * One ingredient or tool (no amount): a leading checkbox, then amount and name, with swaps as supporting text. The
  * label runs from the checkbox to the row's right edge, so the whole row toggles. Checked rows
  * strike through.
  */
