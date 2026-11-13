@@ -33,6 +33,15 @@ export function scaleQty(qty: number, fromCooks: number, toCooks: number): numbe
   return (qty * toCooks) / fromCooks;
 }
 
+/** `scaleQty` that passes a missing amount through. */
+export function scaleAmount(
+  qty: number | null | undefined,
+  fromCooks: number,
+  toCooks: number
+): number | null | undefined {
+  return qty == null ? qty : scaleQty(qty, fromCooks, toCooks);
+}
+
 export function formatAmount(
   qty: number | null | undefined,
   unit: string | null | undefined

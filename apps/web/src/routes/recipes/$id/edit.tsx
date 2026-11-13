@@ -1,5 +1,5 @@
 import { ErrorBlock, PageLoading } from "@/components/page-state";
-import { RecipeEditor, type EditorPane } from "@/components/recipe/builder/recipe-editor";
+import { RecipeEditor } from "@/components/recipe/builder/recipe-editor";
 import type { RecipeDetail } from "@/generated/model";
 import { getGetRecipeQueryOptions, type getRecipeResponse } from "@/generated/recipes/recipes";
 import { detailToDraft } from "@/lib/recipe-draft";
@@ -40,12 +40,8 @@ function EditRecipePage() {
             initial={detailToDraft(item())}
             recipeId={params().id}
             selected={search().step}
-            pane={search().pane ?? "step"}
             onSelect={(step) =>
               void navigate({ search: (prev) => ({ ...prev, step }), replace: true })
-            }
-            onPane={(pane) =>
-              void navigate({ search: (prev) => ({ ...prev, pane }), replace: true })
             }
           />
         )}
@@ -59,9 +55,6 @@ function recipeDetail(result: getRecipeResponse | undefined): RecipeDetail | und
   return result.data;
 }
 
-function editorSearch(search: Record<string, unknown>): { step?: string; pane?: EditorPane } {
-  return {
-    ...(typeof search.step === "string" && search.step ? { step: search.step } : {}),
-    ...(search.pane === "flow" || search.pane === "step" ? { pane: search.pane } : {}),
-  };
+function editorSearch(search: Record<string, unknown>): { step?: string } {
+  return typeof search.step === "string" && search.step ? { step: search.step } : {};
 }

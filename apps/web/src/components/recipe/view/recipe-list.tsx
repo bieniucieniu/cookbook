@@ -1,24 +1,20 @@
-import {
-  IconArrowsShuffle,
-  IconCarrot,
-  IconGitBranch,
-  IconToolsKitchen2,
-} from "@/components/icons";
+import { IconCarrot, IconToolsKitchen2 } from "@/components/icons";
 import type { Catalog } from "@/lib/catalog";
 import type { RecipeDraft } from "@/lib/recipe-draft";
-import { lanes, stepNumbers } from "@/lib/recipe-graph";
+import { lanes, rowMode, stepNumbers } from "@/lib/recipe-graph";
 import { summarize } from "@/lib/recipe-summary";
-import { scaleQty } from "@/lib/units";
-import type { CardVariant } from "@/components/m3/card";
+import { scaleAmount } from "@/lib/units";
 import { FilterChip } from "@/components/m3/chip";
+import { List } from "@/components/m3/list";
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/m3/tabs";
 import { createMemo, createSignal, For, Index, Match, Show, Switch, type JSX } from "solid-js";
 import { createStore } from "solid-js/store";
 import { MarkdownView } from "../markdown";
-import { IngredientList, IngredientListItem } from "./ingredient-list";
-import { StepCard } from "./step-card";
+import { IconLabel, RowLabel } from "../parts";
+import { ItemRow } from "./item-row";
 import { StepCarousel } from "./step-carousel";
-import { IconLabel } from "../parts";
+import { StepView } from "./step-view";
+import { cn } from "@/lib/utils";
 
 /** Side-by-side rows are on unless the reader turned them off on this device. */
 const sideBySideKey = "cookbook:side-by-side";
@@ -39,8 +35,7 @@ const stepWidth = "w-full max-w-[50rem]";
 
 /**
  * Everything on one page: a checklist of what to get out, then compact steps with their own
- * items. Check marks live for this visit only. `stepAction` fills the top right of each step
- * card (the route puts a link to that step in cook mode there).
+ * items. Check marks live for this visit only. `stepAction` fills the top right of each step (the route puts a link to that step in cook mode there).
  */
 export function RecipeList(props: {
   draft: RecipeDraft;
@@ -58,23 +53,15 @@ export function RecipeList(props: {
       return;
     }
   };
-  const scale = (qty: number | null | undefined) =>
-    qty == null ? qty : scaleQty(qty, props.draft.cooks, props.cooks);
   const rows = createMemo(() => lanes(props.draft.nodes, props.draft.edges));
   const summary = createMemo(() => summarize(props.draft));
   const numbers = createMemo(() => stepNumbers(props.draft.nodes, props.draft.edges));
-  const rowMode = (row: { key: string }[]) => {
-    const parent = props.draft.edges.find((edge) => edge.to === row[0]?.key)?.from;
-    return props.draft.nodes.find((node) => node.key === parent)?.branchMode === "xor"
-      ? "xor"
-      : "and";
-  };
+  const modeOf = (row: { key: string }[]) => rowMode(row, props.draft.nodes, props.draft.edges);
 
   /** The side-by-side switch only matters for rows done at the same time. */
-  const hasRows = () => rows().some((row) => row.length > 1 && rowMode(row) === "and");
-  const card = (node: RecipeDraft["nodes"][number], variant?: CardVariant) => (
-    <StepCard
-      variant={variant}
+  const hasRows = () => rows().some((row) => row.length > 1 && modeOf(row) === "and");
+  const step = (node: RecipeDraft["nodes"][number]) => (
+    <StepView
       node={node}
       number={numbers().get(node.key)}
       catalog={props.catalog}
@@ -98,16 +85,16 @@ export function RecipeList(props: {
               when={summary().ingredients.length > 0}
               fallback={<p class="typescale-body-medium text-on-surface-variant">None listed.</p>}
             >
-              <IngredientList aria-label="Ingredients">
+              <List aria-label="Ingredients" class="py-0">
                 <For each={summary().ingredients}>
                   {(line) => (
                     <For each={line.amounts}>
                       {(amount) => {
                         const id = `${line.id}:${amount.unit ?? ""}`;
                         return (
-                          <IngredientListItem
+                          <ItemRow
                             name={props.catalog.name("ingredient", line.id)}
-                            qty={scale(amount.qty)}
+                            qty={scaleAmount(amount.qty, props.draft.cooks, props.cooks)}
                             unit={amount.unit}
                             optional={line.optional}
                             alts={line.alts.map((alt) => props.catalog.name("ingredient", alt.id))}
@@ -119,7 +106,7 @@ export function RecipeList(props: {
                     </For>
                   )}
                 </For>
-              </IngredientList>
+              </List>
             </Show>
           </section>
           <Show when={summary().tools.length > 0}>
@@ -127,10 +114,10 @@ export function RecipeList(props: {
               <h2 class="typescale-title-medium text-on-surface">
                 <IconLabel icon={IconToolsKitchen2} label="Tools" />
               </h2>
-              <IngredientList aria-label="Tools">
+              <List aria-label="Tools" class="py-0">
                 <For each={summary().tools}>
                   {(line) => (
-                    <IngredientListItem
+                    <ItemRow
                       name={props.catalog.name("tool", line.id)}
                       optional={line.optional}
                       alts={line.alts.map((alt) => props.catalog.name("tool", alt.id))}
@@ -139,7 +126,7 @@ export function RecipeList(props: {
                     />
                   )}
                 </For>
-              </IngredientList>
+              </List>
             </section>
           </Show>
           <Show when={props.draft.notes.trim()}>
@@ -160,15 +147,20 @@ export function RecipeList(props: {
             </FilterChip>
           </div>
         </Show>
-        {/* Each step is a card; rows and the steps inside a row are split by gaps. */}
-        <ol class="flex w-full flex-col items-center gap-6">
+        {/* No cards: steps and rows are split by dividers. */}
+        <ol class="flex w-full flex-col items-center divide-y divide-outline-variant">
           <Index each={rows()}>
             {(row) => (
-              <li class={row().length > 1 ? "flex w-full flex-col gap-2" : stepWidth}>
+              <li
+                class={cn(
+                  "py-6 first:pt-0 last:pb-0",
+                  row().length > 1 ? "flex w-full flex-col gap-2" : stepWidth
+                )}
+              >
                 <Switch>
-                  <Match when={row().length === 1}>{card(row()[0]!)}</Match>
-                  {/* Pick one: the options are tabs, one filled card at a time. */}
-                  <Match when={rowMode(row()) === "xor"}>
+                  <Match when={row().length === 1}>{step(row()[0]!)}</Match>
+                  {/* Pick one: the options are tabs, one step at a time. */}
+                  <Match when={modeOf(row()) === "xor"}>
                     <div class={`flex flex-col gap-2 self-center ${stepWidth}`}>
                       <RowLabel mode="xor" />
                       <Tabs variant="secondary" defaultValue={row()[0]?.key}>
@@ -180,29 +172,31 @@ export function RecipeList(props: {
                         </TabsList>
                         <For each={row()}>
                           {(node) => (
-                            <TabsContent value={node.key} class="pt-3">
-                              {card(node, "filled")}
+                            <TabsContent value={node.key} class="pt-4">
+                              {step(node)}
                             </TabsContent>
                           )}
                         </For>
                       </Tabs>
                     </div>
                   </Match>
-                  {/* At the same time: elevated cards side by side, or stacked. */}
+                  {/* At the same time: side by side, or stacked. */}
                   <Match when={sideBySide()}>
                     <StepCarousel
                       each={row()}
                       label={<RowLabel mode="and" />}
                       name="Steps to do at the same time"
                     >
-                      {(node) => card(node, "elevated")}
+                      {(node) => step(node)}
                     </StepCarousel>
                   </Match>
                   <Match when>
                     <div class={`flex flex-col gap-2 self-center ${stepWidth}`}>
                       <RowLabel mode="and" />
-                      <div class="flex flex-col gap-3">
-                        <For each={row()}>{(node) => card(node, "elevated")}</For>
+                      <div class="flex flex-col divide-y divide-outline-variant">
+                        <For each={row()}>
+                          {(node) => <div class="py-4 first:pt-2 last:pb-0">{step(node)}</div>}
+                        </For>
                       </div>
                     </div>
                   </Match>
@@ -213,25 +207,5 @@ export function RecipeList(props: {
         </ol>
       </div>
     </div>
-  );
-}
-
-/** "At the same time" for parallel arms, "Pick one" for alternatives. */
-function RowLabel(props: { mode: "and" | "xor" }) {
-  return (
-    <span class="inline-flex items-center gap-1.5 typescale-label-large text-on-surface-variant">
-      <Show
-        when={props.mode === "xor"}
-        fallback={
-          <>
-            <IconGitBranch size={16} aria-hidden="true" />
-            At the same time
-          </>
-        }
-      >
-        <IconArrowsShuffle size={16} aria-hidden="true" />
-        Pick one
-      </Show>
-    </span>
   );
 }

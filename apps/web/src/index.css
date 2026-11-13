@@ -24,30 +24,6 @@
   color-scheme: dark;
 }
 
-/*
- * The flow canvas (components/xyflow) on M3 roles. Its own dark defaults key off `.xy-flow.dark`,
- * but the app puts `.dark` on <html>, so the roles carry light and dark here.
- */
-.xy-flow {
-  --xy-background-color: transparent;
-  --xy-background-pattern-dots-color: var(--md-sys-color-outline-variant);
-  --xy-edge-stroke: var(--md-sys-color-outline);
-  --xy-edge-stroke-selected: var(--md-sys-color-primary);
-  --xy-connectionline-stroke: var(--md-sys-color-primary);
-  --xy-edge-label-background-color: var(--md-sys-color-surface-container-high);
-  --xy-edge-label-color: var(--md-sys-color-on-surface);
-  --xy-handle-background-color: var(--md-sys-color-outline);
-  --xy-handle-border-color: var(--md-sys-color-surface);
-  --xy-selection-background-color: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent);
-  --xy-selection-border: 1px dotted var(--md-sys-color-primary);
-  --xy-controls-box-shadow: var(--md-sys-elevation-level1);
-  --xy-controls-button-background-color: var(--md-sys-color-surface-container);
-  --xy-controls-button-background-color-hover: var(--md-sys-color-surface-container-highest);
-  --xy-controls-button-color: var(--md-sys-color-on-surface-variant);
-  --xy-controls-button-color-hover: var(--md-sys-color-on-surface);
-  --xy-controls-button-border-color: var(--md-sys-color-outline-variant);
-}
-
 @layer base {
   * {
     @apply border-outline-variant;

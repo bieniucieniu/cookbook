@@ -44,7 +44,7 @@ function Home() {
                 icon={IconChefHat}
                 title="No recipes yet"
                 description={
-                  signedIn(session.data)
+                  signedIn(session)
                     ? "Start one with New recipe."
                     : "Log in to write the first one."
                 }
@@ -60,7 +60,7 @@ function Home() {
           </Show>
         )}
       </Show>
-      <Show when={signedIn(session.data)}>
+      <Show when={signedIn(session)}>
         <Link
           to="/recipes/new"
           class={fabVariants({

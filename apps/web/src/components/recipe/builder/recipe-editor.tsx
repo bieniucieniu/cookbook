@@ -4,10 +4,8 @@ import {
   IconLayoutList,
   IconPlus,
   IconPencil,
-  IconSitemap,
 } from "@/components/icons";
-import { Button, ToggleButton } from "@/components/m3/button";
-import { ButtonGroup } from "@/components/m3/button-group";
+import { Button } from "@/components/m3/button";
 import { ScrollArea } from "@/components/m3/scroll-area";
 import {
   Snackbar,
@@ -37,26 +35,20 @@ import { createEffect, createMemo, createSignal, Match, onMount, Show, Switch } 
 import { createStore, reconcile } from "solid-js/store";
 import { createDraftActions } from "./actions";
 import { DetailsEditor } from "./details-editor";
-import { FlowPane } from "./flow-pane";
 import { ShareSheet } from "./share-sheet";
 import { StepEditor } from "./step-editor";
 import { SummaryPanel } from "./summary-panel";
 import { draftWarnings, type Warning } from "./warnings";
 
-export type EditorPane = "step" | "flow";
-
 /**
- * Split view: the whole recipe on the left, one step (or the recipe details, or the optional
- * flow graph) on the right. On a phone the two sides take turns. The draft autosaves here.
+ * Split view: the whole recipe on the left, one step (or the recipe details) on the right. On a phone the two sides take turns. The draft autosaves here.
  */
 export function RecipeEditor(props: {
   initial: RecipeDraft;
   recipeId?: string;
   /** A step key, `details`, or nothing (first step). */
   selected?: string;
-  pane: EditorPane;
   onSelect: (selection: string | undefined) => void;
-  onPane: (pane: EditorPane) => void;
 }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -97,7 +89,6 @@ export function RecipeEditor(props: {
 
   const select = (next: string | undefined) => {
     props.onSelect(next);
-    if (props.pane !== "step") props.onPane("step");
     setSide("editor");
     if (next && next !== "details") {
       requestAnimationFrame(() =>
@@ -181,30 +172,6 @@ export function RecipeEditor(props: {
           <IconPencil class="size-6" aria-hidden="true" />
           {props.recipeId ? "Edit recipe" : "New recipe"}
         </h1>
-        <ButtonGroup variant="connected" size="sm" aria-label="Right side">
-          <ToggleButton
-            variant="tonal"
-            pressed={props.pane === "step"}
-            onChange={() => {
-              props.onPane("step");
-              setSide("editor");
-            }}
-          >
-            <IconLayoutList aria-hidden="true" />
-            Step
-          </ToggleButton>
-          <ToggleButton
-            variant="tonal"
-            pressed={props.pane === "flow"}
-            onChange={() => {
-              props.onPane("flow");
-              setSide("editor");
-            }}
-          >
-            <IconSitemap aria-hidden="true" />
-            Flow
-          </ToggleButton>
-        </ButtonGroup>
         <Show when={props.recipeId}>{(id) => <ShareSheet recipeId={id()} />}</Show>
         <Button size="sm" disabled={pending()} onClick={() => void save()}>
           <IconDeviceFloppy aria-hidden="true" />
@@ -234,7 +201,7 @@ export function RecipeEditor(props: {
                   summary={summary()}
                   warnings={warnings()}
                   numbers={numbers()}
-                  selected={props.pane === "step" ? selection() : undefined}
+                  selected={selection()}
                   onSelect={select}
                   onFix={fix}
                 />
@@ -258,9 +225,6 @@ export function RecipeEditor(props: {
                 Summary
               </Button>
               <Switch>
-                <Match when={props.pane === "flow"}>
-                  <FlowPane draft={draft} actions={actions} issues={issues()} onOpen={select} />
-                </Match>
                 <Match when={selection() === "details"}>
                   <DetailsEditor draft={draft} setDraft={setDraft} />
                 </Match>

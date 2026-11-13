@@ -48,7 +48,6 @@ declare module "@tabler/icons-solidjs" {
   export const IconSettings: TablerIcon;
   export const IconRepeat: TablerIcon;
   export const IconShare: TablerIcon;
-  export const IconSitemap: TablerIcon;
   export const IconSun: TablerIcon;
   export const IconTextSize: TablerIcon;
   export const IconToolsKitchen2: TablerIcon;

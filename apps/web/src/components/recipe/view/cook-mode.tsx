@@ -1,14 +1,4 @@
-import {
-  IconArrowsShuffle,
-  IconCheck,
-  IconChevronLeft,
-  IconChevronRight,
-  IconClock,
-  IconGitBranch,
-  IconPlayerPlay,
-} from "@/components/icons";
-import { Button } from "@/components/m3/button";
-import { Card, CardContent, CardHeader, type CardVariant } from "@/components/m3/card";
+import { IconCheck, IconChevronLeft, IconChevronRight, IconClock } from "@/components/icons";
 import { InputChip, InputChipRemove } from "@/components/m3/chip";
 import { ExtendedFab } from "@/components/m3/fab";
 import { IconButton } from "@/components/m3/icon-button";
@@ -18,8 +8,7 @@ import { Toolbar } from "@/components/m3/toolbar";
 import { notify } from "@/components/notify";
 import type { Catalog } from "@/lib/catalog";
 import type { DraftNode, RecipeDraft } from "@/lib/recipe-draft";
-import { lanes } from "@/lib/recipe-graph";
-import { formatDuration, scaleQty } from "@/lib/units";
+import { lanes, rowMode } from "@/lib/recipe-graph";
 import { cn } from "@/lib/utils";
 import {
   createEffect,
@@ -33,12 +22,8 @@ import {
   Show,
   Switch,
 } from "solid-js";
-import { createStore } from "solid-js/store";
-import { Dynamic } from "solid-js/web";
-import { MarkdownView } from "../markdown";
-import { ItemChip, spanLabel } from "../parts";
-import { IngredientList, IngredientListItem } from "./ingredient-list";
-import { StepCarousel } from "./step-carousel";
+import { RowLabel } from "../parts";
+import { StepView } from "./step-view";
 
 type Timer = { id: number; label: string; endsAt: number; seconds: number };
 
@@ -84,8 +69,8 @@ function useWakeLock() {
 }
 
 /**
- * One screen per row of the recipe. Parallel steps sit side by side in an inner carousel, a
- * "pick one" split shows its options as tabs. The open step comes from the route (`stepKey`); moving on calls `onStep`, and a tab
+ * One screen per row of the recipe. Parallel steps stack on their slide (the slides already
+ * swipe sideways, so no inner carousel), a "pick one" split shows its options as tabs. The open step comes from the route (`stepKey`); moving on calls `onStep`, and a tab
  * switch replaces the history entry. Timers start from a step and keep their label when you
  * move on.
  */
@@ -120,7 +105,6 @@ export function CookMode(props: {
     if (first && !rows().some((row) => row.some((node) => node.key === props.stepKey)))
       props.onStep(first, true);
   });
-  const [done, setDone] = createStore<Record<string, boolean>>({});
   const [timers, setTimers] = createSignal<Timer[]>([]);
   const [now, setNow] = createSignal(Date.now());
   let nextTimerId = 1;
@@ -130,12 +114,17 @@ export function CookMode(props: {
   const go = (delta: number) => {
     openRow(Math.min(rows().length - 1, Math.max(0, index() + delta)));
   };
-  const rowMode = (nodes: DraftNode[]) => {
-    const parent = props.draft.edges.find((edge) => edge.to === nodes[0]?.key)?.from;
-    return props.draft.nodes.find((node) => node.key === parent)?.branchMode === "xor"
-      ? "xor"
-      : "and";
-  };
+  const modeOf = (nodes: DraftNode[]) => rowMode(nodes, props.draft.nodes, props.draft.edges);
+  const cookStep = (node: DraftNode) => (
+    <CookStep
+      node={node}
+      draft={props.draft}
+      cooks={props.cooks}
+      catalog={props.catalog}
+      onTimer={startTimer}
+      comments={props.comments}
+    />
+  );
 
   /*
    * Parts sit side by side in a scroll-snap track, one full-width slide each. Swiping settles on
@@ -342,20 +331,9 @@ export function CookMode(props: {
                 class="flex w-full shrink-0 snap-start snap-always flex-col gap-4 px-4 medium:px-6"
               >
                 <Switch>
-                  <Match when={nodes.length === 1 && nodes[0]}>
-                    {(node) => (
-                      <CookStep
-                        node={node()}
-                        {...props}
-                        done={done}
-                        setDone={setDone}
-                        onTimer={startTimer}
-                        comments={props.comments}
-                      />
-                    )}
-                  </Match>
-                  {/* Pick one: the options are tabs, one filled card at a time. */}
-                  <Match when={rowMode(nodes) === "xor"}>
+                  <Match when={nodes.length === 1 && nodes[0]}>{(node) => cookStep(node())}</Match>
+                  {/* Pick one: the options are tabs, one step at a time. */}
+                  <Match when={modeOf(nodes) === "xor"}>
                     <RowLabel mode="xor" />
                     <Tabs
                       variant="secondary"
@@ -368,54 +346,27 @@ export function CookMode(props: {
                     >
                       <TabsList aria-label="Steps to pick from">
                         <For each={nodes}>
-                          {(node) => (
-                            <TabsTrigger value={node.key}>
-                              <Show when={done[node.key]}>
-                                <IconCheck class="size-5" aria-hidden="true" />
-                              </Show>
-                              {node.title}
-                            </TabsTrigger>
-                          )}
+                          {(node) => <TabsTrigger value={node.key}>{node.title}</TabsTrigger>}
                         </For>
                         <TabsIndicator />
                       </TabsList>
                       <For each={nodes}>
                         {(node) => (
                           <TabsContent value={node.key} class="pt-4">
-                            <CookStep
-                              node={node}
-                              variant="filled"
-                              {...props}
-                              done={done}
-                              setDone={setDone}
-                              onTimer={startTimer}
-                              comments={props.comments}
-                            />
+                            {cookStep(node)}
                           </TabsContent>
                         )}
                       </For>
                     </Tabs>
                   </Match>
-                  {/* At the same time: elevated cards side by side in their own carousel. */}
+                  {/* At the same time: stacked on the slide, split by dividers. */}
                   <Match when>
-                    <StepCarousel
-                      each={nodes}
-                      label={<RowLabel mode="and" />}
-                      name="Steps to do at the same time"
-                    >
-                      {(node) => (
-                        <CookStep
-                          node={node}
-                          variant="elevated"
-                          {...props}
-                          done={done}
-                          setDone={setDone}
-                          onTimer={startTimer}
-                          comments={props.comments}
-                          class="w-full"
-                        />
-                      )}
-                    </StepCarousel>
+                    <RowLabel mode="and" />
+                    <div class="flex flex-col divide-y divide-outline-variant">
+                      <For each={nodes}>
+                        {(node) => <div class="py-6 first:pt-0 last:pb-0">{cookStep(node)}</div>}
+                      </For>
+                    </div>
                   </Match>
                 </Switch>
               </section>
@@ -463,149 +414,25 @@ export function CookMode(props: {
   );
 }
 
-/** "Pick one" for alternatives, "Do these at the same time" for parallel steps. */
-function RowLabel(props: { mode: "and" | "xor" }) {
-  return (
-    <span class="inline-flex items-center gap-1.5 typescale-label-large text-on-surface-variant">
-      <Dynamic
-        component={props.mode === "xor" ? IconArrowsShuffle : IconGitBranch}
-        size={18}
-        aria-hidden="true"
-      />
-      {props.mode === "xor" ? "Pick one" : "Do these at the same time"}
-    </span>
-  );
-}
-
+/** One step on a cook slide: the step itself, then its comments. */
 function CookStep(props: {
   node: DraftNode;
-  /**
-   * Outlined for a step on its own (default), elevated for one of several done at the same
-   * time, filled for one option of a "pick one" row.
-   */
-  variant?: CardVariant;
-  class?: string;
   draft: RecipeDraft;
   cooks: number;
   catalog: Catalog;
-  done: Record<string, boolean>;
-  setDone: (key: string, value: boolean) => void;
   onTimer: (label: string, seconds: number) => void;
   comments?: (stepKey: string) => JSX.Element;
 }) {
-  const [got, setGot] = createStore<Record<number, boolean>>({});
-  const scale = (qty: number | null | undefined) =>
-    qty == null ? qty : scaleQty(qty, props.draft.cooks, props.cooks);
-  const done = () => props.done[props.node.key] ?? false;
   return (
-    <Card variant={props.variant ?? "outlined"} class={cn("@container gap-5", props.class)}>
-      <CardHeader>
-        <h2 class="typescale-emphasized-headline-large text-on-surface">
-          {props.node.title}
-          <Show when={props.node.repeatMin > 1}>
-            <span class="ml-2 typescale-title-large text-on-surface-variant">
-              ×{props.node.repeatMin}
-            </span>
-          </Show>
-        </h2>
-      </CardHeader>
-      {/*
-        What you need on the left, what to do on the right once the card is 48rem wide (a card in
-        a side-by-side row is narrower than the screen). Stacked below that, needs first. The
-        stage controls (parts nav and toolbar) stay outside.
-      */}
-      <CardContent class="grid gap-x-8 gap-y-5 text-on-surface @3xl:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] @3xl:items-start">
-        <Show when={props.node.ingredients.length + props.node.tools.length > 0}>
-          <div class="flex flex-col gap-4">
-            <Show when={props.node.ingredients.length > 0}>
-              {/* Rows reach the card edge on the left; in two columns not into the gap. */}
-              <IngredientList aria-label="Ingredients for this step" class="-mx-4 @3xl:mr-0">
-                <For each={props.node.ingredients}>
-                  {(item) => (
-                    <IngredientListItem
-                      name={props.catalog.name("ingredient", item.ingredientId)}
-                      qty={scale(item.qty)}
-                      unit={item.unit}
-                      optional={item.optional}
-                      alts={(item.alts ?? []).map((alt) =>
-                        props.catalog.name("ingredient", alt.altIngredientId)
-                      )}
-                      checked={got[item.ingredientId] ?? false}
-                      onChange={(value) => setGot(item.ingredientId, value)}
-                    />
-                  )}
-                </For>
-              </IngredientList>
-            </Show>
-            <Show when={props.node.tools.length > 0}>
-              <ul class="flex flex-wrap gap-2" aria-label="Tools for this step">
-                <For each={props.node.tools}>
-                  {(item) => (
-                    <li>
-                      <ItemChip
-                        kind="tool"
-                        name={props.catalog.name("tool", item.toolId)}
-                        optional={item.optional}
-                        static
-                      />
-                      <Show when={(item.alts ?? []).length > 0}>
-                        <span class="ml-1 typescale-body-medium text-on-surface-variant">
-                          or{" "}
-                          {(item.alts ?? [])
-                            .map((alt) => props.catalog.name("tool", alt.altToolId))
-                            .join(", ")}
-                        </span>
-                      </Show>
-                    </li>
-                  )}
-                </For>
-              </ul>
-            </Show>
-          </div>
-        </Show>
-        <div class="flex min-w-0 flex-col gap-5 @3xl:col-start-2">
-          <Show when={props.node.body.trim()}>
-            <MarkdownView value={props.node.body} class="typescale-body-large" />
-          </Show>
-          {/*
-            Timers are secondary actions: tonal for hands-on time, dashed outline for waiting,
-            each with a play icon. Mark done is the step's main action: filled until pressed,
-            then tonal with a check.
-          */}
-          <Show when={props.node.spans.length > 0}>
-            <div class="flex flex-wrap gap-2" aria-label="Timers for this step">
-              <For each={props.node.spans}>
-                {(span) => (
-                  <Button
-                    variant={span.kind === "wait" ? "outlined" : "tonal"}
-                    size="sm"
-                    class={cn(span.kind === "wait" && "border-dashed border-outline")}
-                    aria-label={`Start a ${formatDuration(span.seconds)} ${spanLabel[span.kind].toLowerCase()} timer`}
-                    onClick={() =>
-                      props.onTimer(`${props.node.title} · ${spanLabel[span.kind]}`, span.seconds)
-                    }
-                  >
-                    <IconPlayerPlay aria-hidden="true" />
-                    <span class="tabular-nums">{formatDuration(span.seconds)}</span>
-                    <span class="opacity-80">{spanLabel[span.kind]}</span>
-                  </Button>
-                )}
-              </For>
-            </div>
-          </Show>
-          <Button
-            variant={done() ? "tonal" : "filled"}
-            size="md"
-            class="w-fit"
-            aria-pressed={done()}
-            onClick={() => props.setDone(props.node.key, !done())}
-          >
-            <IconCheck aria-hidden="true" />
-            {done() ? "Done" : "Mark done"}
-          </Button>
-          <Show when={props.comments}>{(comments) => comments()(props.node.key)}</Show>
-        </div>
-      </CardContent>
-    </Card>
+    <StepView
+      node={props.node}
+      catalog={props.catalog}
+      draftCooks={props.draft.cooks}
+      cooks={props.cooks}
+      size="large"
+      checkable
+      onTimer={props.onTimer}
+      footer={<Show when={props.comments}>{(comments) => comments()(props.node.key)}</Show>}
+    />
   );
 }

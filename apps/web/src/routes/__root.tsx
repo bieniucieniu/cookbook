@@ -126,9 +126,7 @@ function SessionHeader() {
               Session unavailable
             </span>
           </Match>
-          <Match when={signedIn(session.data)}>
-            {(user) => <AccountMenu email={user().email} />}
-          </Match>
+          <Match when={signedIn(session)}>{(user) => <AccountMenu email={user().email} />}</Match>
         </Switch>
       </AppBarTrailing>
     </AppBar>

@@ -18,9 +18,6 @@ export function issueLabel(issue: GraphIssue["issue"]): string {
   return issueText[issue];
 }
 
-export const columnWidth = 240;
-export const rowHeight = 120;
-
 function adjacency(keys: string[], edges: GraphEdge[]) {
   const known = new Set(keys);
   const next = new Map<string, string[]>(keys.map((key) => [key, []]));
@@ -89,18 +86,19 @@ export function lanes<T extends { key: string; ord: number }>(
   return [...groups.entries()].sort(([left], [right]) => left - right).map(([, group]) => group);
 }
 
-export function layout(
-  nodes: { key: string; ord: number }[],
+export type RowMode = "and" | "xor";
+
+/**
+ * How the steps of one lane relate: "xor" (pick one) when the step they branch from picks one
+ * arm, else "and" (do them at the same time).
+ */
+export function rowMode(
+  row: { key: string }[],
+  nodes: { key: string; branchMode: NodeWriteBranchMode }[],
   edges: GraphEdge[]
-): Map<string, { x: number; y: number }> {
-  const position = new Map<string, { x: number; y: number }>();
-  lanes(nodes, edges).forEach((group, depth) => {
-    const offset = ((group.length - 1) * rowHeight) / 2;
-    group.forEach((node, index) => {
-      position.set(node.key, { x: depth * columnWidth, y: index * rowHeight - offset });
-    });
-  });
-  return position;
+): RowMode {
+  const parent = edges.find((edge) => edge.to === row[0]?.key)?.from;
+  return nodes.find((node) => node.key === parent)?.branchMode === "xor" ? "xor" : "and";
 }
 
 function ancestors(key: string, prev: Map<string, string[]>): Set<string> {
