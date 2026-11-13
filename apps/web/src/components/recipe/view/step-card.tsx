@@ -2,13 +2,14 @@ import type { Catalog } from "@/lib/catalog";
 import type { DraftNode } from "@/lib/recipe-draft";
 import { scaleQty } from "@/lib/units";
 import { cn } from "@/lib/utils";
-import { For, Show } from "solid-js";
+import { For, type JSX, Show } from "solid-js";
 import { MarkdownView } from "../markdown";
 import { ItemChip, SpanBadge } from "../parts";
 
 /**
  * One step as a card: number and name, then ingredients and tools side by side once the card
- * is 20rem wide, times below them, and the note. Used by the list view.
+ * is 20rem wide, times below them, and the note. Used by the list view. `action` sits at the
+ * top right of the header (the list puts a link to the step in cook mode there).
  */
 export function StepCard(props: {
   node: DraftNode;
@@ -18,6 +19,8 @@ export function StepCard(props: {
   draftCooks: number;
   cooks: number;
   class?: string;
+  /** Top right of the header. Hidden while the card is a collapsed choice. */
+  action?: JSX.Element;
   /**
    * One of several "pick one" options. The header becomes a button that chooses this step.
    * Collapsed: another option was chosen, so only the header shows, quieter, as a button that
@@ -66,46 +69,45 @@ export function StepCard(props: {
         props.class
       )}
     >
-      <Show
-        when={props.choice}
-        fallback={
-          <header class="flex items-center gap-3">
-            <h3 class="flex items-center gap-3">{title()}</h3>
-          </header>
-        }
-      >
-        {(choice) => (
-          <h3>
-            <button
-              type="button"
-              aria-pressed={choice().chosen}
-              aria-label={
-                choice().chosen
-                  ? `${props.node.title}, chosen. Show all options`
-                  : collapsed()
-                    ? `Choose ${props.node.title} instead`
-                    : `Choose ${props.node.title}`
-              }
-              class="relative flex w-full cursor-pointer items-center gap-3 rounded-medium p-1 text-left state-layer focus-ring"
-              onClick={() => choice().onToggle()}
-            >
-              {title()}
-              {/* Radio mark: the choice reads as one of a set, not a toggle on each card. */}
-              <span
-                class={cn(
-                  "ml-auto flex size-5 shrink-0 items-center justify-center rounded-full border-2",
-                  choice().chosen ? "border-primary" : "border-outline"
-                )}
-                aria-hidden="true"
+      <header class="flex items-center gap-2">
+        <Show
+          when={props.choice}
+          fallback={<h3 class="flex min-w-0 flex-1 items-center gap-3">{title()}</h3>}
+        >
+          {(choice) => (
+            <h3 class="min-w-0 flex-1">
+              <button
+                type="button"
+                aria-pressed={choice().chosen}
+                aria-label={
+                  choice().chosen
+                    ? `${props.node.title}, chosen. Show all options`
+                    : collapsed()
+                      ? `Choose ${props.node.title} instead`
+                      : `Choose ${props.node.title}`
+                }
+                class="relative flex w-full cursor-pointer items-center gap-3 rounded-medium p-1 text-left state-layer focus-ring"
+                onClick={() => choice().onToggle()}
               >
-                <Show when={choice().chosen}>
-                  <span class="size-2.5 rounded-full bg-primary" />
-                </Show>
-              </span>
-            </button>
-          </h3>
-        )}
-      </Show>
+                {title()}
+                {/* Radio mark: the choice reads as one of a set, not a toggle on each card. */}
+                <span
+                  class={cn(
+                    "ml-auto flex size-5 shrink-0 items-center justify-center rounded-full border-2",
+                    choice().chosen ? "border-primary" : "border-outline"
+                  )}
+                  aria-hidden="true"
+                >
+                  <Show when={choice().chosen}>
+                    <span class="size-2.5 rounded-full bg-primary" />
+                  </Show>
+                </span>
+              </button>
+            </h3>
+          )}
+        </Show>
+        <Show when={!collapsed() && props.action}>{props.action}</Show>
+      </header>
       <Show
         when={
           !collapsed() &&
