@@ -244,7 +244,7 @@ export function RecipeEditor(props: {
             <section
               aria-label="Editor"
               class={cn(
-                "min-w-0 flex-col gap-4 rounded-extra-large bg-surface-container-low p-4 text-on-surface [--text-field-notch:var(--md-sys-color-surface-container-low)] medium:p-6 expanded:flex",
+                "min-w-0 flex-col gap-4 text-on-surface expanded:flex expanded:border-l expanded:border-outline-variant expanded:pl-6",
                 side() === "editor" ? "flex" : "hidden"
               )}
             >

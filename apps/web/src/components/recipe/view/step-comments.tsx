@@ -52,38 +52,40 @@ export function StepComments(props: {
         />
       </Collapsible.Trigger>
       <Collapsible.Content class="flex flex-col gap-2">
-        <For each={mine()}>
-          {(comment) => (
-            <article class="flex items-start gap-2 rounded-medium bg-surface-container py-2 pr-1 pl-3">
-              <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-                <p class="typescale-label-medium text-on-surface-variant">
-                  {comment.email} · {formatTime(comment.createdAt)}
-                </p>
-                <p class="typescale-body-medium text-on-surface">{comment.body}</p>
-              </div>
-              <Show
-                when={
-                  props.userId != null &&
-                  (comment.userId === props.userId || props.ownerId === props.userId)
-                }
-              >
-                <IconButton
-                  size="xs"
-                  aria-label="Delete comment"
-                  disabled={remove.isPending}
-                  onClick={() => {
-                    void remove
-                      .mutateAsync({ id: props.recipeId, commentId: String(comment.id) })
-                      .then(() => refresh())
-                      .catch((error: unknown) => notifyError("delete the comment", error));
-                  }}
+        <div class="flex flex-col divide-y divide-outline-variant">
+          <For each={mine()}>
+            {(comment) => (
+              <article class="flex items-start gap-2 py-3 pr-1">
+                <div class="flex min-w-0 flex-1 flex-col gap-0.5">
+                  <p class="typescale-label-medium text-on-surface-variant">
+                    {comment.email} · {formatTime(comment.createdAt)}
+                  </p>
+                  <p class="typescale-body-medium text-on-surface">{comment.body}</p>
+                </div>
+                <Show
+                  when={
+                    props.userId != null &&
+                    (comment.userId === props.userId || props.ownerId === props.userId)
+                  }
                 >
-                  <IconTrash aria-hidden="true" />
-                </IconButton>
-              </Show>
-            </article>
-          )}
-        </For>
+                  <IconButton
+                    size="xs"
+                    aria-label="Delete comment"
+                    disabled={remove.isPending}
+                    onClick={() => {
+                      void remove
+                        .mutateAsync({ id: props.recipeId, commentId: String(comment.id) })
+                        .then(() => refresh())
+                        .catch((error: unknown) => notifyError("delete the comment", error));
+                    }}
+                  >
+                    <IconTrash aria-hidden="true" />
+                  </IconButton>
+                </Show>
+              </article>
+            )}
+          </For>
+        </div>
         <Show when={props.userId != null}>
           <form
             class="flex items-end gap-2"

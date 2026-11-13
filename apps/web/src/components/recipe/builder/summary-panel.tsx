@@ -127,8 +127,7 @@ export function SummaryPanel(props: {
               <li
                 class={cn(
                   "flex flex-col gap-1.5",
-                  row().length > 1 &&
-                    "rounded-large border border-dashed border-outline-variant p-1.5"
+                  row().length > 1 && "border-l-2 border-outline-variant pl-2"
                 )}
               >
                 <Show when={row().length > 1}>
@@ -155,7 +154,7 @@ export function SummaryPanel(props: {
                           "flex flex-col gap-1.5 rounded-medium p-2 motion-fast",
                           props.selected === node.key
                             ? "bg-secondary-container text-on-secondary-container"
-                            : "bg-surface-container-low"
+                            : "text-on-surface"
                         )}
                       >
                         <button

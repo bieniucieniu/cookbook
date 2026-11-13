@@ -17,7 +17,7 @@ import { Dynamic } from "solid-js/web";
 import { SpanBadge } from "../parts";
 
 /**
- * One step as a card: number and name, then ingredients and tools side by side once the card
+ * One step as a plain section (no container; the list puts dividers between steps): number and name, then ingredients and tools side by side once the card
  * is 20rem wide, times below them, and the note. Used by the list view. `action` sits at the
  * top right of the header (the list puts a link to the step in cook mode there).
  */
@@ -69,11 +69,8 @@ export function StepCard(props: {
   return (
     <article
       class={cn(
-        "@container flex flex-col gap-3 rounded-large motion-default",
-        collapsed()
-          ? "bg-surface-container-lowest p-2 text-on-surface-variant"
-          : "bg-surface-container-low p-4",
-        props.choice?.chosen && "ring-2 ring-primary",
+        "@container flex flex-col gap-3 motion-default",
+        collapsed() && "text-on-surface-variant",
         props.class
       )}
     >
@@ -94,7 +91,11 @@ export function StepCard(props: {
                       ? `Choose ${props.node.title} instead`
                       : `Choose ${props.node.title}`
                 }
-                class="relative flex w-full cursor-pointer items-center gap-3 rounded-medium p-1 text-left state-layer focus-ring"
+                // Chosen reads like a selected M3 list item: a secondary-container fill.
+                class={cn(
+                  "relative -mx-1 flex w-[calc(100%+0.5rem)] cursor-pointer items-center gap-3 rounded-full p-1 pr-3 text-left state-layer focus-ring motion-fast",
+                  choice().chosen && "bg-secondary-container text-on-secondary-container"
+                )}
                 onClick={() => choice().onToggle()}
               >
                 {title()}
