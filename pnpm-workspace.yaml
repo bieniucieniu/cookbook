@@ -19,7 +19,6 @@ catalog:
   motion: ^14.10.1
   tiptap-markdown: ^0.9.0
   "@kobalte/core": ^0.13.14
-  "@xyflow/system": 0.0.83
   "@tailwindcss/vite": ^4.3.3
   "@tanstack/router-plugin": ^1.168.48
   "@tanstack/solid-query": ^5.105.1

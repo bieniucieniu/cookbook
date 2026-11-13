@@ -37,7 +37,6 @@ export {
   IconSettings,
   IconRepeat,
   IconShare,
-  IconSitemap,
   IconSun,
   IconTextSize,
   IconToolsKitchen2,

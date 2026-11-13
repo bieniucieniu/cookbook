@@ -1,6 +1,7 @@
 import { IconChevronLeft, IconChevronRight } from "@/components/icons";
 import { IconButton } from "@/components/m3/icon-button";
 import { createSignal, For, type JSX, onCleanup, onMount, Show } from "solid-js";
+import { cn } from "@/lib/utils";
 
 /** A step that grows to fill the row, never narrower than 22rem (85% on a phone). */
 export const growItem = "min-w-[min(22rem,85%)] flex-1";
@@ -8,7 +9,8 @@ export const growItem = "min-w-[min(22rem,85%)] flex-1";
 /**
  * Steps that share a row, side by side. Steps grow to fill the row and never shrink below 22rem
  * (or 85% of the row on a phone); past that the row scrolls sideways with snapping, and
- * previous / next buttons appear next to the label.
+ * previous / next buttons appear next to the label. Steps are split by a vertical divider, not
+ * set on cards.
  */
 export function StepCarousel<T>(props: {
   each: T[];
@@ -33,18 +35,16 @@ export function StepCarousel<T>(props: {
   const page = (direction: 1 | -1) =>
     track?.scrollBy({ left: direction * track.clientWidth * 0.85, behavior: "smooth" });
 
+  // The items too (each from its own ref, so ones added later count): a step collapsing or
+  // growing changes the overflow, not the track's size.
+  const observer = new ResizeObserver(measure);
+  onCleanup(() => observer.disconnect());
   onMount(() => {
     if (!track) return;
-    // The items too: a card collapsing or growing changes the overflow, not the track's size.
-    const observer = new ResizeObserver(measure);
     observer.observe(track);
-    for (const item of track.children) observer.observe(item);
     track.addEventListener("scroll", measure, { passive: true });
     measure();
-    onCleanup(() => {
-      observer.disconnect();
-      track?.removeEventListener("scroll", measure);
-    });
+    onCleanup(() => track?.removeEventListener("scroll", measure));
   });
 
   return (
@@ -80,11 +80,20 @@ export function StepCarousel<T>(props: {
         aria-roledescription="carousel"
         aria-label={props.name}
         tabIndex={overflow() ? 0 : -1}
-        class="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain scroll-smooth -mx-2 scroll-px-2 p-2 outline-none [scrollbar-color:var(--md-sys-color-outline)_transparent] [scrollbar-width:thin] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-secondary"
+        class="flex snap-x snap-mandatory gap-6 overflow-x-auto overscroll-x-contain scroll-smooth -mx-2 scroll-px-2 p-2 outline-none [scrollbar-color:var(--md-sys-color-outline)_transparent] [scrollbar-width:thin] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-secondary"
       >
         <For each={props.each}>
           {(item) => (
-            <div class={`flex snap-start ${props.itemClass?.(item) ?? growItem}`}>
+            <div
+              ref={(element) => {
+                observer.observe(element);
+                onCleanup(() => observer.unobserve(element));
+              }}
+              class={cn(
+                "flex snap-start [&+&]:border-l [&+&]:border-outline-variant [&+&]:pl-6",
+                props.itemClass?.(item) ?? growItem
+              )}
+            >
               {props.children(item)}
             </div>
           )}

@@ -2,7 +2,6 @@ import type {
   IngredientSwapWrite,
   NodeIngredientWrite,
   NodeToolWrite,
-  NodeWriteBranchMode,
   SpanWrite,
   ToolSwapWrite,
 } from "@/generated/model";
@@ -113,19 +112,6 @@ export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunctio
     movable: (key: string) =>
       incoming(key, draft.edges).length <= 1 && outgoing(key, draft.edges).length <= 1,
 
-    addEdge(from: string, to: string) {
-      if (from === to) return;
-      if (draft.edges.some((edge) => edge.from === from && edge.to === to)) return;
-      setDraft("edges", (edges) => [...edges, { from, to, label: "" }]);
-    },
-    removeEdge(from: string, to: string) {
-      setDraft("edges", (edges) => edges.filter((edge) => !(edge.from === from && edge.to === to)));
-    },
-    setEdgeLabel(from: string, to: string, label: string) {
-      const index = draft.edges.findIndex((edge) => edge.from === from && edge.to === to);
-      if (index >= 0) setDraft("edges", index, "label", label);
-    },
-
     duplicateStep(key: string): string | undefined {
       const at = indexOf(key);
       const source = draft.nodes[at];
@@ -162,11 +148,6 @@ export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunctio
     setStep<K extends keyof DraftNode>(key: string, field: K, value: DraftNode[K]) {
       const at = indexOf(key);
       if (at >= 0) setDraft("nodes", at, field, value);
-    },
-
-    setBranchMode(key: string, mode: NodeWriteBranchMode) {
-      const at = indexOf(key);
-      if (at >= 0) setDraft("nodes", at, "branchMode", mode);
     },
 
     addIngredient(key: string, ingredientId: number) {

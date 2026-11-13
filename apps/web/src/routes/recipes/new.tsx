@@ -1,4 +1,4 @@
-import { RecipeEditor, type EditorPane } from "@/components/recipe/builder/recipe-editor";
+import { RecipeEditor } from "@/components/recipe/builder/recipe-editor";
 import { blankDraft } from "@/lib/recipe-draft";
 import { createFileRoute } from "@tanstack/solid-router";
 
@@ -15,17 +15,12 @@ function NewRecipePage() {
       <RecipeEditor
         initial={blankDraft()}
         selected={search().step}
-        pane={search().pane ?? "step"}
         onSelect={(step) => void navigate({ search: (prev) => ({ ...prev, step }), replace: true })}
-        onPane={(pane) => void navigate({ search: (prev) => ({ ...prev, pane }), replace: true })}
       />
     </main>
   );
 }
 
-function editorSearch(search: Record<string, unknown>): { step?: string; pane?: EditorPane } {
-  return {
-    ...(typeof search.step === "string" && search.step ? { step: search.step } : {}),
-    ...(search.pane === "flow" || search.pane === "step" ? { pane: search.pane } : {}),
-  };
+function editorSearch(search: Record<string, unknown>): { step?: string } {
+  return typeof search.step === "string" && search.step ? { step: search.step } : {};
 }

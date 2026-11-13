@@ -23,7 +23,6 @@
     "@tiptap/extension-placeholder": "catalog:",
     "@tiptap/pm": "catalog:",
     "@tiptap/starter-kit": "catalog:",
-    "@xyflow/system": "catalog:",
     "clsx": "catalog:",
     "fast-equals": "catalog:",
     "motion": "catalog:",

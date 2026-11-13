@@ -361,7 +361,7 @@ function PlacementRow(props: {
         when={props.actions.movable(props.node.key)}
         fallback={
           <p class="typescale-body-medium text-on-surface-variant">
-            Arms split or meet at this step. Move the steps around it, or use the flow.
+            Arms split or meet at this step. Move the steps around it instead.
           </p>
         }
       >

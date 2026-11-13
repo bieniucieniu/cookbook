@@ -344,7 +344,7 @@ The web editor is a split view. On the left is the summary: title, description, 
 | Or        | `xor` arm next to it: same step before and after |
 | Alongside | `and` arm next to it: same step before and after |
 
-Or and Alongside need exactly one step before the anchor, at most one after, and a split of the same mode (or none) on the step before. That rules out the first step: add a step before it first. The step editor's Placement row moves an existing step the same way. The flow graph is an optional view and editor.
+Or and Alongside need exactly one step before the anchor, at most one after, and a split of the same mode (or none) on the step before. That rules out the first step: add a step before it first. The step editor's Placement row moves an existing step the same way.
 
 ## Rejected shapes
 

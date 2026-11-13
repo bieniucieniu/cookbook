@@ -1,14 +1,18 @@
 import {
+  IconArrowsShuffle,
   IconCarrot,
+  IconGitBranch,
   IconHandStop,
   IconHourglass,
   IconMinus,
+  IconPlayerPlay,
   IconPlus,
   IconToolsKitchen2,
   type TablerIcon,
 } from "@/components/icons";
 import { IconButton } from "@/components/m3/icon-button";
 import type { SpanWriteKind } from "@/generated/model";
+import type { RowMode } from "@/lib/recipe-graph";
 import { formatAmount, formatDuration } from "@/lib/units";
 import { cn } from "@/lib/utils";
 import { type JSX, Show, splitProps } from "solid-js";
@@ -20,6 +24,41 @@ export function IconLabel(props: { icon: TablerIcon; label: string; class?: stri
     <span class={cn("inline-flex items-center gap-1.5", props.class)}>
       <Dynamic component={props.icon} size={18} stroke={1.75} aria-hidden="true" />
       <span>{props.label}</span>
+    </span>
+  );
+}
+
+/** A step's number in a filled circle, as the list, the graph, and the editor show it. */
+export function StepNumber(props: { value: number | undefined; size?: "sm" | "md" }) {
+  return (
+    <span
+      class={cn(
+        "flex shrink-0 items-center justify-center rounded-full bg-primary text-on-primary tabular-nums",
+        props.size === "sm" ? "size-7 typescale-label-medium" : "size-8 typescale-label-large"
+      )}
+      aria-hidden="true"
+    >
+      {props.value}
+    </span>
+  );
+}
+
+/** "Pick one" for alternatives, "At the same time" for parallel steps. */
+export function RowLabel(props: { mode: RowMode; size?: "sm" | "md"; class?: string }) {
+  return (
+    <span
+      class={cn(
+        "inline-flex items-center gap-1.5 text-on-surface-variant",
+        props.size === "sm" ? "typescale-label-medium" : "typescale-label-large",
+        props.class
+      )}
+    >
+      <Dynamic
+        component={props.mode === "xor" ? IconArrowsShuffle : IconGitBranch}
+        size={props.size === "sm" ? 14 : 16}
+        aria-hidden="true"
+      />
+      {props.mode === "xor" ? "Pick one" : "At the same time"}
     </span>
   );
 }
@@ -136,15 +175,17 @@ export const spanLabel: Record<SpanWriteKind, string> = {
   wait: "Wait",
 };
 
-/** Active and wait differ by icon and border style, not by colour alone. */
+/** Active and wait differ by icon and border style, not by colour alone. `play` marks a timer start. */
 export function SpanBadge(
   props: JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
     kind: SpanWriteKind;
     seconds: number;
     static?: boolean;
+    /** Trailing play icon, for a badge that starts a timer. */
+    play?: boolean;
   }
 ) {
-  const [local, rest] = splitProps(props, ["kind", "seconds", "class", "static"]);
+  const [local, rest] = splitProps(props, ["kind", "seconds", "class", "static", "play"]);
   return (
     <Dynamic
       component={local.static ? "span" : "button"}
@@ -162,6 +203,9 @@ export function SpanBadge(
       <Dynamic component={spanIcon[local.kind]} size={16} stroke={1.75} aria-hidden="true" />
       <span class="font-semibold">{formatDuration(local.seconds)}</span>
       <span class="typescale-label-small opacity-80">{spanLabel[local.kind]}</span>
+      <Show when={local.play}>
+        <IconPlayerPlay size={16} stroke={1.75} aria-hidden="true" />
+      </Show>
     </Dynamic>
   );
 }

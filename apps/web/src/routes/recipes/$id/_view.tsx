@@ -8,7 +8,6 @@ import {
   IconLock,
   IconPencil,
   IconTrash,
-  IconUsers,
 } from "@/components/icons";
 import { Button, ToggleButton } from "@/components/m3/button";
 import { ButtonGroup } from "@/components/m3/button-group";
@@ -49,6 +48,7 @@ import {
 import { useCatalog } from "@/lib/catalog";
 import { detailToDraft } from "@/lib/recipe-draft";
 import { lanes } from "@/lib/recipe-graph";
+import { settledData } from "@/lib/query";
 import { signedIn } from "@/lib/session";
 import { formatSpan } from "@/lib/units";
 import { ApiError } from "@/mutator";
@@ -80,8 +80,8 @@ function RecipeLayout() {
   const catalog = useCatalog();
   const recipe = useQuery(() => getGetRecipeQueryOptions(params().id));
   const remove = useDeleteRecipe();
-  const detail = () => recipeDetail(recipe.data);
-  const user = () => signedIn(session.data);
+  const detail = () => recipeDetail(settledData(recipe));
+  const user = () => signedIn(session);
   const view = () => (childParams().step === undefined ? "list" : "cook");
   const [confirmDelete, setConfirmDelete] = createSignal(false);
 
@@ -243,14 +243,7 @@ function RecipeLayout() {
                     )}
                   </For>
                 </ButtonGroup>
-                <div class="flex items-center gap-2">
-                  <IconLabel
-                    icon={IconUsers}
-                    label="Cooks"
-                    class="typescale-label-large text-on-surface-variant"
-                  />
-                  <Stepper label="cooks" value={cooks()} onChange={setCooks} max={24} />
-                </div>
+                <Stepper label="cooks" value={cooks()} onChange={setCooks} max={24} />
               </div>
 
               <Outlet />

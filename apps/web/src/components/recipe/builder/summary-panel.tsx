@@ -1,9 +1,7 @@
 import {
   IconAlertTriangle,
-  IconArrowsShuffle,
   IconCarrot,
   IconClock,
-  IconGitBranch,
   IconLayoutList,
   IconPlus,
   IconSettings,
@@ -13,14 +11,14 @@ import {
 import { Button } from "@/components/m3/button";
 import type { Catalog } from "@/lib/catalog";
 import { roughSeconds, stepSeconds, type RecipeDraft } from "@/lib/recipe-draft";
-import { lanes } from "@/lib/recipe-graph";
+import { lanes, rowMode } from "@/lib/recipe-graph";
 import type { RecipeSummary, SummaryLine } from "@/lib/recipe-summary";
 import { formatAmount, formatDuration } from "@/lib/units";
 import { cn } from "@/lib/utils";
 import { createMemo, For, Index, Show } from "solid-js";
 import type { SetStoreFunction } from "solid-js/store";
 import { MarkdownEditor } from "../markdown";
-import { IconLabel } from "../parts";
+import { IconLabel, RowLabel, StepNumber } from "../parts";
 import type { DraftActions } from "./actions";
 import { AddButton } from "./step-editor";
 import type { Warning } from "./warnings";
@@ -42,12 +40,7 @@ export function SummaryPanel(props: {
   onFix: (warning: Warning) => void;
 }) {
   const rows = createMemo(() => lanes(props.draft.nodes, props.draft.edges));
-  const rowMode = (row: { key: string }[]) => {
-    const parent = props.draft.edges.find((edge) => edge.to === row[0]?.key)?.from;
-    return props.draft.nodes.find((node) => node.key === parent)?.branchMode === "xor"
-      ? "xor"
-      : "and";
-  };
+  const modeOf = (row: { key: string }[]) => rowMode(row, props.draft.nodes, props.draft.edges);
   const titleOf = (key: string) =>
     props.draft.nodes.find((node) => node.key === key)?.title.trim() ||
     `Step ${props.numbers.get(key) ?? ""}`;
@@ -131,20 +124,7 @@ export function SummaryPanel(props: {
                 )}
               >
                 <Show when={row().length > 1}>
-                  <span class="inline-flex items-center gap-1.5 px-1 typescale-label-medium text-on-surface-variant">
-                    <Show
-                      when={rowMode(row()) === "xor"}
-                      fallback={
-                        <>
-                          <IconGitBranch size={14} aria-hidden="true" />
-                          At the same time
-                        </>
-                      }
-                    >
-                      <IconArrowsShuffle size={14} aria-hidden="true" />
-                      Pick one
-                    </Show>
-                  </span>
+                  <RowLabel mode={modeOf(row())} size="sm" class="px-1" />
                 </Show>
                 <ol class="flex flex-col gap-1.5">
                   <For each={row()}>
@@ -163,12 +143,7 @@ export function SummaryPanel(props: {
                           aria-current={props.selected === node.key ? "step" : undefined}
                           onClick={() => props.onSelect(node.key)}
                         >
-                          <span
-                            class="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary typescale-label-medium text-on-primary tabular-nums"
-                            aria-hidden="true"
-                          >
-                            {props.numbers.get(node.key)}
-                          </span>
+                          <StepNumber value={props.numbers.get(node.key)} size="sm" />
                           <span
                             class={cn(
                               "min-w-0 flex-1 truncate typescale-title-small",
