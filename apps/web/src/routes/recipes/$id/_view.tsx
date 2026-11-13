@@ -7,7 +7,6 @@ import {
   IconLayoutList,
   IconLock,
   IconPencil,
-  IconSitemap,
   IconTrash,
   IconUsers,
 } from "@/components/icons";
@@ -38,10 +37,7 @@ import { notifyError } from "@/components/notify";
 import { ErrorBlock, PageLoading } from "@/components/page-state";
 import { MarkdownView } from "@/components/recipe/markdown";
 import { IconLabel, Stepper } from "@/components/recipe/parts";
-import { CookMode } from "@/components/recipe/view/cook-mode";
-import { GraphView } from "@/components/recipe/view/graph-view";
-import { RecipeList } from "@/components/recipe/view/recipe-list";
-import { StepComments } from "@/components/recipe/view/step-comments";
+import { RecipeViewContext } from "@/components/recipe/view/context";
 import { useCurrentUser } from "@/generated/auth/auth";
 import type { RecipeDetail } from "@/generated/model";
 import {
@@ -52,37 +48,32 @@ import {
 } from "@/generated/recipes/recipes";
 import { useCatalog } from "@/lib/catalog";
 import { detailToDraft } from "@/lib/recipe-draft";
+import { lanes } from "@/lib/recipe-graph";
 import { signedIn } from "@/lib/session";
 import { formatSpan } from "@/lib/units";
 import { ApiError } from "@/mutator";
 import { useQuery, useQueryClient } from "@tanstack/solid-query";
-import { createFileRoute, useNavigate } from "@tanstack/solid-router";
-import { createMemo, createSignal, For, Match, Show, Switch } from "solid-js";
+import { createFileRoute, Outlet, useNavigate, useParams } from "@tanstack/solid-router";
+import { createMemo, createSignal, For, Show } from "solid-js";
 import { Dynamic } from "solid-js/web";
-
-const views = ["list", "cook", "graph"] as const;
-type View = (typeof views)[number];
 
 const viewButtons = [
   { value: "list", label: "List", icon: IconLayoutList },
   { value: "cook", label: "Cook", icon: IconChefHat },
-  { value: "graph", label: "Graph", icon: IconSitemap },
 ] as const;
 
-function isView(value: unknown): value is View {
-  return typeof value === "string" && views.some((view) => view === value);
-}
-
-export const Route = createFileRoute("/recipes/$id/")({
-  validateSearch: (search: Record<string, unknown>): { view?: View } =>
-    isView(search.view) ? { view: search.view } : {},
-  component: RecipePage,
+/**
+ * Pathless layout for a recipe: the header, the List / Cook switch, and the cook count stay
+ * put while the list (`/recipes/$id`) and the cook steps (`/recipes/$id/$step`) swap below.
+ */
+export const Route = createFileRoute("/recipes/$id/_view")({
+  component: RecipeLayout,
 });
 
-function RecipePage() {
+function RecipeLayout() {
   const params = Route.useParams();
-  const search = Route.useSearch();
-  const routeNavigate = Route.useNavigate();
+  // The step param belongs to the child route; read it loosely to know which view is open.
+  const childParams = useParams({ strict: false });
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const session = useCurrentUser();
@@ -91,7 +82,7 @@ function RecipePage() {
   const remove = useDeleteRecipe();
   const detail = () => recipeDetail(recipe.data);
   const user = () => signedIn(session.data);
-  const view = () => search().view ?? "list";
+  const view = () => (childParams().step === undefined ? "list" : "cook");
   const [confirmDelete, setConfirmDelete] = createSignal(false);
 
   const onDelete = async () => {
@@ -125,18 +116,30 @@ function RecipePage() {
         {(item) => {
           const draft = createMemo(() => detailToDraft(item()));
           const [cooks, setCooks] = createSignal(item().cooks);
-          const footer = (stepKey: string) => (
-            <StepComments
-              recipeId={params().id}
-              stepKey={stepKey}
-              comments={item().comments ?? []}
-              userId={user()?.id}
-              ownerId={item().ownerId}
-            />
-          );
+          const openView = (value: "list" | "cook") => {
+            if (value === "list") {
+              void navigate({ to: "/recipes/$id", params: { id: params().id } });
+              return;
+            }
+            const first = lanes(draft().nodes, draft().edges)[0]?.[0];
+            if (first)
+              void navigate({
+                to: "/recipes/$id/$step",
+                params: { id: params().id, step: first.key },
+              });
+          };
           return (
-            <>
-              {/* Shown in every view, so switching List / Cook / Graph keeps the recipe in place. */}
+            <RecipeViewContext.Provider
+              value={{
+                recipeId: () => params().id,
+                detail: item,
+                draft,
+                cooks,
+                catalog,
+                userId: () => user()?.id,
+              }}
+            >
+              {/* Shown in every view, so switching List / Cook keeps the recipe in place. */}
               <header class="flex flex-col gap-5">
                 <Show when={item().photos?.[0]}>
                   {(photo) => (
@@ -232,7 +235,7 @@ function RecipePage() {
                       <ToggleButton
                         variant="tonal"
                         pressed={view() === option.value}
-                        onChange={() => void routeNavigate({ search: { view: option.value } })}
+                        onChange={() => openView(option.value)}
                       >
                         <Dynamic component={option.icon} aria-hidden="true" />
                         {option.label}
@@ -250,28 +253,8 @@ function RecipePage() {
                 </div>
               </div>
 
-              <Switch>
-                <Match when={view() === "list"}>
-                  <RecipeList
-                    draft={draft()}
-                    cooks={cooks()}
-                    catalog={catalog}
-                    stepFooter={footer}
-                  />
-                </Match>
-                <Match when={view() === "cook"}>
-                  <CookMode draft={draft()} cooks={cooks()} catalog={catalog} />
-                </Match>
-                <Match when={view() === "graph"}>
-                  <GraphView
-                    draft={draft()}
-                    catalog={catalog}
-                    cooks={cooks()}
-                    stepFooter={footer}
-                  />
-                </Match>
-              </Switch>
-            </>
+              <Outlet />
+            </RecipeViewContext.Provider>
           );
         }}
       </Show>
