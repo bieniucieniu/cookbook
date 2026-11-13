@@ -21,11 +21,21 @@ import type { DraftNode, RecipeDraft } from "@/lib/recipe-draft";
 import { lanes } from "@/lib/recipe-graph";
 import { formatDuration, scaleQty } from "@/lib/units";
 import { cn } from "@/lib/utils";
-import { createEffect, createMemo, createSignal, For, onCleanup, onMount, Show } from "solid-js";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  For,
+  type JSX,
+  onCleanup,
+  onMount,
+  Show,
+} from "solid-js";
 import { createStore } from "solid-js/store";
 import { Dynamic } from "solid-js/web";
 import { MarkdownView } from "../markdown";
 import { ItemChip, spanIcon, spanLabel } from "../parts";
+import { IngredientList, IngredientListItem } from "./ingredient-list";
 
 type Timer = { id: number; label: string; endsAt: number; seconds: number };
 
@@ -72,16 +82,50 @@ function useWakeLock() {
 
 /**
  * One screen per row of the recipe. Parallel steps show as tabs, a "pick one" split as a
- * choice. Timers start from a step and keep their label when you move on.
+ * choice. The open step comes from the route (`stepKey`); moving on calls `onStep`, and a tab
+ * switch replaces the history entry. Timers start from a step and keep their label when you
+ * move on.
  */
-export function CookMode(props: { draft: RecipeDraft; cooks: number; catalog: Catalog }) {
+export function CookMode(props: {
+  draft: RecipeDraft;
+  cooks: number;
+  catalog: Catalog;
+  stepKey: string;
+  onStep: (stepKey: string, replace?: boolean) => void;
+  /** Comments for one step, shown collapsed under it. */
+  comments?: (stepKey: string) => JSX.Element;
+}) {
   useWakeLock();
   // Snackbars (finished timers) sit above the floating toolbar: 64px bar + 16px gap.
   onMount(() => document.documentElement.style.setProperty("--snackbar-offset", "5rem"));
   onCleanup(() => document.documentElement.style.removeProperty("--snackbar-offset"));
   const rows = createMemo(() => lanes(props.draft.nodes, props.draft.edges));
-  const [index, setIndex] = createSignal(0);
-  const [direction, setDirection] = createSignal(1);
+  /** Row holding the step in the URL. An unknown key falls back to the first row. */
+  const index = createMemo(() =>
+    Math.max(
+      0,
+      rows().findIndex((row) => row.some((node) => node.key === props.stepKey))
+    )
+  );
+  // Slide forward or back depending on where the new row sits relative to the last one.
+  const motionState = createMemo<{ index: number; direction: number }>(
+    (prev) => ({
+      index: index(),
+      direction: index() === prev.index ? prev.direction : index() > prev.index ? 1 : -1,
+    }),
+    { index: index(), direction: 1 }
+  );
+  const direction = () => motionState().direction;
+  const openRow = (at: number) => {
+    const key = rows()[at]?.[0]?.key;
+    if (key) props.onStep(key);
+  };
+  // A step key that is not in the recipe lands on the first step instead.
+  createEffect(() => {
+    const first = rows()[0]?.[0]?.key;
+    if (first && !rows().some((row) => row.some((node) => node.key === props.stepKey)))
+      props.onStep(first, true);
+  });
   const [done, setDone] = createStore<Record<string, boolean>>({});
   const [timers, setTimers] = createSignal<Timer[]>([]);
   const [now, setNow] = createSignal(Date.now());
@@ -91,9 +135,7 @@ export function CookMode(props: { draft: RecipeDraft; cooks: number; catalog: Ca
 
   const row = () => rows()[index()] ?? [];
   const go = (delta: number) => {
-    const target = Math.min(rows().length - 1, Math.max(0, index() + delta));
-    setDirection(delta);
-    setIndex(target);
+    openRow(Math.min(rows().length - 1, Math.max(0, index() + delta)));
   };
   const rowMode = (nodes: DraftNode[]) => {
     const parent = props.draft.edges.find((edge) => edge.to === nodes[0]?.key)?.from;
@@ -171,10 +213,7 @@ export function CookMode(props: { draft: RecipeDraft; cooks: number; catalog: Ca
                     ? "w-2.5 bg-primary/40"
                     : "w-2.5 bg-outline-variant"
               )}
-              onClick={() => {
-                setDirection(at() > index() ? 1 : -1);
-                setIndex(at());
-              }}
+              onClick={() => openRow(at())}
             />
           )}
         </For>
@@ -207,6 +246,7 @@ export function CookMode(props: { draft: RecipeDraft; cooks: number; catalog: Ca
                         done={done}
                         setDone={setDone}
                         onTimer={startTimer}
+                        comments={props.comments}
                       />
                     )}
                   </Show>
@@ -220,7 +260,13 @@ export function CookMode(props: { draft: RecipeDraft; cooks: number; catalog: Ca
                   />
                   {rowMode(row()) === "xor" ? "Pick one" : "Do these at the same time"}
                 </span>
-                <Tabs variant="secondary" defaultValue={row()[0]?.key}>
+                <Tabs
+                  variant="secondary"
+                  value={
+                    row().some((node) => node.key === props.stepKey) ? props.stepKey : row()[0]?.key
+                  }
+                  onChange={(key) => props.onStep(key, true)}
+                >
                   <TabsList>
                     <For each={row()}>
                       {(node) => (
@@ -243,6 +289,7 @@ export function CookMode(props: { draft: RecipeDraft; cooks: number; catalog: Ca
                           done={done}
                           setDone={setDone}
                           onTimer={startTimer}
+                          comments={props.comments}
                         />
                       </TabsContent>
                     )}
@@ -301,6 +348,7 @@ function CookStep(props: {
   done: Record<string, boolean>;
   setDone: (key: string, value: boolean) => void;
   onTimer: (label: string, seconds: number) => void;
+  comments?: (stepKey: string) => JSX.Element;
 }) {
   const [got, setGot] = createStore<Record<number, boolean>>({});
   const scale = (qty: number | null | undefined) =>
@@ -316,35 +364,23 @@ function CookStep(props: {
         </Show>
       </h2>
       <Show when={props.node.ingredients.length > 0}>
-        <ul class="flex flex-col gap-2" aria-label="Ingredients for this step">
+        <IngredientList aria-label="Ingredients for this step" class="-mx-4">
           <For each={props.node.ingredients}>
             {(item) => (
-              <li>
-                <ItemChip
-                  kind="ingredient"
-                  size="lg"
-                  class="w-full justify-start"
-                  name={props.catalog.name("ingredient", item.ingredientId)}
-                  qty={scale(item.qty)}
-                  unit={item.unit}
-                  optional={item.optional}
-                  muted={got[item.ingredientId]}
-                  role="checkbox"
-                  aria-checked={got[item.ingredientId] ? "true" : "false"}
-                  onClick={() => setGot(item.ingredientId, (value) => !value)}
-                />
-                <Show when={(item.alts ?? []).length > 0}>
-                  <span class="pl-4 typescale-body-medium text-on-surface-variant">
-                    or{" "}
-                    {(item.alts ?? [])
-                      .map((alt) => props.catalog.name("ingredient", alt.altIngredientId))
-                      .join(", ")}
-                  </span>
-                </Show>
-              </li>
+              <IngredientListItem
+                name={props.catalog.name("ingredient", item.ingredientId)}
+                qty={scale(item.qty)}
+                unit={item.unit}
+                optional={item.optional}
+                alts={(item.alts ?? []).map((alt) =>
+                  props.catalog.name("ingredient", alt.altIngredientId)
+                )}
+                checked={got[item.ingredientId] ?? false}
+                onChange={(value) => setGot(item.ingredientId, value)}
+              />
             )}
           </For>
-        </ul>
+        </IngredientList>
       </Show>
       <Show when={props.node.tools.length > 0}>
         <ul class="flex flex-wrap gap-2" aria-label="Tools for this step">
@@ -404,6 +440,7 @@ function CookStep(props: {
         <IconCheck aria-hidden="true" />
         {props.done[props.node.key] ? "Done" : "Mark done"}
       </ToggleButton>
+      <Show when={props.comments}>{(comments) => comments()(props.node.key)}</Show>
     </div>
   );
 }

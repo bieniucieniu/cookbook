@@ -2,14 +2,13 @@ import type { Catalog } from "@/lib/catalog";
 import type { DraftNode } from "@/lib/recipe-draft";
 import { scaleQty } from "@/lib/units";
 import { cn } from "@/lib/utils";
-import { For, type JSX, Show } from "solid-js";
+import { For, Show } from "solid-js";
 import { MarkdownView } from "../markdown";
 import { ItemChip, SpanBadge } from "../parts";
 
 /**
  * One step as a card: number and name, then ingredients and tools side by side once the card
- * is 20rem wide, times below them, the note, and an optional footer (comments). Shared by the
- * list view and the graph view's step pane, so a step reads the same in both.
+ * is 20rem wide, times below them, and the note. Used by the list view.
  */
 export function StepCard(props: {
   node: DraftNode;
@@ -18,7 +17,6 @@ export function StepCard(props: {
   /** Cooks the recipe is written for, and cooks to scale amounts to. */
   draftCooks: number;
   cooks: number;
-  footer?: JSX.Element;
   class?: string;
   /**
    * One of several "pick one" options. The header becomes a button that chooses this step.
@@ -182,7 +180,6 @@ export function StepCard(props: {
       <Show when={!collapsed() && props.node.body.trim()}>
         <MarkdownView value={props.node.body} class="text-on-surface-variant" />
       </Show>
-      <Show when={!collapsed()}>{props.footer}</Show>
     </article>
   );
 }

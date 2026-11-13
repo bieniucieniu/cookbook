@@ -20,6 +20,7 @@ declare module "@tabler/icons-solidjs" {
   export const IconCarrot: TablerIcon;
   export const IconCheck: TablerIcon;
   export const IconChefHat: TablerIcon;
+  export const IconChevronDown: TablerIcon;
   export const IconChevronLeft: TablerIcon;
   export const IconChevronRight: TablerIcon;
   export const IconClock: TablerIcon;
@@ -35,6 +36,7 @@ declare module "@tabler/icons-solidjs" {
   export const IconLayoutList: TablerIcon;
   export const IconLock: TablerIcon;
   export const IconLogout: TablerIcon;
+  export const IconMessageCircle: TablerIcon;
   export const IconMinus: TablerIcon;
   export const IconMoon: TablerIcon;
   export const IconNote: TablerIcon;

@@ -10,9 +10,10 @@ import { lanes, stepNumbers } from "@/lib/recipe-graph";
 import { summarize } from "@/lib/recipe-summary";
 import { scaleQty } from "@/lib/units";
 import { FilterChip } from "@/components/m3/chip";
-import { createMemo, createSignal, For, Index, Show, type JSX } from "solid-js";
+import { createMemo, createSignal, For, Index, Show } from "solid-js";
 import { createStore } from "solid-js/store";
 import { MarkdownView } from "../markdown";
+import { IngredientList, IngredientListItem } from "./ingredient-list";
 import { StepCard } from "./step-card";
 import { growItem, StepCarousel } from "./step-carousel";
 import { IconLabel, ItemChip } from "../parts";
@@ -38,12 +39,7 @@ const stepWidth = "w-full max-w-[50rem]";
  * Everything on one page: a checklist of what to get out, then compact steps with their own
  * items. Check marks live for this visit only.
  */
-export function RecipeList(props: {
-  draft: RecipeDraft;
-  cooks: number;
-  catalog: Catalog;
-  stepFooter?: (stepKey: string) => JSX.Element;
-}) {
+export function RecipeList(props: { draft: RecipeDraft; cooks: number; catalog: Catalog }) {
   const [checked, setChecked] = createStore<Record<string, boolean>>({});
   const [sideBySide, setSideBySide] = createSignal(loadSideBySide());
   /** The option chosen in each "pick one" row, keyed by the row's step keys. This visit only. */
@@ -95,7 +91,6 @@ export function RecipeList(props: {
       catalog={props.catalog}
       draftCooks={props.draft.cooks}
       cooks={props.cooks}
-      footer={props.stepFooter?.(node.key)}
       class="w-full"
     />
   );
@@ -120,46 +115,33 @@ export function RecipeList(props: {
             <h2 class="typescale-title-medium text-on-surface">
               <IconLabel icon={IconCarrot} label="Ingredients" />
             </h2>
-            <ul class="flex flex-col gap-1.5">
-              <For
-                each={summary().ingredients}
-                fallback={
-                  <li class="typescale-body-medium text-on-surface-variant">None listed.</li>
-                }
-              >
-                {(line) => (
-                  <li class="flex flex-col gap-1">
+            <Show
+              when={summary().ingredients.length > 0}
+              fallback={<p class="typescale-body-medium text-on-surface-variant">None listed.</p>}
+            >
+              <IngredientList aria-label="Ingredients" class="-mx-4">
+                <For each={summary().ingredients}>
+                  {(line) => (
                     <For each={line.amounts}>
                       {(amount) => {
                         const id = `${line.id}:${amount.unit ?? ""}`;
                         return (
-                          <ItemChip
-                            kind="ingredient"
-                            class="w-full justify-start rounded-medium"
+                          <IngredientListItem
                             name={props.catalog.name("ingredient", line.id)}
                             qty={scale(amount.qty)}
                             unit={amount.unit}
                             optional={line.optional}
-                            muted={checked[id]}
-                            role="checkbox"
-                            aria-checked={checked[id] ? "true" : "false"}
-                            onClick={() => setChecked(id, (value) => !value)}
+                            alts={line.alts.map((alt) => props.catalog.name("ingredient", alt.id))}
+                            checked={checked[id] ?? false}
+                            onChange={(value) => setChecked(id, value)}
                           />
                         );
                       }}
                     </For>
-                    <Show when={line.alts.length > 0}>
-                      <span class="pl-3 typescale-body-small text-on-surface-variant">
-                        {swapText(
-                          "ingredient",
-                          line.alts.map((alt) => alt.id)
-                        )}
-                      </span>
-                    </Show>
-                  </li>
-                )}
-              </For>
-            </ul>
+                  )}
+                </For>
+              </IngredientList>
+            </Show>
           </section>
           <Show when={summary().tools.length > 0}>
             <section class="flex flex-col gap-3">
