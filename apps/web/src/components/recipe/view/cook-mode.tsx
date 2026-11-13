@@ -7,7 +7,7 @@ import {
   IconGitBranch,
   IconPlayerPlay,
 } from "@/components/icons";
-import { Button, ToggleButton } from "@/components/m3/button";
+import { Button } from "@/components/m3/button";
 import { InputChip, InputChipRemove } from "@/components/m3/chip";
 import { ExtendedFab } from "@/components/m3/fab";
 import { IconButton } from "@/components/m3/icon-button";
@@ -34,7 +34,7 @@ import {
 import { createStore } from "solid-js/store";
 import { Dynamic } from "solid-js/web";
 import { MarkdownView } from "../markdown";
-import { ItemChip, spanIcon, spanLabel } from "../parts";
+import { ItemChip, spanLabel } from "../parts";
 import { IngredientList, IngredientListItem } from "./ingredient-list";
 
 type Timer = { id: number; label: string; endsAt: number; seconds: number };
@@ -353,6 +353,7 @@ function CookStep(props: {
   const [got, setGot] = createStore<Record<number, boolean>>({});
   const scale = (qty: number | null | undefined) =>
     qty == null ? qty : scaleQty(qty, props.draft.cooks, props.cooks);
+  const done = () => props.done[props.node.key] ?? false;
   return (
     <div class="flex flex-col gap-5">
       <h2 class="typescale-emphasized-headline-large text-on-surface">
@@ -363,84 +364,102 @@ function CookStep(props: {
           </span>
         </Show>
       </h2>
-      <Show when={props.node.ingredients.length > 0}>
-        <IngredientList aria-label="Ingredients for this step" class="-mx-4">
-          <For each={props.node.ingredients}>
-            {(item) => (
-              <IngredientListItem
-                name={props.catalog.name("ingredient", item.ingredientId)}
-                qty={scale(item.qty)}
-                unit={item.unit}
-                optional={item.optional}
-                alts={(item.alts ?? []).map((alt) =>
-                  props.catalog.name("ingredient", alt.altIngredientId)
+      {/*
+        What you need on the left, what to do on the right from the expanded breakpoint. Stacked
+        below it, needs first. The stage controls (parts nav and toolbar) stay outside.
+      */}
+      <div class="grid gap-x-8 gap-y-5 expanded:grid-cols-[minmax(0,22rem)_minmax(0,1fr)] expanded:items-start">
+        <Show when={props.node.ingredients.length + props.node.tools.length > 0}>
+          <div class="flex flex-col gap-4">
+            <Show when={props.node.ingredients.length > 0}>
+              {/* Rows reach the page edge on the left; on wide screens not into the gap. */}
+              <IngredientList aria-label="Ingredients for this step" class="-mx-4 expanded:mr-0">
+                <For each={props.node.ingredients}>
+                  {(item) => (
+                    <IngredientListItem
+                      name={props.catalog.name("ingredient", item.ingredientId)}
+                      qty={scale(item.qty)}
+                      unit={item.unit}
+                      optional={item.optional}
+                      alts={(item.alts ?? []).map((alt) =>
+                        props.catalog.name("ingredient", alt.altIngredientId)
+                      )}
+                      checked={got[item.ingredientId] ?? false}
+                      onChange={(value) => setGot(item.ingredientId, value)}
+                    />
+                  )}
+                </For>
+              </IngredientList>
+            </Show>
+            <Show when={props.node.tools.length > 0}>
+              <ul class="flex flex-wrap gap-2" aria-label="Tools for this step">
+                <For each={props.node.tools}>
+                  {(item) => (
+                    <li>
+                      <ItemChip
+                        kind="tool"
+                        name={props.catalog.name("tool", item.toolId)}
+                        optional={item.optional}
+                        static
+                      />
+                      <Show when={(item.alts ?? []).length > 0}>
+                        <span class="ml-1 typescale-body-medium text-on-surface-variant">
+                          or{" "}
+                          {(item.alts ?? [])
+                            .map((alt) => props.catalog.name("tool", alt.altToolId))
+                            .join(", ")}
+                        </span>
+                      </Show>
+                    </li>
+                  )}
+                </For>
+              </ul>
+            </Show>
+          </div>
+        </Show>
+        <div class="flex min-w-0 flex-col gap-5 expanded:col-start-2">
+          <Show when={props.node.body.trim()}>
+            <MarkdownView value={props.node.body} class="typescale-body-large" />
+          </Show>
+          {/*
+            Timers are secondary actions: tonal for hands-on time, dashed outline for waiting,
+            each with a play icon. Mark done is the step's main action: filled until pressed,
+            then tonal with a check.
+          */}
+          <Show when={props.node.spans.length > 0}>
+            <div class="flex flex-wrap gap-2" aria-label="Timers for this step">
+              <For each={props.node.spans}>
+                {(span) => (
+                  <Button
+                    variant={span.kind === "wait" ? "outlined" : "tonal"}
+                    size="sm"
+                    class={cn(span.kind === "wait" && "border-dashed border-outline")}
+                    aria-label={`Start a ${formatDuration(span.seconds)} ${spanLabel[span.kind].toLowerCase()} timer`}
+                    onClick={() =>
+                      props.onTimer(`${props.node.title} · ${spanLabel[span.kind]}`, span.seconds)
+                    }
+                  >
+                    <IconPlayerPlay aria-hidden="true" />
+                    <span class="tabular-nums">{formatDuration(span.seconds)}</span>
+                    <span class="opacity-80">{spanLabel[span.kind]}</span>
+                  </Button>
                 )}
-                checked={got[item.ingredientId] ?? false}
-                onChange={(value) => setGot(item.ingredientId, value)}
-              />
-            )}
-          </For>
-        </IngredientList>
-      </Show>
-      <Show when={props.node.tools.length > 0}>
-        <ul class="flex flex-wrap gap-2" aria-label="Tools for this step">
-          <For each={props.node.tools}>
-            {(item) => (
-              <li>
-                <ItemChip
-                  kind="tool"
-                  name={props.catalog.name("tool", item.toolId)}
-                  optional={item.optional}
-                  static
-                />
-                <Show when={(item.alts ?? []).length > 0}>
-                  <span class="ml-1 typescale-body-medium text-on-surface-variant">
-                    or{" "}
-                    {(item.alts ?? [])
-                      .map((alt) => props.catalog.name("tool", alt.altToolId))
-                      .join(", ")}
-                  </span>
-                </Show>
-              </li>
-            )}
-          </For>
-        </ul>
-      </Show>
-      <Show when={props.node.spans.length > 0}>
-        <div class="flex flex-wrap gap-2">
-          <For each={props.node.spans}>
-            {(span) => (
-              <Button
-                variant={span.kind === "wait" ? "outlined" : "tonal"}
-                size="md"
-                class={cn(span.kind === "wait" && "border-dashed")}
-                aria-label={`Start a ${formatDuration(span.seconds)} ${spanLabel[span.kind].toLowerCase()} timer`}
-                onClick={() =>
-                  props.onTimer(`${props.node.title} · ${spanLabel[span.kind]}`, span.seconds)
-                }
-              >
-                <IconPlayerPlay aria-hidden="true" />
-                <Dynamic component={spanIcon[span.kind]} aria-hidden="true" />
-                <span class="tabular-nums">{formatDuration(span.seconds)}</span>
-              </Button>
-            )}
-          </For>
+              </For>
+            </div>
+          </Show>
+          <Button
+            variant={done() ? "tonal" : "filled"}
+            size="md"
+            class="w-fit"
+            aria-pressed={done()}
+            onClick={() => props.setDone(props.node.key, !done())}
+          >
+            <IconCheck aria-hidden="true" />
+            {done() ? "Done" : "Mark done"}
+          </Button>
+          <Show when={props.comments}>{(comments) => comments()(props.node.key)}</Show>
         </div>
-      </Show>
-      <Show when={props.node.body.trim()}>
-        <MarkdownView value={props.node.body} class="typescale-body-large" />
-      </Show>
-      <ToggleButton
-        variant="tonal"
-        size="md"
-        class="w-fit"
-        pressed={props.done[props.node.key] ?? false}
-        onChange={(pressed) => props.setDone(props.node.key, pressed)}
-      >
-        <IconCheck aria-hidden="true" />
-        {props.done[props.node.key] ? "Done" : "Mark done"}
-      </ToggleButton>
-      <Show when={props.comments}>{(comments) => comments()(props.node.key)}</Show>
+      </div>
     </div>
   );
 }
