@@ -17,6 +17,7 @@ import com.bieniucieniu.cookbook.features.recipes.RecipeRepository
 import com.bieniucieniu.cookbook.features.recipes.RecipeService
 import com.bieniucieniu.cookbook.features.recipes.domain.EdgeWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.GateMode
+import com.bieniucieniu.cookbook.features.recipes.domain.IngredientSwapWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.NodeIngredientWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.NodeToolWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.NodeWrite
@@ -26,6 +27,7 @@ import com.bieniucieniu.cookbook.features.recipes.domain.RecipeWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.SpanKind
 import com.bieniucieniu.cookbook.features.recipes.domain.SpanWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.ToolHold
+import com.bieniucieniu.cookbook.features.recipes.domain.ToolSwapWrite
 import com.bieniucieniu.cookbook.features.recipes.photoObjectKey
 import com.bieniucieniu.cookbook.features.recipes.recipeModule
 import com.bieniucieniu.cookbook.lib.utils.randomBytes
@@ -39,6 +41,7 @@ import org.koin.core.context.stopKoin
 import org.koin.dsl.module
 
 const val EGGS_ON_TOAST = "Eggs on toast"
+const val THAI_RED_CURRY = "Thai Red Curry"
 
 class Seed(
     private val catalog: CatalogRepository,
@@ -61,7 +64,24 @@ class Seed(
         val oven = catalog.upsertTool("oven", "Oven")
         val seedUser = users.upsertUser("seed_local", "seed@localhost", "Seed", "Local")
         users.upsertUser("agent_local", AGENT_EMAIL, "Agent", "Local")
-        if (recipes.idByTitle(EGGS_ON_TOAST) != null) return
+        if (recipes.idByTitle(EGGS_ON_TOAST) == null) {
+            seedEggsOnToast(seedUser.id, egg, tomato, garlic, cumin, bread, skillet, oven)
+        }
+        if (recipes.idByTitle(THAI_RED_CURRY) == null) {
+            service.create(Actor(seedUser.id), thaiRedCurry(garlic), ownerId = null)
+        }
+    }
+
+    private suspend fun seedEggsOnToast(
+        seedUserId: Long,
+        egg: Long,
+        tomato: Long,
+        garlic: Long,
+        cumin: Long,
+        bread: Long,
+        skillet: Long,
+        oven: Long,
+    ) {
         val storageKey = randomBytes(16).toHex()
         storage.putObject(
             PutObjectRequest(
@@ -71,14 +91,136 @@ class Seed(
                 contentType = "image/png",
             ),
         )
-        val photoId = recipes.insertPhoto(seedUser.id, storageKey, "image/png", nowSeconds())
+        val photoId = recipes.insertPhoto(seedUserId, storageKey, "image/png", nowSeconds())
         val saved = service.create(
-            Actor(seedUser.id),
+            Actor(seedUserId),
             eggsOnToast(egg, tomato, garlic, cumin, bread, skillet, oven, photoId),
             ownerId = null,
         )
-        recipes.insertComment(saved.id, "sauce", seedUser.id, "Don't let the garlic brown.", 1_700_000_000)
-        recipes.insertComment(saved.id, "sauce", seedUser.id, "A pinch more cumin is fine.", 1_700_000_060)
+        recipes.insertComment(saved.id, "sauce", seedUserId, "Don't let the garlic brown.", 1_700_000_000)
+        recipes.insertComment(saved.id, "sauce", seedUserId, "A pinch more cumin is fine.", 1_700_000_060)
+    }
+
+    private suspend fun thaiRedCurry(garlic: Long): RecipeWrite {
+        val coconutMilk = catalog.upsertIngredient("coconut-milk", "Full-fat coconut milk")
+        val chickenStock = catalog.upsertIngredient("chicken-stock", "Chicken stock")
+        val vegetableStock = catalog.upsertIngredient("vegetable-stock", "Vegetable stock")
+        val redCurryPaste = catalog.upsertIngredient("red-curry-paste", "Red curry paste")
+        val ginger = catalog.upsertIngredient("ginger", "Ginger")
+        val lemongrass = catalog.upsertIngredient("lemongrass", "Lemongrass")
+        val chickenThighs = catalog.upsertIngredient("chicken-thighs", "Chicken thighs")
+        val beef = catalog.upsertIngredient("beef", "Beef")
+        val shrimp = catalog.upsertIngredient("shrimp", "Shrimp")
+        val firmTofu = catalog.upsertIngredient("firm-tofu", "Firm tofu")
+        val thaiEggplant = catalog.upsertIngredient("thai-eggplant", "Thai eggplant")
+        val bambooShoots = catalog.upsertIngredient("bamboo-shoots", "Bamboo shoots")
+        val redBellPepper = catalog.upsertIngredient("red-bell-pepper", "Red bell pepper")
+        val greenBeans = catalog.upsertIngredient("green-beans", "Green beans")
+        val kaffirLimeLeaves = catalog.upsertIngredient("kaffir-lime-leaves", "Kaffir lime leaves")
+        val thaiBasil = catalog.upsertIngredient("thai-basil", "Thai basil")
+        val fishSauce = catalog.upsertIngredient("fish-sauce", "Fish sauce")
+        val palmSugar = catalog.upsertIngredient("palm-sugar", "Palm sugar")
+        val brownSugar = catalog.upsertIngredient("brown-sugar", "Brown sugar")
+        val vegetableOil = catalog.upsertIngredient("vegetable-oil", "Vegetable oil")
+        val jasmineRice = catalog.upsertIngredient("jasmine-rice", "Jasmine rice")
+        val wok = catalog.upsertTool("wok", "Wok")
+        val deepPan = catalog.upsertTool("deep-pan", "Deep pan")
+
+        fun wokUse(hold: ToolHold = ToolHold.Active) =
+            listOf(NodeToolWrite(wok, hold = hold, alts = listOf(ToolSwapWrite(deepPan))))
+
+        return RecipeWrite(
+            title = THAI_RED_CURRY,
+            description = "A quick Thai red curry: fry the paste, simmer it in coconut milk and stock, " +
+                "cook your protein and vegetables in the sauce, then finish with Thai basil and kaffir lime leaves.",
+            notes = "Use 2 tbsp of curry paste for a milder curry and up to 4 tbsp for a hot one. " +
+                "Mae Ploy and Maesri are popular paste brands. " +
+                "Use 1–2 cups of stock depending on how thick you want the sauce. " +
+                "Sources: themodernproper.com, rasamalaysia.com, hungryinthailand.com, loveandlemons.com, " +
+                "cuisineatlas.com, recipetineats.com, bbcgoodfood.com.",
+            cooks = 1,
+            visibility = RecipeVisibility.Public,
+            nodes = listOf(
+                NodeWrite(
+                    key = "saute-paste",
+                    title = "Sauté the paste",
+                    body = "Heat a splash of oil (or a few spoons of the thick cream from the top of the coconut " +
+                        "milk can) in the pan. Add the red curry paste with the minced garlic, ginger and " +
+                        "lemongrass, and fry for about 2 minutes, until fragrant and the oil separates.",
+                    ord = 0,
+                    spans = listOf(SpanWrite(0, SpanKind.Active, 120)),
+                    ingredients = listOf(
+                        NodeIngredientWrite(vegetableOil, 1.0, "tbsp"),
+                        NodeIngredientWrite(redCurryPaste, 3.0, "tbsp"),
+                        NodeIngredientWrite(garlic, 2.0, "clove"),
+                        NodeIngredientWrite(ginger, 1.0, "tbsp"),
+                        NodeIngredientWrite(lemongrass, 1.0, "stalk"),
+                    ),
+                    tools = wokUse(),
+                ),
+                NodeWrite(
+                    key = "simmer-sauce",
+                    title = "Simmer the sauce",
+                    body = "Pour in the remaining coconut milk and the stock, then stir in the fish sauce and " +
+                        "palm sugar. Bring to a simmer.",
+                    ord = 1,
+                    spans = listOf(SpanWrite(0, SpanKind.Active, 120)),
+                    ingredients = listOf(
+                        NodeIngredientWrite(coconutMilk, 400.0, "ml"),
+                        NodeIngredientWrite(
+                            chickenStock, 360.0, "ml",
+                            alts = listOf(IngredientSwapWrite(vegetableStock)),
+                        ),
+                        NodeIngredientWrite(fishSauce, 2.0, "tbsp"),
+                        NodeIngredientWrite(palmSugar, 1.0, "tbsp", alts = listOf(IngredientSwapWrite(brownSugar))),
+                    ),
+                    tools = wokUse(),
+                ),
+                NodeWrite(
+                    key = "cook-protein-veg",
+                    title = "Cook protein and vegetables",
+                    body = "Add the chicken (or your protein of choice) along with the longer-cooking vegetables: " +
+                        "Thai eggplant, bamboo shoots and green beans. Simmer for 10–12 minutes, until the " +
+                        "protein is cooked through and the vegetables are tender.",
+                    ord = 2,
+                    spans = listOf(SpanWrite(0, SpanKind.Wait, 660)),
+                    ingredients = listOf(
+                        NodeIngredientWrite(
+                            chickenThighs, 450.0, "g",
+                            alts = listOf(
+                                IngredientSwapWrite(beef),
+                                IngredientSwapWrite(shrimp),
+                                IngredientSwapWrite(firmTofu),
+                            ),
+                        ),
+                        NodeIngredientWrite(thaiEggplant, 150.0, "g"),
+                        NodeIngredientWrite(bambooShoots, 100.0, "g"),
+                        NodeIngredientWrite(greenBeans, 100.0, "g"),
+                    ),
+                    tools = wokUse(ToolHold.Span),
+                ),
+                NodeWrite(
+                    key = "finish-serve",
+                    title = "Finish and serve",
+                    body = "Stir in the sliced red bell pepper and cook briefly. Tear in fresh Thai basil and " +
+                        "kaffir lime leaves, then serve hot over steamed jasmine rice.",
+                    ord = 3,
+                    spans = listOf(SpanWrite(0, SpanKind.Active, 120)),
+                    ingredients = listOf(
+                        NodeIngredientWrite(redBellPepper, 1.0, "pc"),
+                        NodeIngredientWrite(thaiBasil, 1.0, "handful"),
+                        NodeIngredientWrite(kaffirLimeLeaves, 4.0, "leaf"),
+                        NodeIngredientWrite(jasmineRice, 300.0, "g"),
+                    ),
+                    tools = wokUse(),
+                ),
+            ),
+            edges = listOf(
+                EdgeWrite("saute-paste", "simmer-sauce"),
+                EdgeWrite("simmer-sauce", "cook-protein-veg"),
+                EdgeWrite("cook-protein-veg", "finish-serve"),
+            ),
+        )
     }
 }
 
