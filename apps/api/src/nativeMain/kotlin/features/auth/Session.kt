@@ -1,5 +1,7 @@
 package com.bieniucieniu.cookbook.features.auth
 
+import com.bieniucieniu.cookbook.features.mcp.bearerToken
+import com.bieniucieniu.cookbook.workos.secureEquals
 import com.bieniucieniu.cookbook.workos.sha256Hex
 import io.ktor.http.Cookie
 import io.ktor.http.HttpHeaders
@@ -12,13 +14,8 @@ const val AGENT_EMAIL = "agent@localhost"
 
 fun bearerMatches(authorization: String, agentToken: String?): Boolean {
     if (agentToken.isNullOrBlank()) return false
-    val prefix = "Bearer "
-    if (!authorization.startsWith(prefix)) return false
-    val token = authorization.removePrefix(prefix)
-    if (token.length != agentToken.length) return false
-    var diff = 0
-    for (index in token.indices) diff = diff or (token[index].code xor agentToken[index].code)
-    return diff == 0
+    val token = bearerToken(authorization) ?: return false
+    return secureEquals(token, agentToken)
 }
 
 data class Actor(val userId: Long)

@@ -29,6 +29,8 @@ kotlin {
             dependencies {
                 implementation(libs.ktor.clientCore)
                 implementation(libs.kotlincrypto.sha2)
+                implementation(libs.kotlincrypto.hmacSha2)
+                implementation(libs.kotlinx.datetime)
             }
         }
         val nativeMain = getByName("nativeMain") {

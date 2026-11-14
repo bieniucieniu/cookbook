@@ -96,7 +96,7 @@ class WorkOSTest {
         val key = ByteArray(20) { 0x0b }
         assertEquals(
             "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7",
-            hmacSha256(key, "Hi There".encodeToByteArray()).toHex(),
+            hmacSha256(key, "Hi There".encodeToByteArray()).toHexString(),
         )
     }
 

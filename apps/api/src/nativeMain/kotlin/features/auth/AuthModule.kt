@@ -1,8 +1,8 @@
 package com.bieniucieniu.cookbook.features.auth
 
-import com.bieniucieniu.cookbook.lib.utils.randomBytes
 import com.bieniucieniu.cookbook.workos.SecureBytes
 import com.bieniucieniu.cookbook.workos.WorkOS
+import dev.whyoleg.cryptography.random.CryptographyRandom
 import io.ktor.client.HttpClient
 import io.ktor.server.application.Application
 import io.ktor.server.application.ApplicationStopping
@@ -27,7 +27,7 @@ val authModule = module {
                     clientId = config.clientId,
                     httpClient = get(),
                     apiBaseUrl = config.apiBaseUrl,
-                    secureBytes = SecureBytes { randomBytes(it) },
+                    secureBytes = SecureBytes { CryptographyRandom.nextBytes(it) },
                 )
             },
         )

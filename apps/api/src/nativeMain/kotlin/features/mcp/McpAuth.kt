@@ -8,7 +8,12 @@ import com.bieniucieniu.cookbook.workos.sha256Hex
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.Url
+import io.ktor.http.auth.AuthScheme
+import io.ktor.http.auth.HttpAuthHeader
+import io.ktor.http.auth.parseAuthorizationHeader
 import io.ktor.http.isSuccess
+import io.ktor.http.protocolWithAuthority
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
@@ -127,25 +132,19 @@ class McpAuth(
 
 }
 
-internal fun resourceOrigin(resourceUrl: String): String {
-    val scheme = resourceUrl.substringBefore("://")
-    val rest = resourceUrl.substringAfter("://")
-    val host = rest.substringBefore('/')
-    return "$scheme://$host"
-}
+internal fun resourceOrigin(resourceUrl: String): String = Url(resourceUrl).protocolWithAuthority
 
 /** Path of the resource URL with a leading slash, or null when the resource sits at the origin root. */
-internal fun resourcePath(resourceUrl: String): String? {
-    val rest = resourceUrl.substringAfter("://")
-    val path = rest.substringAfter('/', "").substringBefore('?').substringBefore('#').trimEnd('/')
-    return if (path.isEmpty()) null else "/$path"
-}
+internal fun resourcePath(resourceUrl: String): String? =
+    Url(resourceUrl).encodedPath.trimEnd('/').ifEmpty { null }
 
 internal fun bearerToken(authorization: String?): String? {
     if (authorization == null) return null
-    val prefix = "Bearer "
-    if (!authorization.startsWith(prefix)) return null
-    val token = authorization.removePrefix(prefix).trim()
-    if (token.isEmpty()) return null
-    return token
+    val header = try {
+        parseAuthorizationHeader(authorization)
+    } catch (_: Exception) {
+        return null
+    }
+    if (header !is HttpAuthHeader.Single || !header.authScheme.equals(AuthScheme.Bearer, ignoreCase = true)) return null
+    return header.blob.ifBlank { null }
 }

@@ -30,9 +30,9 @@ import com.bieniucieniu.cookbook.features.recipes.domain.ToolHold
 import com.bieniucieniu.cookbook.features.recipes.domain.ToolSwapWrite
 import com.bieniucieniu.cookbook.features.recipes.photoObjectKey
 import com.bieniucieniu.cookbook.features.recipes.recipeModule
-import com.bieniucieniu.cookbook.lib.utils.randomBytes
 import com.bieniucieniu.cookbook.s3.PutObjectRequest
 import com.bieniucieniu.cookbook.s3.S3Client
+import dev.whyoleg.cryptography.random.CryptographyRandom
 import io.github.smyrgeorge.sqlx4k.postgres.IPostgresSQL
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.runBlocking
@@ -82,7 +82,7 @@ class Seed(
         skillet: Long,
         oven: Long,
     ) {
-        val storageKey = randomBytes(16).toHex()
+        val storageKey = CryptographyRandom.nextBytes(16).toHexString()
         storage.putObject(
             PutObjectRequest(
                 bucket = s3.bucket,
@@ -340,15 +340,8 @@ private fun eggsOnToast(
     photos = listOf(PhotoRef(photoId, "Eggs on toast")),
 )
 
-private val PNG: ByteArray = hex(
+private val PNG: ByteArray = (
     "89504e470d0a1a0a0000000d4948445200000001000000010802000000907753de" +
-        "0000000c4944415408d763f8cfc00000000300010005fe02fe0000000049454e44ae426082",
-)
+        "0000000c4944415408d763f8cfc00000000300010005fe02fe0000000049454e44ae426082"
+).hexToByteArray()
 
-private fun hex(text: String): ByteArray = ByteArray(text.length / 2) { index ->
-    text.substring(index * 2, index * 2 + 2).toInt(16).toByte()
-}
-
-private fun ByteArray.toHex(): String = joinToString("") { byte ->
-    (byte.toInt() and 0xff).toString(16).padStart(2, '0')
-}

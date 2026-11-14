@@ -76,6 +76,10 @@ kotlin {
             implementation(libs.sqlx4k.postgres)
             implementation(libs.sqlx4k.sqldelight)
             implementation(libs.cryptography.core)
+            implementation(libs.cryptography.random)
+            implementation(libs.cryptography.bigint)
+            implementation(libs.cryptography.serialization.asn1)
+            implementation(libs.cryptography.serialization.asn1.modules)
             implementation(libs.cryptography.provider.openssl3.prebuilt)
         }
         nativeTest.dependencies {

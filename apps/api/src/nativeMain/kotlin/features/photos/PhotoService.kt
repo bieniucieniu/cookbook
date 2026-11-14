@@ -10,11 +10,11 @@ import com.bieniucieniu.cookbook.features.recipes.decide
 import com.bieniucieniu.cookbook.features.recipes.domain.PhotoCreated
 import com.bieniucieniu.cookbook.features.recipes.photoObjectKey
 import com.bieniucieniu.cookbook.features.recipes.visibility
-import com.bieniucieniu.cookbook.lib.utils.randomBytes
 import com.bieniucieniu.cookbook.s3.GetObjectRequest
 import com.bieniucieniu.cookbook.s3.PutObjectRequest
 import com.bieniucieniu.cookbook.s3.S3Client
 import com.bieniucieniu.cookbook.s3.S3Exception
+import dev.whyoleg.cryptography.random.CryptographyRandom
 import io.ktor.http.HttpStatusCode
 
 class PhotoBytes(val bytes: ByteArray, val contentType: String)
@@ -29,7 +29,7 @@ class PhotoService(
         val rejection = photoRejection(bytes.size, contentType, photos.maxBytes)
         if (rejection != null) throw ApiException(HttpStatusCode.BadRequest, listOf(rejection))
         val type = imageContentType(contentType)!!
-        val storageKey = randomBytes(16).toHex()
+        val storageKey = CryptographyRandom.nextBytes(16).toHexString()
         val id = recipes.insertPhoto(actor.userId, storageKey, type, nowSeconds())
         try {
             storage.putObject(
@@ -74,8 +74,4 @@ class PhotoService(
         }
         return PhotoBytes(stored.body, photo.contentType)
     }
-}
-
-private fun ByteArray.toHex(): String = joinToString("") { byte ->
-    (byte.toInt() and 0xff).toString(16).padStart(2, '0')
 }

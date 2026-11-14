@@ -3,6 +3,10 @@ package com.bieniucieniu.cookbook.features.mcp
 import dev.whyoleg.cryptography.CryptographyProvider
 import dev.whyoleg.cryptography.algorithms.RSA
 import dev.whyoleg.cryptography.algorithms.SHA256
+import dev.whyoleg.cryptography.bigint.BigInt
+import dev.whyoleg.cryptography.bigint.decodeToBigInt
+import dev.whyoleg.cryptography.serialization.asn1.Der
+import dev.whyoleg.cryptography.serialization.asn1.modules.RsaPublicKey
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
@@ -79,28 +83,11 @@ internal fun checkClaims(payload: JsonObject, issuer: String, resource: String, 
 }
 
 /** DER of a PKCS#1 RSAPublicKey (`SEQUENCE { INTEGER n, INTEGER e }`) from JWK `n` and `e` bytes. */
-internal fun pkcs1PublicKeyDer(modulus: ByteArray, exponent: ByteArray): ByteArray {
-    fun integer(value: ByteArray): ByteArray {
-        val significant = value.dropWhile { it == 0.toByte() }.toByteArray()
-        val trimmed = if (significant.isEmpty()) byteArrayOf(0) else significant
-        // A set high bit would read as negative: prefix a zero byte.
-        val body = if (trimmed[0].toInt() and 0x80 != 0) byteArrayOf(0) + trimmed else trimmed
-        return byteArrayOf(0x02) + derLength(body.size) + body
-    }
-    val content = integer(modulus) + integer(exponent)
-    return byteArrayOf(0x30) + derLength(content.size) + content
-}
+internal fun pkcs1PublicKeyDer(modulus: ByteArray, exponent: ByteArray): ByteArray =
+    Der.encodeToByteArray(RsaPublicKey.serializer(), RsaPublicKey(unsignedBigInt(modulus), unsignedBigInt(exponent)))
 
-private fun derLength(length: Int): ByteArray {
-    if (length < 0x80) return byteArrayOf(length.toByte())
-    val bytes = mutableListOf<Byte>()
-    var rest = length
-    while (rest > 0) {
-        bytes.add(0, (rest and 0xFF).toByte())
-        rest = rest shr 8
-    }
-    return byteArrayOf((0x80 or bytes.size).toByte()) + bytes.toByteArray()
-}
+/** JWK integers are unsigned big-endian; a leading zero byte keeps the two's-complement decode positive. */
+private fun unsignedBigInt(bytes: ByteArray): BigInt = (byteArrayOf(0) + bytes).decodeToBigInt()
 
 /** Turns one JWKS entry into a verifying key, or null when it is not an RS256 signing key. */
 internal suspend fun rsaKeyFromJwk(jwk: JsonObject): RSA.PKCS1.PublicKey? {

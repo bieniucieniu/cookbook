@@ -31,6 +31,7 @@ kotlin {
                 implementation(libs.ktor.clientCore)
                 implementation(libs.ktor.serializationKotlinxJson)
                 implementation(libs.kotlincrypto.sha2)
+                implementation(libs.kotlincrypto.hmacSha2)
             }
         }
         val nativeMain = getByName("nativeMain") {

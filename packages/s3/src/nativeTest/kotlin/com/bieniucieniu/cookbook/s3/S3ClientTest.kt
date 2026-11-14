@@ -69,7 +69,7 @@ class S3ClientTest {
         val key = ByteArray(20) { 0x0b }
         assertEquals(
             "b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7",
-            hmacSha256(key, "Hi There".encodeToByteArray()).toHex(),
+            hmacSha256(key, "Hi There".encodeToByteArray()).toHexString(),
         )
     }
 
@@ -77,5 +77,23 @@ class S3ClientTest {
     fun timestampIsUtc() {
         assertEquals(AmzTime("20261101", "20261101T180000Z"), amzTimestamp(1_793_556_000L))
         assertTrue(endpointHost("http://127.0.0.1:8333").contains("8333"))
+    }
+
+    @Test
+    fun timestampHandlesLeapDayAndPreEpoch() {
+        assertEquals(AmzTime("20240229", "20240229T235959Z"), amzTimestamp(1_709_251_199L))
+        assertEquals(AmzTime("19691231", "19691231T235959Z"), amzTimestamp(-1L))
+    }
+
+    @Test
+    fun endpointHostDropsDefaultPorts() {
+        assertEquals("127.0.0.1:8333", endpointHost("http://127.0.0.1:8333/"))
+        assertEquals("s3.example", endpointHost("https://s3.example:443"))
+        assertEquals("s3.example", endpointHost("http://s3.example"))
+    }
+
+    @Test
+    fun encodePathKeepsOnlyUnreservedCharacters() {
+        assertEquals("bucket/a%20b%2Bc/%C5%BC%C3%B3%C5%82w-_.~", encodePath("bucket/a b+c/żółw-_.~"))
     }
 }
