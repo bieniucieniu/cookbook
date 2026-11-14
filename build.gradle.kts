@@ -8,7 +8,6 @@ tasks.register("test") {
     group = "verification"
     description = "Run native tests in all modules"
     dependsOn(
-        ":packages:core:nativeTest",
         ":packages:workos:nativeTest",
         ":packages:s3:nativeTest",
         ":apps:api:nativeTest",

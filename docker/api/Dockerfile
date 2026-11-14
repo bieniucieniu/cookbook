@@ -33,7 +33,6 @@ WORKDIR /src
 COPY settings.gradle.kts build.gradle.kts gradle.properties ./
 COPY gradle/libs.versions.toml gradle/libs.versions.toml
 COPY apps/api/build.gradle.kts apps/api/build.gradle.kts
-COPY packages/core/build.gradle.kts packages/core/build.gradle.kts
 COPY packages/workos/build.gradle.kts packages/workos/build.gradle.kts
 COPY packages/s3/build.gradle.kts packages/s3/build.gradle.kts
 COPY apps/api apps/api

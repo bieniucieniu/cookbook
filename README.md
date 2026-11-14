@@ -3,7 +3,6 @@ Gradle multi-project + pnpm workspace. Tooling via [devenv](https://devenv.sh).
 ```
 apps/api       Kotlin/Native Ktor (CIO) + sqlx4k Postgres + SQLDelight
 apps/web       Solid + TanStack Router + Query (Vite+) on :3000, proxies /api → :8080 (API under /api/v1)
-packages/core  Kotlin/Native shared lib
 packages/workos  WorkOS client shaped like the official SDK. Ktor engine is passed in by the app.
 ```
 

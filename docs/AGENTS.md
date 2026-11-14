@@ -7,7 +7,6 @@ apps/
   api       Kotlin/Native Ktor CIO   Gradle `:apps:api`
   web       Solid + TanStack Router  Vite+  pnpm `web`
 packages/
-  core      Kotlin/Native shared lib Gradle `:packages:core`
   workos    Native WorkOS client     Gradle `:packages:workos`
   s3        Native S3 client         Gradle `:packages:s3`
   storybook Solid Storybook          scans the monorepo  pnpm `@cookbook/storybook`
@@ -62,7 +61,7 @@ Commands:
 - Manual: `gradle :apps:api:runDebugExecutableNative` / `pnpm --filter web dev`
 - Seed: `seed` (devenv script; runs `apps/api/db/seed.sql` through psql against the running dev Postgres; safe to rerun). Keep it in step with `features/seed/Seed.kt` (it skips the photo). `gradle :apps:api:seed` is the Kotlin seed with the photo (debug binary arg `seed`; needs Postgres and the S3 gateway; does not start the HTTP server)
 - Database shell: `pg` (devenv script; psql logged in as `cookbook` to the local `cookbook` database; extra args go to psql). Devenv `initialSQL` only applies `0001_init.sql` when Postgres first creates `.devenv/state/postgres`. To reset, stop devenv, delete that dir, run `devenv up`, then `seed`
-- Tests: `gradle test` (`nativeTest` on `:apps:api`, `:packages:core`, `:packages:workos`, and `:packages:s3`)
+- Tests: `gradle test` (`nativeTest` on `:apps:api`, `:packages:workos`, and `:packages:s3`)
 - JS install: on devenv enter (`languages.javascript.pnpm.install.enable`)
 - JS check: `pnpm exec vp check` (Oxfmt, Oxlint, typecheck). Dev and build stay `pnpm --filter web dev` / `build`. Those scripts call `vp`.
 - API client: `pnpm --filter web generate-api` (Orval, `client: solid-query`). Needs the API up. Reads `GET /api/v1/swagger/documentation.json`.

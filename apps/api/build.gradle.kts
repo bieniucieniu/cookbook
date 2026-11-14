@@ -60,7 +60,6 @@ kotlin {
             dependsOn(commonTest)
         }
         nativeMain.dependencies {
-            implementation(project(":packages:core"))
             implementation(project(":packages:workos"))
             implementation(project(":packages:s3"))
             implementation(libs.ktor.clientCurl)

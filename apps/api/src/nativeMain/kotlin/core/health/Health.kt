@@ -1,6 +1,5 @@
 package com.bieniucieniu.cookbook.core.health
 
-import com.bieniucieniu.cookbook.sayHello
 import io.ktor.http.ContentType
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.jsonSchema
@@ -13,7 +12,7 @@ import io.ktor.utils.io.ExperimentalKtorApi
 @OptIn(ExperimentalKtorApi::class)
 fun Route.configureHealthRouting() {
     get {
-        call.respondText(sayHello("Ktor"))
+        call.respondText("Hello, Ktor!")
     }.describe {
         operationId = "getRoot"
         tag("meta")
