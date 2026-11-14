@@ -59,10 +59,10 @@ kotlin {
         val nativeTest = getByName("nativeTest") {
             dependsOn(commonTest)
         }
-        nativeMain.dependencies {
+        commonMain.dependencies {
             implementation(project(":packages:workos"))
             implementation(project(":packages:s3"))
-            implementation(libs.ktor.clientCurl)
+            implementation(libs.ktor.clientCore)
             implementation(libs.ktor.clientContentNegotiation)
             implementation(libs.ktor.serverCore)
             implementation(libs.ktor.serverStatusPages)
@@ -79,6 +79,9 @@ kotlin {
             implementation(libs.cryptography.bigint)
             implementation(libs.cryptography.serialization.asn1)
             implementation(libs.cryptography.serialization.asn1.modules)
+        }
+        nativeMain.dependencies {
+            implementation(libs.ktor.clientCurl)
             implementation(libs.cryptography.provider.openssl3.prebuilt)
         }
         nativeTest.dependencies {
