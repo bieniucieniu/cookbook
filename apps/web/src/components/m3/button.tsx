@@ -1,7 +1,8 @@
-import { ToggleButton as ToggleButtonPrimitive } from "@kobalte/core/toggle-button";
-import type { ComponentProps, JSX } from "solid-js";
-import { createContext, splitProps, useContext } from "solid-js";
-import { cn } from "@/lib/utils";
+import { Toggle as ToggleButtonPrimitive } from "@ui-sdk/solid/toggle";
+import { type JSX } from "@solidjs/web";
+import { type ComponentProps } from "solid-js";
+import { createContext, omit, useContext } from "solid-js";
+import { type ClassValue, cn, partClass } from "@/lib/utils";
 
 const buttonBase =
   "group/button relative inline-flex shrink-0 cursor-pointer items-center justify-center whitespace-nowrap select-none state-layer focus-ring motion-fast disabled:pointer-events-none disabled:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0";
@@ -87,7 +88,7 @@ const shapeScale = {
   },
 };
 
-/** Toggle colors: unselected first, then data-pressed (Kobalte's selected attribute). */
+/** Toggle colors: unselected first, then data-pressed (ui-sdk sets it while pressed). */
 const toggleVariantClasses = {
   elevated:
     "bg-surface-container-low text-primary shadow-level-1 hover:shadow-level-2 data-pressed:bg-primary data-pressed:text-on-primary disabled:bg-on-surface/10 disabled:text-on-surface/38",
@@ -132,7 +133,7 @@ export function buttonVariants(options?: {
   size?: ButtonSize;
   shape?: ButtonShape;
   connected?: boolean;
-  class?: string;
+  class?: ClassValue;
 }) {
   const size = options?.size ?? "sm";
   const shape = options?.shape ?? "round";
@@ -152,7 +153,7 @@ export function toggleButtonVariants(options?: {
   size?: ButtonSize;
   shape?: ButtonShape;
   connected?: boolean;
-  class?: string;
+  class?: ClassValue;
 }) {
   const size = options?.size ?? "sm";
   const shape = options?.shape ?? "round";
@@ -173,7 +174,7 @@ export type ButtonGroupVariant = "standard" | "connected";
 export const ButtonGroupContext = createContext<{
   variant?: ButtonGroupVariant;
   size?: ButtonSize;
-}>();
+} | null>(null);
 
 /** Size and corner mode from an enclosing ButtonGroup, falling back to the control's own props. */
 export function useButtonGroupStyle(props: { size?: ButtonSize }) {
@@ -195,16 +196,16 @@ export interface ButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement>
 }
 
 export function Button(props: ButtonProps) {
-  const [, rest] = splitProps(props, ["class", "ref", "variant", "size", "shape"]);
+  const rest = omit(props, "variant", "size", "shape");
   const group = useButtonGroupStyle(props);
   return (
     <button
-      ref={props.ref}
       type="button"
       data-slot="button"
       data-variant={props.variant ?? "filled"}
       data-size={group.size}
       data-shape={props.shape ?? "round"}
+      {...rest}
       class={buttonVariants({
         variant: props.variant,
         size: group.size,
@@ -212,7 +213,6 @@ export function Button(props: ButtonProps) {
         connected: group.connected,
         class: props.class,
       })}
-      {...rest}
     />
   );
 }
@@ -223,25 +223,26 @@ export type ToggleButtonProps = ComponentProps<typeof ToggleButtonPrimitive> & {
   shape?: ButtonShape;
 };
 
-/** A button that stays selected. Uses `pressed` / `onChange` from Kobalte's toggle button. */
+/** A button that stays selected: `pressed` / `defaultPressed` / `onPressedChange` on ui-sdk's Toggle. */
 export function ToggleButton(props: ToggleButtonProps) {
-  const [, rest] = splitProps(props, ["class", "ref", "variant", "size", "shape"]);
+  const rest = omit(props, "variant", "size", "shape");
   const group = useButtonGroupStyle(props);
   return (
     <ToggleButtonPrimitive
-      ref={props.ref}
-      data-slot="toggle-button"
       data-variant={props.variant ?? "filled"}
       data-size={group.size}
       data-shape={props.shape ?? "round"}
-      class={toggleButtonVariants({
-        variant: props.variant,
-        size: group.size,
-        shape: props.shape,
-        connected: group.connected,
-        class: props.class,
-      })}
       {...rest}
+      class={partClass(
+        () =>
+          toggleButtonVariants({
+            variant: props.variant,
+            size: group.size,
+            shape: props.shape,
+            connected: group.connected,
+          }),
+        props.class
+      )}
     />
   );
 }

@@ -1,18 +1,20 @@
+import type { JSX } from "@solidjs/web";
 import {
   type Accessor,
-  type JSX,
+  For,
   Show,
   createContext,
   createEffect,
   createMemo,
   createRoot,
   createSignal,
+  getOwner,
   onCleanup,
-  onMount,
+  onSettled,
+  runWithOwner,
   untrack,
   useContext,
 } from "solid-js";
-import { For } from "solid-js";
 
 export interface PresenceState {
   isPresent: () => boolean;
@@ -25,7 +27,7 @@ export interface PresenceState {
   registerExit: (done: Promise<void>) => void;
 }
 
-export const PresenceContext = createContext<PresenceState>();
+export const PresenceContext = createContext<PresenceState | null>(null);
 
 export function useIsPresent(): Accessor<boolean> {
   const presence = useContext(PresenceContext);
@@ -49,10 +51,14 @@ export interface AnimatePresenceProps<T = unknown> {
 
 interface Row<T> {
   key: string;
-  item: T;
-  index: number;
+  item: Accessor<T>;
+  setItem: (item: T) => void;
+  index: Accessor<number>;
+  setIndex: (index: number) => void;
   present: Accessor<boolean>;
   setPresent: (present: boolean) => void;
+  /** Initial animations are skipped for this row (the presence-wide block, or it already entered). */
+  block: { readonly current: boolean };
 }
 
 function readFlag(source: boolean | Accessor<boolean> | undefined, fallback: boolean): boolean {
@@ -74,7 +80,7 @@ function readList<T>(
 
 export function AnimatePresence<T>(props: AnimatePresenceProps<T>) {
   const block = { current: props.initial === false };
-  onMount(() => {
+  onSettled(() => {
     queueMicrotask(() => {
       block.current = false;
     });
@@ -97,24 +103,52 @@ export function AnimatePresence<T>(props: AnimatePresenceProps<T>) {
   }
 
   const roots = new Map<string, { dispose: () => void; row: Row<T> }>();
+  const rowEntered = new Map<string, () => void>();
+  // Rows are created from the list effect's apply phase, which has no owner of its own.
+  const owner = getOwner();
   const entered = new Set<string>();
 
   function ensure(item: T, index: number): Row<T> {
     const key = keyFor(item, index);
     const found = roots.get(key);
     if (found) {
-      found.row.item = item;
-      found.row.index = index;
+      found.row.setItem(item);
+      found.row.setIndex(index);
       found.row.setPresent(true);
       return found.row;
     }
     let row: Row<T> | undefined;
-    const dispose = createRoot((done) => {
-      const [present, setPresent] = createSignal(true);
-      row = { key, item, index, present, setPresent };
-      return done;
-    });
-    if (!row) throw new Error("AnimatePresence failed to create a row");
+    const dispose = runWithOwner(owner, () =>
+      createRoot((done) => {
+        const [present, setPresent] = createSignal(true);
+        // Functions and objects are stored as values, not as signal updaters.
+        const [currentItem, setCurrentItem] = createSignal<{ value: T }>({ value: item });
+        const [currentIndex, setIndex] = createSignal(index);
+        let entered = false;
+        row = {
+          key,
+          item: () => currentItem().value,
+          setItem: (next) => {
+            if (untrack(currentItem).value !== next) setCurrentItem({ value: next });
+          },
+          index: currentIndex,
+          setIndex,
+          present,
+          setPresent,
+          block: {
+            get current() {
+              return block.current || entered;
+            },
+          },
+        };
+        const markEntered = () => {
+          entered = true;
+        };
+        rowEntered.set(key, markEntered);
+        return done;
+      })
+    );
+    if (!row || !dispose) throw new Error("AnimatePresence failed to create a row");
     roots.set(key, { dispose, row });
     return row;
   }
@@ -129,30 +163,36 @@ export function AnimatePresence<T>(props: AnimatePresenceProps<T>) {
 
   function finish(key: string) {
     entered.delete(key);
-    setOrder((rows) => rows.filter((row) => row.key !== key));
+    // Writes land on the next microtask, so work out what remains from the list itself.
+    const remaining = untrack(order).filter((row) => row.key !== key);
+    setOrder(remaining);
     queueMicrotask(() => {
       const found = roots.get(key);
       roots.delete(key);
+      rowEntered.delete(key);
       found?.dispose();
     });
-    const stillExiting = untrack(order).some((row) => !row.present());
+    const stillExiting = remaining.some((row) => !untrack(row.present));
     if (!stillExiting) props.onExitComplete?.();
   }
 
-  createEffect(() => {
-    const list = readList(props.each);
-    if (!list) return;
-    const prev = untrack(order);
-    const presentRows = list.map((item, index) => ensure(item, index));
-    const presentKeys = new Set(presentRows.map((row) => row.key));
-    const merged = presentRows.slice();
-    prev.forEach((row, index) => {
-      if (presentKeys.has(row.key)) return;
-      row.setPresent(false);
-      merged.splice(Math.min(index, merged.length), 0, row);
-    });
-    setOrder(merged);
-  });
+  // Compute reads the list; the apply phase creates rows and writes the order.
+  createEffect(
+    () => readList(props.each),
+    (list) => {
+      if (!list) return;
+      const prev = untrack(order);
+      const presentRows = list.map((item, index) => ensure(item, index));
+      const presentKeys = new Set(presentRows.map((row) => row.key));
+      const merged = presentRows.slice();
+      prev.forEach((row, index) => {
+        if (presentKeys.has(row.key)) return;
+        row.setPresent(false);
+        merged.splice(Math.min(index, merged.length), 0, row);
+      });
+      setOrder(merged);
+    }
+  );
 
   const shown = createMemo(() => {
     const rows = order();
@@ -171,6 +211,19 @@ export function AnimatePresence<T>(props: AnimatePresenceProps<T>) {
   });
 
   const listMode = createMemo(() => readList(props.each) !== undefined);
+
+  // A row's content is built from its current item. A kept key with a new item object rebuilds
+  // only that row; it has already entered, so the rebuilt motion elements skip `initial`.
+  function renderRow(row: Row<T>) {
+    const render = props.children;
+    if (typeof render !== "function") return render;
+    return createMemo(() => {
+      const item = row.item();
+      const element = untrack(() => render(item, row.index));
+      rowEntered.get(row.key)?.();
+      return element;
+    }) as unknown as JSX.Element;
+  }
 
   return (
     <Show
@@ -197,12 +250,10 @@ export function AnimatePresence<T>(props: AnimatePresenceProps<T>) {
             custom={props.custom}
             anchorX={props.anchorX}
             anchorY={props.anchorY}
-            block={block}
+            block={row.block}
             onDone={() => finish(row.key)}
           >
-            {typeof props.children === "function"
-              ? props.children(row.item, () => row.index)
-              : props.children}
+            {renderRow(row)}
           </PresenceScope>
         )}
       </For>
@@ -224,21 +275,23 @@ function WhenPresence(props: {
   const [present, setPresent] = createSignal(true);
   let pendingShow = false;
 
-  createEffect(() => {
-    const show = readFlag(props.when, true);
-    if (show) {
-      if (props.mode === "wait" && untrack(mounted) && !untrack(present)) {
-        pendingShow = true;
+  createEffect(
+    () => readFlag(props.when, true),
+    (show) => {
+      if (show) {
+        if (props.mode === "wait" && untrack(mounted) && !untrack(present)) {
+          pendingShow = true;
+          return;
+        }
+        pendingShow = false;
+        setMounted(true);
+        setPresent(true);
         return;
       }
-      pendingShow = false;
-      setMounted(true);
-      setPresent(true);
-      return;
+      if (!untrack(mounted)) return;
+      setPresent(false);
     }
-    if (!untrack(mounted)) return;
-    setPresent(false);
-  });
+  );
 
   function done() {
     if (readFlag(props.when, true) && props.mode !== "wait") return;
@@ -294,30 +347,33 @@ function PresenceScope(props: {
     },
   };
 
-  createEffect(() => {
-    if (props.present()) {
-      token += 1;
-      exits.length = 0;
-      return;
-    }
-    const current = token + 1;
-    token = current;
-    queueMicrotask(() => {
-      if (current !== token) return;
-      const pending = exits.slice();
-      if (pending.length === 0) {
-        props.onDone();
+  createEffect(
+    () => props.present(),
+    (present) => {
+      if (present) {
+        token += 1;
+        exits.length = 0;
         return;
       }
-      void Promise.all(pending).then(() => {
-        if (current === token) props.onDone();
+      const current = token + 1;
+      token = current;
+      queueMicrotask(() => {
+        if (current !== token) return;
+        const pending = exits.slice();
+        if (pending.length === 0) {
+          props.onDone();
+          return;
+        }
+        void Promise.all(pending).then(() => {
+          if (current === token) props.onDone();
+        });
       });
-    });
-  });
+    }
+  );
 
   onCleanup(() => {
     token += 1;
   });
 
-  return <PresenceContext.Provider value={api}>{props.children}</PresenceContext.Provider>;
+  return <PresenceContext value={api}>{props.children}</PresenceContext>;
 }

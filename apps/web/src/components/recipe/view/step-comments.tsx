@@ -1,6 +1,5 @@
 import { IconChevronDown, IconMessageCircle, IconTrash } from "@/components/icons";
-import { Collapsible } from "@kobalte/core/collapsible";
-import { Button } from "@/components/m3/button";
+import { Button, buttonVariants } from "@/components/m3/button";
 import { IconButton } from "@/components/m3/icon-button";
 import {
   TextField,
@@ -8,14 +7,10 @@ import {
   TextFieldInput,
   TextFieldLabel,
 } from "@/components/m3/text-field";
-import { notifyError } from "@/components/notify";
 import type { CommentResponse } from "@/generated/model";
-import {
-  getGetRecipeQueryKey,
-  useCreateRecipeComment,
-  useDeleteRecipeComment,
-} from "@/generated/recipes/recipes";
-import { useQueryClient } from "@tanstack/solid-query";
+import { Recipes } from "@/generated/recipes/recipes";
+import { createSubmit } from "@/lib/submit";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@ui-sdk/solid/collapsible";
 import { createSignal, For, Show } from "solid-js";
 
 function formatTime(seconds: number): string {
@@ -33,25 +28,24 @@ export function StepComments(props: {
   userId: number | undefined;
   ownerId: number | null | undefined;
 }) {
-  const queryClient = useQueryClient();
-  const post = useCreateRecipeComment();
-  const remove = useDeleteRecipeComment();
   const [body, setBody] = createSignal("");
+  const [posting, post] = createSubmit();
+  const [removing, remove] = createSubmit();
   const mine = () => props.comments.filter((comment) => comment.stepKey === props.stepKey);
-  const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: getGetRecipeQueryKey(props.recipeId) });
 
   return (
     <Collapsible class="flex flex-col gap-2">
-      <Collapsible.Trigger as={Button} variant="text" class="group/comments w-fit">
+      <CollapsibleTrigger
+        class={buttonVariants({ variant: "text", class: "group/comments w-fit" })}
+      >
         <IconMessageCircle aria-hidden="true" />
         {mine().length === 0 ? "Comments" : `Comments (${mine().length})`}
         <IconChevronDown
           aria-hidden="true"
-          class="motion-fast group-data-expanded/comments:rotate-180"
+          class="motion-fast group-data-open/comments:rotate-180"
         />
-      </Collapsible.Trigger>
-      <Collapsible.Content class="flex flex-col gap-2">
+      </CollapsibleTrigger>
+      <CollapsiblePanel class="flex flex-col gap-2">
         <div class="flex flex-col divide-y divide-outline-variant">
           <For each={mine()}>
             {(comment) => (
@@ -71,12 +65,11 @@ export function StepComments(props: {
                   <IconButton
                     size="xs"
                     aria-label="Delete comment"
-                    disabled={remove.isPending}
+                    disabled={removing()}
                     onClick={() => {
-                      void remove
-                        .mutateAsync({ id: props.recipeId, commentId: String(comment.id) })
-                        .then(() => refresh())
-                        .catch((error: unknown) => notifyError("delete the comment", error));
+                      void remove("delete the comment", () =>
+                        Recipes.deleteRecipeComment(props.recipeId, String(comment.id))
+                      );
                     }}
                   >
                     <IconTrash aria-hidden="true" />
@@ -93,27 +86,25 @@ export function StepComments(props: {
               event.preventDefault();
               const text = body().trim();
               if (!text) return;
-              void post
-                .mutateAsync({ id: props.recipeId, data: { stepKey: props.stepKey, body: text } })
-                .then(() => {
-                  setBody("");
-                  return refresh();
-                })
-                .catch((error: unknown) => notifyError("post the comment", error));
+              void post("post the comment", () =>
+                Recipes.createRecipeComment(props.recipeId, { stepKey: props.stepKey, body: text })
+              ).then((posted) => {
+                if (posted) setBody("");
+              });
             }}
           >
-            <TextField variant="outlined" value={body()} onChange={setBody} class="flex-1">
+            <TextField variant="outlined" class="flex-1">
               <TextFieldContainer>
                 <TextFieldLabel>Comment</TextFieldLabel>
-                <TextFieldInput />
+                <TextFieldInput value={body()} onValueChange={setBody} />
               </TextFieldContainer>
             </TextField>
-            <Button type="submit" variant="tonal" size="md" disabled={post.isPending}>
+            <Button type="submit" variant="tonal" size="md" disabled={posting()}>
               Post
             </Button>
           </form>
         </Show>
-      </Collapsible.Content>
+      </CollapsiblePanel>
     </Collapsible>
   );
 }

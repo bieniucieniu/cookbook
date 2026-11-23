@@ -1,10 +1,4 @@
-import {
-  Checkbox,
-  CheckboxControl,
-  CheckboxIndicator,
-  CheckboxInput,
-  CheckboxLabel,
-} from "@/components/m3/checkbox";
+import { Checkbox, CheckboxControl, CheckboxLabel } from "@/components/m3/checkbox";
 import {
   ListItem,
   ListItemContent,
@@ -15,8 +9,8 @@ import {
 import type { TablerIcon } from "@/components/icons";
 import { formatAmount } from "@/lib/units";
 import { cn } from "@/lib/utils";
+import { dynamic } from "@solidjs/web";
 import { Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
 
 /**
  * One ingredient or tool in an M3 list: amount and name, with "optional" and swaps as supporting
@@ -65,11 +59,14 @@ export function ItemRow(props: {
         // No side padding, so the icon lines up with the text around the list.
         <ListItem class={cn("px-0", props.class)}>
           <Show when={props.icon}>
-            {(icon) => (
-              <ListItemLeading class="text-primary">
-                <Dynamic component={icon()} stroke={1.75} aria-hidden="true" />
-              </ListItemLeading>
-            )}
+            {(icon) => {
+              const Icon = dynamic(icon);
+              return (
+                <ListItemLeading class="text-primary">
+                  <Icon stroke-width={1.75} aria-hidden="true" />
+                </ListItemLeading>
+              );
+            }}
           </Show>
           {content()}
         </ListItem>
@@ -79,12 +76,12 @@ export function ItemRow(props: {
         // The control's 40px target (11px margin round the 18px box) gives the left inset: pl-1
         // puts the box 15px in, next to the 16px right padding.
         <ListItem class={cn("gap-1 rounded-medium pl-1 state-layer", props.class)}>
-          {/* `contents` keeps the input, control, and label as flex children of the row. */}
-          <Checkbox class="contents" checked={props.checked ?? false} onChange={onChange()}>
-            <CheckboxInput />
-            <CheckboxControl>
-              <CheckboxIndicator />
-            </CheckboxControl>
+          {/* `contents` keeps the control and label as flex children of the row. */}
+          <Checkbox class="contents">
+            <CheckboxControl
+              checked={props.checked ?? false}
+              onCheckedChange={(checked) => onChange()(checked === true)}
+            />
             <CheckboxLabel class="-my-2 -mr-4 flex min-w-0 flex-1 cursor-pointer items-center self-stretch py-2 pr-4">
               {content()}
             </CheckboxLabel>

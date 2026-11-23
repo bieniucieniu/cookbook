@@ -1,6 +1,7 @@
-import { ToggleButton as ToggleButtonPrimitive } from "@kobalte/core/toggle-button";
-import type { ComponentProps, JSX } from "solid-js";
-import { splitProps } from "solid-js";
+import { Toggle as ToggleButtonPrimitive } from "@ui-sdk/solid/toggle";
+import { type JSX } from "@solidjs/web";
+import { type ComponentProps } from "solid-js";
+import { omit } from "solid-js";
 import {
   type ButtonShape,
   type ButtonSize,
@@ -8,7 +9,7 @@ import {
   outlineWidthClass,
   useButtonGroupStyle,
 } from "./button";
-import { cn } from "@/lib/utils";
+import { type ClassValue, cn, partClass } from "@/lib/utils";
 
 const iconButtonBase =
   "group/icon-button relative inline-flex shrink-0 cursor-pointer items-center justify-center select-none state-layer focus-ring motion-fast disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0";
@@ -57,7 +58,7 @@ type IconButtonStyle = {
   shape?: ButtonShape;
   width?: IconButtonWidth;
   connected?: boolean;
-  class?: string;
+  class?: ClassValue;
 };
 
 export function iconButtonVariants(options?: IconButtonStyle) {
@@ -102,15 +103,15 @@ export interface IconButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElem
 
 /** Give it an `aria-label`; the icon is its only content. */
 export function IconButton(props: IconButtonProps) {
-  const [, rest] = splitProps(props, ["class", "ref", "variant", "size", "shape", "width"]);
+  const rest = omit(props, "variant", "size", "shape", "width");
   const group = useButtonGroupStyle(props);
   return (
     <button
-      ref={props.ref}
       type="button"
       data-slot="icon-button"
       data-variant={props.variant ?? "standard"}
       data-size={group.size}
+      {...rest}
       class={iconButtonVariants({
         variant: props.variant,
         size: group.size,
@@ -119,7 +120,6 @@ export function IconButton(props: IconButtonProps) {
         connected: group.connected,
         class: props.class,
       })}
-      {...rest}
     />
   );
 }
@@ -132,23 +132,24 @@ export type ToggleIconButtonProps = ComponentProps<typeof ToggleButtonPrimitive>
 };
 
 export function ToggleIconButton(props: ToggleIconButtonProps) {
-  const [, rest] = splitProps(props, ["class", "ref", "variant", "size", "shape", "width"]);
+  const rest = omit(props, "variant", "size", "shape", "width");
   const group = useButtonGroupStyle(props);
   return (
     <ToggleButtonPrimitive
-      ref={props.ref}
-      data-slot="toggle-icon-button"
       data-variant={props.variant ?? "standard"}
       data-size={group.size}
-      class={toggleIconButtonVariants({
-        variant: props.variant,
-        size: group.size,
-        shape: props.shape,
-        width: props.width,
-        connected: group.connected,
-        class: props.class,
-      })}
       {...rest}
+      class={partClass(
+        () =>
+          toggleIconButtonVariants({
+            variant: props.variant,
+            size: group.size,
+            shape: props.shape,
+            width: props.width,
+            connected: group.connected,
+          }),
+        props.class
+      )}
     />
   );
 }

@@ -1,9 +1,25 @@
-import { DropdownMenu as DropdownMenuPrimitive } from "@kobalte/core/dropdown-menu";
-import { type ComponentProps, type JSX, splitProps } from "solid-js";
-import { cn } from "@/lib/utils";
+import {
+  Menu as MenuRootPrimitive,
+  MenuCheckboxItem as MenuCheckboxItemPrimitive,
+  MenuContent as MenuContentPrimitive,
+  MenuGroup as MenuGroupPrimitive,
+  MenuGroupLabel as MenuGroupLabelPrimitive,
+  MenuItem as MenuItemPrimitive,
+  MenuItemIndicator as MenuItemIndicatorPrimitive,
+  MenuRadioGroup as MenuRadioGroupPrimitive,
+  MenuRadioItem as MenuRadioItemPrimitive,
+  MenuSeparator as MenuSeparatorPrimitive,
+  MenuSub as MenuSubPrimitive,
+  MenuSubContent as MenuSubContentPrimitive,
+  MenuSubTrigger as MenuSubTriggerPrimitive,
+  MenuTrigger as MenuTriggerPrimitive,
+} from "@ui-sdk/solid/menu";
+import { type JSX } from "@solidjs/web";
+import { type ComponentProps } from "solid-js";
+import { cn, partClass } from "@/lib/utils";
 
 const surfaceClass =
-  "z-50 flex max-h-(--kb-popper-content-available-height) min-w-28 max-w-70 origin-(--kb-menu-content-transform-origin) flex-col gap-0.5 overflow-y-auto rounded-large bg-surface-container p-1 text-on-surface shadow-level-2 outline-none data-expanded:animate-in data-expanded:fade-in-0 data-expanded:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95";
+  "z-50 flex max-h-(--available-height) min-w-28 max-w-70 origin-(--transform-origin) flex-col gap-0.5 overflow-y-auto rounded-large bg-surface-container p-1 text-on-surface shadow-level-2 outline-none transition-[opacity,scale] duration-150 data-starting-style:scale-95 data-starting-style:opacity-0 data-ending-style:scale-95 data-ending-style:opacity-0";
 
 const itemClass =
   "group/menu-item relative flex min-h-11 cursor-pointer items-center gap-3 rounded-medium px-3 py-2 typescale-label-large text-on-surface outline-none select-none state-layer motion-fast data-disabled:pointer-events-none data-disabled:text-on-surface/38 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-5";
@@ -12,23 +28,23 @@ const itemClass =
 const selectableItemClass =
   "data-checked:bg-tertiary-container data-checked:text-on-tertiary-container data-checked:rounded-large";
 
-type MenuProps = ComponentProps<typeof DropdownMenuPrimitive>;
-type MenuContentProps = ComponentProps<typeof DropdownMenuPrimitive.Content>;
-type MenuItemProps = ComponentProps<typeof DropdownMenuPrimitive.Item>;
-type MenuItemLabelProps = ComponentProps<typeof DropdownMenuPrimitive.ItemLabel>;
-type MenuItemDescriptionProps = ComponentProps<typeof DropdownMenuPrimitive.ItemDescription>;
-type MenuItemIndicatorProps = ComponentProps<typeof DropdownMenuPrimitive.ItemIndicator>;
-type MenuCheckboxItemProps = ComponentProps<typeof DropdownMenuPrimitive.CheckboxItem>;
-type MenuRadioGroupProps = ComponentProps<typeof DropdownMenuPrimitive.RadioGroup>;
-type MenuRadioItemProps = ComponentProps<typeof DropdownMenuPrimitive.RadioItem>;
-type MenuGroupProps = ComponentProps<typeof DropdownMenuPrimitive.Group>;
-type MenuGroupLabelProps = ComponentProps<typeof DropdownMenuPrimitive.GroupLabel>;
-type MenuSubTriggerProps = ComponentProps<typeof DropdownMenuPrimitive.SubTrigger>;
-type MenuSubContentProps = ComponentProps<typeof DropdownMenuPrimitive.SubContent>;
-type MenuSeparatorProps = ComponentProps<typeof DropdownMenuPrimitive.Separator>;
+type MenuProps = ComponentProps<typeof MenuRootPrimitive>;
+type MenuContentProps = ComponentProps<typeof MenuContentPrimitive>;
+type MenuItemProps = ComponentProps<typeof MenuItemPrimitive>;
+type MenuItemLabelProps = JSX.HTMLAttributes<HTMLSpanElement>;
+type MenuItemDescriptionProps = JSX.HTMLAttributes<HTMLSpanElement>;
+type MenuItemIndicatorProps = ComponentProps<typeof MenuItemIndicatorPrimitive>;
+type MenuCheckboxItemProps = ComponentProps<typeof MenuCheckboxItemPrimitive>;
+type MenuRadioGroupProps = ComponentProps<typeof MenuRadioGroupPrimitive>;
+type MenuRadioItemProps = ComponentProps<typeof MenuRadioItemPrimitive>;
+type MenuGroupProps = ComponentProps<typeof MenuGroupPrimitive>;
+type MenuGroupLabelProps = ComponentProps<typeof MenuGroupLabelPrimitive>;
+type MenuSubTriggerProps = ComponentProps<typeof MenuSubTriggerPrimitive>;
+type MenuSubContentProps = ComponentProps<typeof MenuSubContentPrimitive>;
+type MenuSeparatorProps = ComponentProps<typeof MenuSeparatorPrimitive>;
 
 export function Menu(props: MenuProps) {
-  return <DropdownMenuPrimitive gutter={4} {...props} />;
+  return <MenuRootPrimitive {...props} />;
 }
 
 function CheckIcon() {
@@ -48,196 +64,144 @@ function ChevronRightIcon() {
 }
 
 export function MenuContent(props: MenuContentProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
   return (
-    <DropdownMenuPrimitive.Content
-      ref={props.ref}
-      data-slot="menu-content"
-      class={cn(surfaceClass, props.class)}
-      {...rest}
+    <MenuContentPrimitive
+      sideOffset={4}
+      {...props}
+      class={partClass(() => cn(surfaceClass), props.class)}
     />
   );
 }
 
 export function MenuItem(props: MenuItemProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
-  return (
-    <DropdownMenuPrimitive.Item
-      ref={props.ref}
-      data-slot="menu-item"
-      class={cn(itemClass, props.class)}
-      {...rest}
-    />
-  );
+  return <MenuItemPrimitive {...props} class={partClass(() => cn(itemClass), props.class)} />;
 }
 
 /** Leading icon slot, in on-surface-variant. */
 export function MenuItemIcon(props: JSX.HTMLAttributes<HTMLSpanElement>) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
   return (
     <span
-      ref={props.ref}
       data-slot="menu-item-icon"
+      {...props}
       class={cn(
         "flex shrink-0 text-on-surface-variant group-data-checked/menu-item:text-on-tertiary-container group-data-disabled/menu-item:text-on-surface/38",
         props.class
       )}
-      {...rest}
     />
   );
 }
 
 /** Labels a MenuItem, MenuCheckboxItem, or MenuRadioItem. In MenuSubTrigger use a plain span. */
 export function MenuItemLabel(props: MenuItemLabelProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
-  return (
-    <DropdownMenuPrimitive.ItemLabel
-      ref={props.ref}
-      data-slot="menu-item-label"
-      class={cn("flex-1 truncate", props.class)}
-      {...rest}
-    />
-  );
+  return <span data-slot="menu-item-label" {...props} class={cn("flex-1 truncate", props.class)} />;
 }
 
 export function MenuItemDescription(props: MenuItemDescriptionProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
   return (
-    <DropdownMenuPrimitive.ItemDescription
-      ref={props.ref}
+    <span
       data-slot="menu-item-description"
+      {...props}
       class={cn("typescale-body-small text-on-surface-variant", props.class)}
-      {...rest}
     />
   );
 }
 
 export function MenuItemIndicator(props: MenuItemIndicatorProps) {
-  const [, rest] = splitProps(props, ["class", "ref", "children"]);
   return (
-    <DropdownMenuPrimitive.ItemIndicator
-      ref={props.ref}
-      data-slot="menu-item-indicator"
-      class={cn("ml-auto flex shrink-0", props.class)}
-      {...rest}
+    <MenuItemIndicatorPrimitive
+      {...props}
+      class={partClass(() => cn("ml-auto flex shrink-0"), props.class)}
     >
       {props.children ?? <CheckIcon />}
-    </DropdownMenuPrimitive.ItemIndicator>
+    </MenuItemIndicatorPrimitive>
   );
 }
 
 /** Trailing text such as a keyboard shortcut. */
 export function MenuShortcut(props: JSX.HTMLAttributes<HTMLSpanElement>) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
   return (
     <span
-      ref={props.ref}
       data-slot="menu-shortcut"
+      {...props}
       class={cn("ml-auto typescale-label-large text-on-surface-variant", props.class)}
-      {...rest}
     />
   );
 }
 
 export function MenuCheckboxItem(props: MenuCheckboxItemProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
   return (
-    <DropdownMenuPrimitive.CheckboxItem
-      ref={props.ref}
-      data-slot="menu-checkbox-item"
-      class={cn(itemClass, selectableItemClass, props.class)}
-      {...rest}
+    <MenuCheckboxItemPrimitive
+      {...props}
+      class={partClass(() => cn(itemClass, selectableItemClass), props.class)}
     />
   );
 }
 
 export function MenuRadioGroup(props: MenuRadioGroupProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
   return (
-    <DropdownMenuPrimitive.RadioGroup
-      ref={props.ref}
-      data-slot="menu-radio-group"
-      class={cn("flex flex-col gap-0.5", props.class)}
-      {...rest}
+    <MenuRadioGroupPrimitive
+      {...props}
+      class={partClass(() => cn("flex flex-col gap-0.5"), props.class)}
     />
   );
 }
 
 export function MenuRadioItem(props: MenuRadioItemProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
   return (
-    <DropdownMenuPrimitive.RadioItem
-      ref={props.ref}
-      data-slot="menu-radio-item"
-      class={cn(itemClass, selectableItemClass, props.class)}
-      {...rest}
+    <MenuRadioItemPrimitive
+      {...props}
+      class={partClass(() => cn(itemClass, selectableItemClass), props.class)}
     />
   );
 }
 
 export function MenuGroup(props: MenuGroupProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
   return (
-    <DropdownMenuPrimitive.Group
-      ref={props.ref}
-      data-slot="menu-group"
-      class={cn("flex flex-col gap-0.5", props.class)}
-      {...rest}
+    <MenuGroupPrimitive
+      {...props}
+      class={partClass(() => cn("flex flex-col gap-0.5"), props.class)}
     />
   );
 }
 
 export function MenuGroupLabel(props: MenuGroupLabelProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
   return (
-    <DropdownMenuPrimitive.GroupLabel
-      ref={props.ref}
-      data-slot="menu-group-label"
-      class={cn("px-3 pt-2 pb-1 typescale-label-medium text-on-surface-variant", props.class)}
-      {...rest}
+    <MenuGroupLabelPrimitive
+      {...props}
+      class={partClass(
+        () => cn("px-3 pt-2 pb-1 typescale-label-medium text-on-surface-variant"),
+        props.class
+      )}
     />
   );
 }
 
 export function MenuSubTrigger(props: MenuSubTriggerProps) {
-  const [, rest] = splitProps(props, ["class", "ref", "children"]);
   return (
-    <DropdownMenuPrimitive.SubTrigger
-      ref={props.ref}
-      data-slot="menu-sub-trigger"
-      class={cn(itemClass, "data-expanded:bg-on-surface/8", props.class)}
-      {...rest}
+    <MenuSubTriggerPrimitive
+      {...props}
+      class={partClass(() => cn(itemClass, "data-open:bg-on-surface/8"), props.class)}
     >
       {props.children}
       <ChevronRightIcon />
-    </DropdownMenuPrimitive.SubTrigger>
+    </MenuSubTriggerPrimitive>
   );
 }
 
 export function MenuSubContent(props: MenuSubContentProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
   return (
-    <DropdownMenuPrimitive.SubContent
-      ref={props.ref}
-      data-slot="menu-sub-content"
-      class={cn(surfaceClass, props.class)}
-      {...rest}
-    />
+    <MenuSubContentPrimitive {...props} class={partClass(() => cn(surfaceClass), props.class)} />
   );
 }
 
 export function MenuSeparator(props: MenuSeparatorProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
   return (
-    <DropdownMenuPrimitive.Separator
-      ref={props.ref}
-      data-slot="menu-separator"
-      class={cn("mx-3 my-1 h-px border-none bg-outline-variant", props.class)}
-      {...rest}
+    <MenuSeparatorPrimitive
+      {...props}
+      class={partClass(() => cn("mx-3 my-1 h-px border-none bg-outline-variant"), props.class)}
     />
   );
 }
 
-export const MenuTrigger = DropdownMenuPrimitive.Trigger;
-export const MenuPortal = DropdownMenuPrimitive.Portal;
-export const MenuSub = DropdownMenuPrimitive.Sub;
+export const MenuTrigger = MenuTriggerPrimitive;
+export const MenuSub = MenuSubPrimitive;

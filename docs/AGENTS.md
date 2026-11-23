@@ -5,7 +5,7 @@ Monorepo: Gradle (Kotlin/Native) + pnpm (JS). Native API at `apps/api`; JS apps 
 ```
 apps/
   api       Kotlin/Native Ktor CIO   Gradle `:apps:api`
-  web       Solid + TanStack Router  Vite+  pnpm `web`
+  web       Solid 2 start mode (SSR)  Vite+  pnpm `web`
 packages/
   workos    Native WorkOS client     Gradle `:packages:workos`
   s3        Native S3 client         Gradle `:packages:s3`
@@ -52,7 +52,7 @@ Server config: env read in `apps/api` (`embeddedServer(CIO)`). Env (do not commi
 Commands:
 
 - Server: `devenv --profile server up` (Postgres + SeaweedFS + Native Ktor CIO on `:8080`)
-- Web only: `devenv tasks run web:dev` (Vite on `:3000`)
+- Web only: `devenv tasks run web:dev` (Vite on `:3000`, server-rendered; the server calls the API at `API_ORIGIN`, default `http://127.0.0.1:8080`)
 - Web: `devenv --profile web up` (Postgres + SeaweedFS + API + Vite on `:3000`, proxies `/api` → `:8080` unchanged)
 - Storybook only: `devenv tasks run storybook:dev` (Storybook on `:6006`)
 - Storybook: `devenv --profile storybook up` (Storybook process on `:6006`; Postgres and SeaweedFS still start)
@@ -64,7 +64,8 @@ Commands:
 - Tests: `gradle test` (`nativeTest` on `:apps:api`, `:packages:workos`, and `:packages:s3`)
 - JS install: on devenv enter (`languages.javascript.pnpm.install.enable`)
 - JS check: `pnpm exec vp check` (Oxfmt, Oxlint, typecheck). Dev and build stay `pnpm --filter web dev` / `build`. Those scripts call `vp`.
-- API client: `pnpm --filter web generate-api` (Orval, `client: solid-query`). Needs the API up. Reads `GET /api/v1/swagger/documentation.json`.
+- API client: `pnpm --filter web generate-api` (Orval, `client: solid-start`). Needs the API up. Reads `GET /api/v1/swagger/documentation.json`.
+- Web production: `pnpm --filter web build`, then `pnpm --filter web start` (`node dist/server/node.js`, `PORT` default 3000; proxies `/api` to `API_ORIGIN`).
 
 ## Version catalogs
 
@@ -92,7 +93,7 @@ Server layout: `app/`, `core/`, `features/`, `lib/` under `apps/api/src/commonMa
 
 Every endpoint is under a version prefix: `/api/v1/...` (`ApiVersion.V1` in `apps/api/src/commonMain/kotlin/app/ApiVersion.kt`). `app/Routing.kt` mounts each feature inside `route(ApiVersion.V1)`. Only `/.well-known/oauth-*` stays at the host root, because OAuth discovery looks there. A breaking change ships as a new prefix (`/api/v2`) mounted next to v1, with its own `configureOpenApiRouting()`, so v1 clients keep working. Paths below are relative to the version prefix.
 
-`/`, `/health`, public recipe reads, `GET /photos/{id}` for a public recipe, and catalog reads and writes are public. `/auth/*`, recipe writes, `POST /photos`, step comments, and `/recipes/{id}/grants` are not. OpenAPI is built at runtime from route `.describe {}` metadata (`ktor-server-routing-openapi`) and served as JSON at `GET /api/v1/swagger/documentation.json`. Each version's document lists only that version's routes. Native has no YAML serializer. That document is the cookbook API. Web generates a client from it with Orval (`apps/web/orval.config.ts`, `client: solid-query`). UI comes from the [solid-kit](https://github.com/bieniucieniu/solid-kit) shadcn registry (`apps/web/components.json`), not an npm import. Web is a client-only Solid SPA on TanStack Router and TanStack Query. Vite+ (`vp`) is the JS toolchain: dev, build, format, lint. Root `vite.config.ts` owns `lint` and `fmt`. Before editing `apps/web`, read [apps/web/AGENTS.md](../apps/web/AGENTS.md). JSX looks like React. Components run once and updates are fine-grained. Do not write React.
+`/`, `/health`, public recipe reads, `GET /photos/{id}` for a public recipe, and catalog reads and writes are public. `/auth/*`, recipe writes, `POST /photos`, step comments, and `/recipes/{id}/grants` are not. OpenAPI is built at runtime from route `.describe {}` metadata (`ktor-server-routing-openapi`) and served as JSON at `GET /api/v1/swagger/documentation.json`. Each version's document lists only that version's routes. Native has no YAML serializer. That document is the cookbook API. Web generates a client from it with Orval (`apps/web/orval.config.ts`, `client: solid-start`: `query()` reads from `@solidjs/router`). UI is vendored from [solidx](https://github.com/bieniucieniu/solidx) `packages/kit` (Solid 2 on ui-sdk), not an npm import. Web is Solid 2 in start mode (`@solidjs/vite-plugin` with SSR) on `@solidjs/router` 2. Vite+ (`vp`) is the JS toolchain: dev, build, format, lint. Root `vite.config.ts` owns `lint` and `fmt`. Before editing `apps/web`, read [apps/web/AGENTS.md](../apps/web/AGENTS.md). JSX looks like React. Components run once and updates are fine-grained. Do not write React.
 
 ### JS — pnpm catalog in `pnpm-workspace.yaml`
 

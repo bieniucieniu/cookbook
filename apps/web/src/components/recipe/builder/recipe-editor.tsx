@@ -7,43 +7,43 @@ import {
 } from "@/components/icons";
 import { Button } from "@/components/m3/button";
 import { ScrollArea } from "@/components/m3/scroll-area";
-import {
-  Snackbar,
-  SnackbarAction,
-  SnackbarClose,
-  SnackbarMessage,
-  snackbar,
-} from "@/components/m3/snackbar";
+import { snackbar } from "@/components/m3/snackbar";
 import { Toolbar } from "@/components/m3/toolbar";
-import { notifyError } from "@/components/notify";
 import { EmptyState } from "@/components/page-state";
-import {
-  getGetRecipeQueryKey,
-  getListRecipesQueryKey,
-  useCreateRecipe,
-  useUpdateRecipe,
-} from "@/generated/recipes/recipes";
+import { Recipes } from "@/generated/recipes/recipes";
 import { useCatalog } from "@/lib/catalog";
 import { clearDraft, loadDraft, saveDraft } from "@/lib/draft-storage";
 import { draftToWrite, type RecipeDraft } from "@/lib/recipe-draft";
+import { createSubmit } from "@/lib/submit";
 import { stepNumbers, validateGraph } from "@/lib/recipe-graph";
 import { summarize } from "@/lib/recipe-summary";
 import { cn } from "@/lib/utils";
-import { useQueryClient } from "@tanstack/solid-query";
-import { useNavigate } from "@tanstack/solid-router";
-import { createEffect, createMemo, createSignal, Match, onMount, Show, Switch } from "solid-js";
-import { createStore, reconcile } from "solid-js/store";
+import { useNavigate } from "@solidjs/router";
+import {
+  createEffect,
+  createMemo,
+  createSignal,
+  createStore,
+  Match,
+  onSettled,
+  Show,
+  Switch,
+  untrack,
+} from "solid-js";
 import { createDraftActions } from "./actions";
 import { DetailsEditor } from "./details-editor";
 import { ShareSheet } from "./share-sheet";
 import { StepEditor } from "./step-editor";
 import { SummaryPanel } from "./summary-panel";
 import { draftWarnings, type Warning } from "./warnings";
+import { paths } from "@/paths";
 
 /**
- * Split view: the whole recipe on the left, one step (or the recipe details) on the right. On a phone the two sides take turns. The draft autosaves here.
+ * Split view: the whole recipe on the left, one step (or the recipe details) on the right. On a
+ * phone the two sides take turns. The draft autosaves to localStorage, so the editor renders on
+ * the client only (see the edit and new routes).
  */
-export function RecipeEditor(props: {
+export default function RecipeEditor(props: {
   initial: RecipeDraft;
   recipeId?: string;
   /** A step key, `details`, or nothing (first step). */
@@ -51,33 +51,36 @@ export function RecipeEditor(props: {
   onSelect: (selection: string | undefined) => void;
 }) {
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const catalog = useCatalog();
+  // Snapshots of the props this editor opened with: `initial` is the loaded recipe.
+  const initial = untrack(() => props.initial);
+  const recipeId = untrack(() => props.recipeId);
   // The loaded recipe, serialized. A stored draft only counts when it differs from this.
-  const baseline = JSON.stringify(props.initial);
-  const stored = loadDraft(props.recipeId);
+  const baseline = JSON.stringify(initial);
+  const stored = loadDraft(recipeId);
   const restored = stored && JSON.stringify(stored) !== baseline ? stored : undefined;
-  const [draft, setDraft] = createStore<RecipeDraft>(structuredClone(restored ?? props.initial));
+  const [draft, setDraft] = createStore<RecipeDraft>(structuredClone(restored ?? initial));
   const [generation, setGeneration] = createSignal(0);
   /** Phones only: which side is showing. */
   const [side, setSide] = createSignal<"summary" | "editor">("summary");
   const actions = createDraftActions(draft, setDraft);
-  const create = useCreateRecipe();
-  const update = useUpdateRecipe();
+  const [pending, submit] = createSubmit();
 
   // Autosave real edits only. A draft equal to the loaded recipe (just opened, or every change
   // undone, or discarded) clears storage, so the next visit loads the server copy.
-  createEffect(() => {
-    if (JSON.stringify(draft) === baseline) clearDraft(props.recipeId);
-    else saveDraft(props.recipeId, draft);
-  });
+  createEffect(
+    () => JSON.stringify(draft),
+    (json) => {
+      if (json === baseline) clearDraft(recipeId);
+      else saveDraft(recipeId, json);
+    }
+  );
 
   const issues = createMemo(() => validateGraph(draft.nodes, draft.edges));
   const summary = createMemo(() => summarize(draft));
   const warnings = createMemo(() => draftWarnings(draft, issues(), summary(), catalog));
   const blocking = () => warnings().filter((warning) => warning.blocking);
   const numbers = createMemo(() => stepNumbers(draft.nodes, draft.edges));
-  const pending = () => create.isPending || update.isPending;
 
   /** The step shown on the right: the one asked for, else the first. */
   const selection = createMemo(() => {
@@ -117,48 +120,36 @@ export function RecipeEditor(props: {
       return;
     }
     const data = draftToWrite(draft);
-    try {
-      let id = props.recipeId;
-      if (id) {
-        await update.mutateAsync({ id, data });
-      } else {
-        const created = await create.mutateAsync({ data });
-        if (created.status !== 201) return;
-        id = String(created.data.id);
-      }
-      clearDraft(props.recipeId);
-      await queryClient.invalidateQueries({ queryKey: getListRecipesQueryKey() });
-      await queryClient.invalidateQueries({ queryKey: getGetRecipeQueryKey(id) });
-      await navigate({ to: "/recipes/$id", params: { id } });
-    } catch (error) {
-      notifyError("save", error, { persistent: true });
-    }
+    const id = await submit(
+      "save",
+      async () => {
+        if (recipeId === undefined) return String((await Recipes.createRecipe(data)).id);
+        await Recipes.updateRecipe(recipeId, data);
+        return recipeId;
+      },
+      { persistent: true }
+    );
+    if (id === undefined) return;
+    clearDraft(recipeId);
+    navigate(paths.recipes(id));
   };
 
   const discardRestored = () => {
-    clearDraft(props.recipeId);
-    setDraft(reconcile(structuredClone(props.initial)));
+    clearDraft(recipeId);
+    setDraft(() => structuredClone(initial));
     // Markdown editors take their text once; remount them on the restored draft.
     setGeneration((value) => value + 1);
   };
 
   // A restored draft is announced once, with Discard as the snackbar action.
-  onMount(() => {
+  // It goes away with the editor.
+  onSettled(() => {
     if (restored === undefined) return;
-    snackbar.show((toast) => (
-      <Snackbar toastId={toast.toastId} persistent>
-        <SnackbarMessage>Unsaved changes from your last visit restored.</SnackbarMessage>
-        <SnackbarAction
-          onClick={() => {
-            discardRestored();
-            snackbar.dismiss(toast.toastId);
-          }}
-        >
-          Discard
-        </SnackbarAction>
-        <SnackbarClose />
-      </Snackbar>
-    ));
+    const id = snackbar("Unsaved changes from your last visit restored.", {
+      duration: Infinity,
+      action: { label: "Discard", onAction: discardRestored },
+    });
+    return () => snackbar.dismiss(id);
   });
 
   return (
@@ -195,7 +186,6 @@ export function RecipeEditor(props: {
               <ScrollArea class="expanded:max-h-[calc(100dvh-var(--app-bar-height)-6rem)] expanded:pr-2">
                 <SummaryPanel
                   draft={draft}
-                  setDraft={setDraft}
                   actions={actions}
                   catalog={catalog}
                   summary={summary()}
@@ -226,7 +216,7 @@ export function RecipeEditor(props: {
               </Button>
               <Switch>
                 <Match when={selection() === "details"}>
-                  <DetailsEditor draft={draft} setDraft={setDraft} />
+                  <DetailsEditor draft={draft} actions={actions} />
                 </Match>
                 <Match when={selection()}>
                   {(key) => (

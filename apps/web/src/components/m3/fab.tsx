@@ -1,6 +1,6 @@
-import type { JSX } from "solid-js";
-import { splitProps } from "solid-js";
-import { cn } from "@/lib/utils";
+import { type JSX } from "@solidjs/web";
+import { omit } from "solid-js";
+import { type ClassValue, cn } from "@/lib/utils";
 
 const fabBase =
   "group/fab relative inline-flex shrink-0 cursor-pointer items-center justify-center select-none state-layer focus-ring motion-fast shadow-level-3 hover:shadow-level-4 disabled:pointer-events-none disabled:bg-on-surface/10 disabled:text-on-surface/38 disabled:shadow-none [&_svg]:pointer-events-none [&_svg]:shrink-0";
@@ -36,7 +36,7 @@ export function fabVariants(options?: {
   variant?: FabVariant;
   size?: FabSize;
   extended?: boolean;
-  class?: string;
+  class?: ClassValue;
 }) {
   const size = options?.size ?? "default";
   return cn(
@@ -54,37 +54,35 @@ export interface FabProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
 
 /** Floating action button for the screen's primary action. Give it an `aria-label`. */
 export function Fab(props: FabProps) {
-  const [, rest] = splitProps(props, ["class", "ref", "variant", "size"]);
+  const rest = omit(props, "variant", "size");
   return (
     <button
-      ref={props.ref}
       type="button"
       data-slot="fab"
       data-variant={props.variant ?? "tonal-primary"}
       data-size={props.size ?? "default"}
-      class={fabVariants({ variant: props.variant, size: props.size, class: props.class })}
       {...rest}
+      class={fabVariants({ variant: props.variant, size: props.size, class: props.class })}
     />
   );
 }
 
 /** FAB with a text label next to the icon. */
 export function ExtendedFab(props: FabProps) {
-  const [, rest] = splitProps(props, ["class", "ref", "variant", "size"]);
+  const rest = omit(props, "variant", "size");
   return (
     <button
-      ref={props.ref}
       type="button"
       data-slot="extended-fab"
       data-variant={props.variant ?? "tonal-primary"}
       data-size={props.size ?? "default"}
+      {...rest}
       class={fabVariants({
         variant: props.variant,
         size: props.size,
         extended: true,
         class: props.class,
       })}
-      {...rest}
     />
   );
 }

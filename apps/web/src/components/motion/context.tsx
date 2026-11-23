@@ -1,12 +1,15 @@
-import { type JSX, createContext, useContext } from "solid-js";
-import type { ReducedMotion, Transition, VariantLabels } from "./types";
+import type { JSX } from "@solidjs/web";
+import { createContext, useContext } from "solid-js";
+import type { ReducedMotion, Transition, VariantLabels } from "@/lib/motion/types";
 
 export interface MotionConfigValue {
   readonly transition: Transition | undefined;
   readonly reducedMotion: ReducedMotion | undefined;
 }
 
-export const MotionConfigContext = createContext<MotionConfigValue>();
+// Optional contexts: Solid 2 throws on a read with no provider and no default, so the empty
+// default is `null`.
+export const MotionConfigContext = createContext<MotionConfigValue | null>(null);
 
 export function MotionConfig(props: {
   transition?: Transition;
@@ -22,9 +25,7 @@ export function MotionConfig(props: {
       return props.reducedMotion ?? parent?.reducedMotion;
     },
   };
-  return (
-    <MotionConfigContext.Provider value={value}>{props.children}</MotionConfigContext.Provider>
-  );
+  return <MotionConfigContext value={value}>{props.children}</MotionConfigContext>;
 }
 
 export interface VariantContextValue {
@@ -32,4 +33,4 @@ export interface VariantContextValue {
   readonly animate: VariantLabels | undefined;
 }
 
-export const VariantContext = createContext<VariantContextValue>();
+export const VariantContext = createContext<VariantContextValue | null>(null);

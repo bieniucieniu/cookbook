@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import type { Editor } from "@tiptap/core";
 import Placeholder from "@tiptap/extension-placeholder";
 import StarterKit from "@tiptap/starter-kit";
-import { createEffect, on, untrack } from "solid-js";
+import { createEffect, untrack } from "solid-js";
 import { Markdown } from "tiptap-markdown";
 
 function readMarkdown(editor: Editor): string {
@@ -57,14 +57,12 @@ export function MarkdownView(props: { value: string; class?: string }) {
   }));
   const editor = useEditor(() => options);
   createEffect(
-    on(
-      () => props.value,
-      (value) => {
-        const current = editor();
-        if (current && readMarkdown(current) !== value) current.commands.setContent(value);
-      },
-      { defer: true }
-    )
+    () => props.value,
+    (value) => {
+      const current = editor();
+      if (current && readMarkdown(current) !== value) current.commands.setContent(value);
+    },
+    { defer: true }
   );
   return (
     <div class={cn("markdown", props.class)}>

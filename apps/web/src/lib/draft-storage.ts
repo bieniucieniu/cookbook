@@ -20,9 +20,10 @@ export function loadDraft(recipeId: string | undefined): RecipeDraft | undefined
   }
 }
 
-export function saveDraft(recipeId: string | undefined, draft: RecipeDraft): void {
+/** Saves a draft the caller already serialized (`JSON.stringify(draft)`), without a second pass. */
+export function saveDraft(recipeId: string | undefined, draftJson: string): void {
   try {
-    localStorage.setItem(storageKey(recipeId), JSON.stringify({ version, draft }));
+    localStorage.setItem(storageKey(recipeId), `{"version":${version},"draft":${draftJson}}`);
   } catch {
     return;
   }

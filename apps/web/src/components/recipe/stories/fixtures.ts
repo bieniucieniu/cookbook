@@ -20,7 +20,6 @@ export function fakeCatalog(): Catalog {
   return {
     items: (kind) => items[kind],
     name: (kind, id) => items[kind].find((item) => item.id === id)?.name ?? `#${id}`,
-    loading: () => false,
     async create(kind, name) {
       const item = { id: next++, slug: name.toLowerCase(), name };
       items[kind].push(item);

@@ -10,15 +10,14 @@ import type { Catalog } from "@/lib/catalog";
 import type { DraftNode, RecipeDraft } from "@/lib/recipe-draft";
 import { lanes, rowMode } from "@/lib/recipe-graph";
 import { cn } from "@/lib/utils";
+import type { JSX } from "@solidjs/web";
 import {
   createEffect,
   createMemo,
   createSignal,
   For,
-  type JSX,
   Match,
-  onCleanup,
-  onMount,
+  onSettled,
   Show,
   Switch,
 } from "solid-js";
@@ -57,14 +56,14 @@ function useWakeLock() {
     }
   };
   const onVisible = () => void request();
-  onMount(() => {
+  onSettled(() => {
     void request();
     document.addEventListener("visibilitychange", onVisible);
-  });
-  onCleanup(() => {
-    active = false;
-    document.removeEventListener("visibilitychange", onVisible);
-    void lock?.release().catch(() => undefined);
+    return () => {
+      active = false;
+      document.removeEventListener("visibilitychange", onVisible);
+      void lock?.release().catch(() => undefined);
+    };
   });
 }
 
@@ -85,8 +84,11 @@ export function CookMode(props: {
 }) {
   useWakeLock();
   // Snackbars (finished timers) sit above the floating toolbar: 64px bar + 16px gap.
-  onMount(() => document.documentElement.style.setProperty("--snackbar-offset", "5rem"));
-  onCleanup(() => document.documentElement.style.removeProperty("--snackbar-offset"));
+  onSettled(() => {
+    const root = document.documentElement.style;
+    root.setProperty("--snackbar-offset", "5rem");
+    return () => root.removeProperty("--snackbar-offset");
+  });
   const rows = createMemo(() => lanes(props.draft.nodes, props.draft.edges));
   /** Row holding the step in the URL. An unknown key falls back to the first row. */
   const index = createMemo(() =>
@@ -100,16 +102,23 @@ export function CookMode(props: {
     if (key) props.onStep(key);
   };
   // A step key that is not in the recipe lands on the first step instead.
-  createEffect(() => {
-    const first = rows()[0]?.[0]?.key;
-    if (first && !rows().some((row) => row.some((node) => node.key === props.stepKey)))
-      props.onStep(first, true);
-  });
+  createEffect(
+    () => {
+      const first = rows()[0]?.[0]?.key;
+      const known = rows().some((row) => row.some((node) => node.key === props.stepKey));
+      return first && !known ? first : undefined;
+    },
+    (first) => {
+      if (first) props.onStep(first, true);
+    }
+  );
   const [timers, setTimers] = createSignal<Timer[]>([]);
   const [now, setNow] = createSignal(Date.now());
   let nextTimerId = 1;
-  const tick = setInterval(() => setNow(Date.now()), 500);
-  onCleanup(() => clearInterval(tick));
+  onSettled(() => {
+    const tick = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(tick);
+  });
 
   const go = (delta: number) => {
     openRow(Math.min(rows().length - 1, Math.max(0, index() + delta)));
@@ -161,28 +170,30 @@ export function CookMode(props: {
     const at = restingSlide();
     if (at !== undefined) sizeFor(at - 1, at + 1);
   };
-  onCleanup(() => clearTimeout(settleTimer));
   /*
    * The router's scroll restoration records every scrolled element (a capture listener on
    * document) and writes the old scrollLeft back after each step navigation, which cancels the
    * scroll to the new slide. The route already says which slide is open, so the track's scroll
    * stops at window and never reaches that listener.
    */
-  onMount(() => {
+  onSettled(() => {
     const hideScroll = (event: Event) => {
       if (event.target !== track) return;
       event.stopPropagation();
       onScroll();
     };
     window.addEventListener("scroll", hideScroll, { capture: true, passive: true });
-    onCleanup(() => window.removeEventListener("scroll", hideScroll, { capture: true }));
+    return () => {
+      window.removeEventListener("scroll", hideScroll, { capture: true });
+      clearTimeout(settleTimer);
+      observer?.disconnect();
+    };
   });
 
   /** Wraps the track. On a part change the page scrolls so it sits under the app bar. */
   let stage: HTMLDivElement | undefined;
   let placed = false;
-  createEffect(() => {
-    const at = index();
+  createEffect(index, (at) => {
     const changed = placed;
     const smooth = changed && !window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     placed = true;
@@ -218,20 +229,22 @@ export function CookMode(props: {
     const at = Math.round(x);
     return Math.abs(x - at) < 0.01 ? at : undefined;
   }
-  onMount(() => {
-    // A part that grows or shrinks (comments opened, a window resize) refits at rest.
-    const observer = new ResizeObserver(() => {
-      const at = restingSlide();
-      if (at !== undefined && target === undefined) sizeFor(at, at);
-    });
-    createEffect(() => {
+  // A part that grows or shrinks (comments opened, a window resize) refits at rest. Effects
+  // apply in the browser only, so the observer is made there, on first use.
+  let observer: ResizeObserver | undefined;
+  createEffect(
+    () => rows().length,
+    (count) => {
+      observer ??= new ResizeObserver(() => {
+        const at = restingSlide();
+        if (at !== undefined && target === undefined) sizeFor(at, at);
+      });
       observer.disconnect();
-      for (const slide of slides.slice(0, rows().length)) if (slide) observer.observe(slide);
+      for (const slide of slides.slice(0, count)) if (slide) observer.observe(slide);
       const at = restingSlide();
       if (at !== undefined) sizeFor(at, at);
-    });
-    onCleanup(() => observer.disconnect());
-  });
+    }
+  );
 
   const startTimer = (label: string, seconds: number) =>
     setTimers((list) => [
@@ -243,13 +256,16 @@ export function CookMode(props: {
 
   // Each finished timer announces itself once in a snackbar that stays until dismissed.
   const announced = new Set<number>();
-  createEffect(() => {
-    for (const timer of timers()) {
-      if (remaining(timer) > 0 || announced.has(timer.id)) continue;
-      announced.add(timer.id);
-      notify(`Timer done: ${timer.label}`, { persistent: true });
+  createEffect(
+    () => timers().filter((timer) => remaining(timer) <= 0),
+    (done) => {
+      for (const timer of done) {
+        if (announced.has(timer.id)) continue;
+        announced.add(timer.id);
+        notify(`Timer done: ${timer.label}`, { persistent: true });
+      }
     }
-  });
+  );
 
   return (
     // Bottom padding keeps the last line clear of the fixed toolbar.
@@ -294,9 +310,7 @@ export function CookMode(props: {
         the toolbar.
       */}
       <div
-        ref={(element) => {
-          stage = element;
-        }}
+        ref={(el) => (stage = el)}
         class="flex min-h-[calc(100dvh-var(--app-bar-height)-5rem-2rem)] scroll-mt-(--app-bar-height) flex-col py-4"
       >
         {/*
@@ -304,73 +318,76 @@ export function CookMode(props: {
         padded back in, can bleed into the gutter like the ingredient rows do.
       */}
         <div
-          ref={(element) => {
-            track = element;
-          }}
+          ref={(el) => (track = el)}
           role="region"
           aria-roledescription="carousel"
           aria-label="Recipe parts"
           class="-mx-4 flex snap-x snap-mandatory items-start overflow-x-auto overflow-y-hidden overscroll-x-contain [scrollbar-width:none] medium:-mx-6"
-          on:scrollend={onScrollEnd}
+          onScrollEnd={onScrollEnd}
           onPointerDown={userScroll}
           onWheel={userScroll}
           onTouchStart={userScroll}
         >
           <For each={rows()}>
-            {(nodes, at) => (
-              <section
-                ref={(element) => {
-                  slides[at()] = element;
-                }}
-                role="group"
-                aria-roledescription="slide"
-                aria-label={`Part ${at() + 1} of ${rows().length}`}
-                // Off-screen parts stay out of tab order and the a11y tree; a swipe on them falls
-                // through to the track.
-                inert={at() !== index() ? true : undefined}
-                class="flex w-full shrink-0 snap-start snap-always flex-col gap-4 px-4 medium:px-6"
-              >
-                <Switch>
-                  <Match when={nodes.length === 1 && nodes[0]}>{(node) => cookStep(node())}</Match>
-                  {/* Pick one: the options are tabs, one step at a time. */}
-                  <Match when={modeOf(nodes) === "xor"}>
-                    <RowLabel mode="xor" />
-                    <Tabs
-                      variant="secondary"
-                      value={
-                        nodes.some((node) => node.key === props.stepKey)
-                          ? props.stepKey
-                          : nodes[0]?.key
-                      }
-                      onChange={(key) => props.onStep(key, true)}
-                    >
-                      <TabsList aria-label="Steps to pick from">
+            {(nodes, at) => {
+              let slide: HTMLElement | undefined;
+              // Keep `slides` in step with this slide's position, which moves if rows change.
+              createEffect(at, (position) => {
+                if (slide) slides[position] = slide;
+              });
+              return (
+                <section
+                  ref={(el) => (slide = el)}
+                  role="group"
+                  aria-roledescription="slide"
+                  aria-label={`Part ${at() + 1} of ${rows().length}`}
+                  // Off-screen parts stay out of tab order and the a11y tree; a swipe on them falls
+                  // through to the track.
+                  inert={at() !== index() ? true : undefined}
+                  class="flex w-full shrink-0 snap-start snap-always flex-col gap-4 px-4 medium:px-6"
+                >
+                  <Switch>
+                    <Match when={nodes.length === 1}>{cookStep(nodes[0]!)}</Match>
+                    {/* Pick one: the options are tabs, one step at a time. */}
+                    <Match when={modeOf(nodes) === "xor"}>
+                      <RowLabel mode="xor" />
+                      <Tabs
+                        variant="secondary"
+                        value={
+                          nodes.some((node) => node.key === props.stepKey)
+                            ? props.stepKey
+                            : nodes[0]?.key
+                        }
+                        onValueChange={(key) => props.onStep(String(key), true)}
+                      >
+                        <TabsList aria-label="Steps to pick from">
+                          <For each={nodes}>
+                            {(node) => <TabsTrigger value={node.key}>{node.title}</TabsTrigger>}
+                          </For>
+                          <TabsIndicator />
+                        </TabsList>
                         <For each={nodes}>
-                          {(node) => <TabsTrigger value={node.key}>{node.title}</TabsTrigger>}
+                          {(node) => (
+                            <TabsContent value={node.key} class="pt-4">
+                              {cookStep(node)}
+                            </TabsContent>
+                          )}
                         </For>
-                        <TabsIndicator />
-                      </TabsList>
-                      <For each={nodes}>
-                        {(node) => (
-                          <TabsContent value={node.key} class="pt-4">
-                            {cookStep(node)}
-                          </TabsContent>
-                        )}
-                      </For>
-                    </Tabs>
-                  </Match>
-                  {/* At the same time: stacked on the slide, split by dividers. */}
-                  <Match when>
-                    <RowLabel mode="and" />
-                    <div class="flex flex-col divide-y divide-outline-variant">
-                      <For each={nodes}>
-                        {(node) => <div class="py-6 first:pt-0 last:pb-0">{cookStep(node)}</div>}
-                      </For>
-                    </div>
-                  </Match>
-                </Switch>
-              </section>
-            )}
+                      </Tabs>
+                    </Match>
+                    {/* At the same time: stacked on the slide, split by dividers. */}
+                    <Match when>
+                      <RowLabel mode="and" />
+                      <div class="flex flex-col divide-y divide-outline-variant">
+                        <For each={nodes}>
+                          {(node) => <div class="py-6 first:pt-0 last:pb-0">{cookStep(node)}</div>}
+                        </For>
+                      </div>
+                    </Match>
+                  </Switch>
+                </section>
+              );
+            }}
           </For>
         </div>
       </div>
@@ -388,9 +405,9 @@ export function CookMode(props: {
           </IconButton>
           <Progress
             value={index() + 1}
-            minValue={0}
-            maxValue={rows().length}
-            getValueLabel={({ value, max }) => `Part ${value} of ${max}`}
+            min={0}
+            max={rows().length}
+            getValueLabel={(value, details) => `Part ${value ?? 0} of ${details.max}`}
             class="min-w-0 flex-1 gap-1"
           >
             <ProgressLabel class="typescale-label-large text-on-surface-variant tabular-nums">
@@ -432,7 +449,7 @@ function CookStep(props: {
       size="large"
       checkable
       onTimer={props.onTimer}
-      footer={<Show when={props.comments}>{(comments) => comments()(props.node.key)}</Show>}
+      footer={props.comments?.(props.node.key)}
     />
   );
 }

@@ -1,5 +1,5 @@
-import type { JSX } from "solid-js";
-import { splitProps } from "solid-js";
+import { type JSX } from "@solidjs/web";
+import { omit } from "solid-js";
 import { cn } from "@/lib/utils";
 
 const toolbarVariantClasses = {
@@ -14,7 +14,7 @@ const toolbarColorClasses = {
   standard: "bg-surface-container text-on-surface-variant",
   /** Primary container. Standard icon buttons inside follow its content color. */
   vibrant:
-    "bg-primary-container text-on-primary-container [&_[data-slot=icon-button][data-variant=standard]]:text-inherit [&_[data-slot=toggle-icon-button][data-variant=standard]]:text-inherit",
+    "bg-primary-container text-on-primary-container [&_[data-slot=icon-button][data-variant=standard]]:text-inherit [&_[data-slot=toggle][data-variant=standard]]:text-inherit",
 };
 
 export type ToolbarVariant = keyof typeof toolbarVariantClasses;
@@ -28,21 +28,20 @@ export interface ToolbarProps extends JSX.HTMLAttributes<HTMLDivElement> {
 
 /** Frequently used actions for the current page. Put icon buttons and buttons inside. */
 export function Toolbar(props: ToolbarProps) {
-  const [, rest] = splitProps(props, ["class", "ref", "variant", "color", "orientation"]);
+  const rest = omit(props, "variant", "color", "orientation");
   return (
     <div
-      ref={props.ref}
       role="toolbar"
       aria-orientation={props.orientation ?? "horizontal"}
       data-slot="toolbar"
       data-variant={props.variant ?? "docked"}
       data-orientation={props.orientation ?? "horizontal"}
+      {...rest}
       class={cn(
         toolbarVariantClasses[props.variant ?? "docked"],
         toolbarColorClasses[props.color ?? "standard"],
         props.class
       )}
-      {...rest}
     />
   );
 }

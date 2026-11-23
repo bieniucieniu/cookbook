@@ -1,90 +1,83 @@
-# Solid
+# Solid 2
 
-`apps/web` is Solid 1.9 and TanStack Router. Client SPA. No TanStack Start. No `@solidjs/router`. No React.
+`apps/web` is Solid 2 in start mode: `@solidjs/vite-plugin` with `start` + `ssr`, `@solidjs/router` 2 and file routes. It renders on the server and hydrates. There is no `@solidjs/start` package, no TanStack, and no React.
 
-JSX looks like React. It is not React. A component function runs once to set up the DOM. There is no virtual DOM and no re-render. A later update runs only the expressions that read the changed signal.
-
-Source: [Solid render-once model](https://github.com/solidjs/solid) and [eslint-plugin-solid reactivity](https://github.com/solidjs-community/eslint-plugin-solid/blob/main/packages/eslint-plugin-solid/docs/reactivity.md). Router accessors: `@tanstack/solid-router` skill `solid-router`.
+A component function runs once. Updates come from signals read in JSX, `createMemo`, or an effect's compute function. There is no re-render and no dependency array. Solid's own guide ships in `node_modules/solid-js/CHEATSHEET.md` (its "What changed from 1.x" list is the short version) and the [migration guide](https://github.com/solidjs/solid/blob/next/documentation/solid-2.0/MIGRATION.md).
 
 ## Write
 
-- State: `const [count, setCount] = createSignal(0)`. Read with `count()`. Setter takes a value or `(prev) => next`.
-- Derived: `createMemo`, or a function you call inside JSX. Do not copy a signal into a `let` and expect it to update.
-- Side effects: `createEffect`. No dependency array. It tracks signals read inside it. Return a cleanup, or use `onCleanup`.
-- One-time DOM setup: `onMount`. It does not track.
-- Lists: `<For each={items()}>{(item) => ...}</For>`. Primitive lists: `<Index>`. Do not use `array.map` for a reactive list.
-- Mount and unmount: `<Show when={...}>`. Branches: `<Switch>` and `<Match>`. An `if` in the component body runs once and will not update.
-- Props: `function Button(props) { return <button>{props.label}</button> }`. Do not destructure props. Do not `const label = props.label` in the function body. A prop read belongs in JSX, `createMemo`, `createEffect`, or an event handler.
-- Initial state from a prop is a snapshot. Name that prop `initial*` or `default*` so the snapshot is intentional.
-- Context: pass the accessor (`value={count}`). Call it in the consumer. `value={count()}` is a snapshot. Provider `value` is not a tracked scope.
-- Stores: read `state.field` inside JSX or a tracked scope. Do not destructure the store.
-- Refs: `let el: HTMLButtonElement | undefined` and `ref={el}`. Assigned after render. Read it in `onMount` or an event handler.
-- Events: `onClick={() => ...}`. The handler closes over accessors. Call them inside the handler.
-- Import primitives from `solid-js`. Import `render` from `solid-js/web`. Import the router from `@tanstack/solid-router`.
+| Not this (1.x or React)                       | This (2.0)                                                                        |
+| --------------------------------------------- | --------------------------------------------------------------------------------- |
+| `splitProps(props, [...])`                    | `<X {...props} class={…} />`; `omit(props, "a")` only for keys that must not pass |
+| `mergeProps`                                  | `merge` (`undefined` overrides)                                                   |
+| `createEffect(() => { … })`                   | `createEffect(() => read(), (value) => { …; return cleanup })`                    |
+| `on(deps, fn)`                                | read the deps in the compute function; `{ defer: true }` skips the first run      |
+| `onMount` + `onCleanup`                       | `onSettled(() => { …; return cleanup })`                                          |
+| `<Ctx.Provider value={v}>`                    | `<Ctx value={v}>`                                                                 |
+| `classList={{ a: on() }}`                     | `class={["base", { a: on() }]}`                                                   |
+| `<Index each>`                                | `<For each keyed={false}>` (item is an accessor, index a number)                  |
+| `<Dynamic component={c}>`                     | `const C = dynamic(() => c)` from `@solidjs/web`, then `<C />`                    |
+| `solid-js/web`, `solid-js/store`              | `@solidjs/web`; stores from `solid-js`                                            |
+| `setStore("a", "b", v)`, `produce`            | `setStore((draft) => { draft.a.b = v })`                                          |
+| `Suspense`, `ErrorBoundary`, `createResource` | `Loading`, `Errored`, async `createMemo`                                          |
+| `tabIndex`, `on:scrollend`                    | `tabindex`, `onScrollEnd`                                                         |
 
-## Do not
+- Never destructure `props`. Reads at the top of a component body or a `<For>` / `<Show>` callback do not update (dev warns `STRICT_READ_UNTRACKED`). A one-time snapshot is `untrack(() => props.initial)`, and only of a value that is already there: an untracked read of pending async data throws.
+- Writes apply on the next microtask: right after `setX(1)`, `x()` still reads the old value.
+- Writes go in event handlers or an effect's apply function, never in a memo or a component body.
+- A ref callback is not an owner: no effects or `onCleanup` in it. Keep the element in a variable (`ref={el}`) and do the work in `onSettled`.
+- `JSX`, `ComponentProps` (for DOM parts), `dynamic`, `Portal`, `isServer`, `clientOnly`, `httpStatus` come from `@solidjs/web`.
 
-- Import `react`, `react-dom`, `@tanstack/react-*`, or `@solidjs/router`.
-- `useState`, `useEffect`, `useMemo`, `useCallback`, `useRef`, `forwardRef`, `memo`, or dependency arrays.
-- Solid 2 APIs. `@tanstack/solid-router` peers `solid-js` ^1.9.10.
-- Cast router types. Register the router in `src/main.tsx`. `useSearch`, `useParams`, `useLoaderData`, `useRouterState`, and `useLocation` return an accessor. Call it: `search().page`. `useRouter()` and `useNavigate()` are not accessors.
-- Destructure an accessor result (`const { page } = useSearch(...)()`). That copy will not update.
-- Call hooks inside `loader` or `beforeLoad`. Those are plain functions.
+## Server rendering
 
-Vite+: `@tanstack/router-plugin` with `target: "solid"` comes before `vite-plugin-solid`, then `@tailwindcss/vite`. App config is `vite.config.ts` (`defineConfig` from `vite-plus`). Root `vite.config.ts` owns `lint` and `fmt`. `pnpm exec vp check` formats, lints, and typechecks. `tsconfig` `jsx` is `preserve`. `jsxImportSource` is `solid-js`. Path alias is `@/*`.
+Every page renders on the server first (`renderMode: "async"`: one complete document, so a missing recipe answers 404).
 
-API client: `pnpm --filter web generate-api` while the API is on `:8080`. Generated URLs already start with `/api/v1`. Hand-written URLs (login and logout navigations, photo upload, image `src`) use `apiBase` / `photoUrl` from `src/lib/api.ts`. Orval writes `@tanstack/solid-query` hooks under `src/generated/`. A query result is a store. Read `query.data` in JSX. Do not destructure it. `useParams` is an accessor. For a param query, call `useQuery(() => getGetRecipeQueryOptions(params().id))` so the id stays reactive. Login and logout are browser navigations to `/api/v1/auth/login` and `POST /api/v1/auth/logout`, not the generated functions.
+- Module scope is shared by every request. Keep state in components or context.
+- Browser-only work (`window`, `document`, `localStorage`, `ResizeObserver`, timers) goes in `onSettled` or an effect's apply function, never in a component body or at module level without an `isServer` / `typeof document` guard.
+- Markup must match between server and client. Apply a value only the browser knows (localStorage) in `onSettled`, after hydration, unless it only touches `<html>`: those are preferences in `src/lib/preferences.ts` (theme, reading size). Each is a key plus self-contained `parse` / `apply` functions; `preferencesScript` (run in `Document.tsx`) applies them before paint, and the server renders the defaults. Add a new one there.
+- Browser-only components load with `clientOnly(() => import(...))`: the markdown editor and view (tiptap) and the recipe editor (local drafts).
 
-UI: solid-kit registry. From `apps/web`, `pnpm dlx shadcn@latest add bieniucieniu/solid-kit/<item>`. Hand-written `components.json`. Do not run `shadcn init`. Do not import `@solid-kit/ui`.
+## Routes
 
-Material 3: UI comes from `m3-<item>` (installs into `components/m3/`). Do not add `ui` items; the shadcn theme tokens are gone, so `bg-muted`, `text-foreground`, `border-border` and the like do not exist here. Tokens live in `src/m3-tokens.css`: the color values come from seed `#B4532A` (tonal spot), and every typescale tracking adds `--reading-tracking` (Aa menu). Keep both when reinstalling `m3-theme`. Use M3 utilities: color roles (`bg-surface-container`, `text-on-surface-variant`), `typescale-*`, `rounded-<m3 shape>`, `shadow-level-*`, breakpoints `medium:` / `expanded:`.
+File routes under `src/routes` (`filesystem-routing`, nested convention): `[id]` is a param, `x.tsx` beside an `x/` folder is its layout, and `(view)` is a pathless group. `file-routes.d.ts` is generated by the dev server and build. Commit it. `src/App.tsx` is the root layout (app bar, `<Loading>` around the page, snackbars). `src/Document.tsx` is the HTML shell. `src/router.ts` creates the router.
 
-Every `m3-<item>` pulls `m3-theme`, which overwrites `src/m3-tokens.css` and appends to `index.css`. Back both up before `shadcn add` and restore them after. M3 has no popover, select, combobox, alert, or empty state. The app fills those gaps in `components/`: `popover.tsx` (Kobalte popover on an M3 menu surface), `select-field.tsx` (native select as an outlined field), `recipe/item-picker.tsx` (Kobalte combobox), `page-state.tsx` (loading, error, empty), and `notify()` in `notify.tsx` (snackbar for action results). An outlined field on a surface other than `surface` needs `--text-field-notch` set to that surface color.
+- Links are plain `<a href="/recipes/1">`. No link component.
+- `useParams()`, `useLocation()`, `useSearchParams()` return objects you read directly (`params.id`, `location.pathname`). `useNavigate()` takes a path: `navigate("/recipes/1", { replace: true })`.
+- A route can export `route = { preload } satisfies RouteDefinition` to start its queries on link hover and before render.
+- The `?step=` param of the editor: `useEditorStep()` in `src/lib/editor-search.ts`.
 
-<!-- intent-skills:start -->
+## Data
 
-# TanStack Intent - before editing files, run the matching guidance command.
+`pnpm --filter web generate-api` while the API is on `:8080` (Orval, `client: "solid-start"`). Each tag is one object in `src/generated/<tag>/<tag>.ts`: reads are `query()` functions with cache keys, and writes are plain async functions. `orval.config.ts` overrides the client's imports for Router 2 and swaps the router's form `action` for `mutation` from `src/mutator.ts`, which revalidates every cached query after a successful write.
 
-tanstackIntent:
+```tsx
+// Read: an async memo, under a <Loading> boundary. Errors go to the nearest <Errored>.
+const recipe = createMemo(() => Recipes.getRecipe(props.id));
+<h1>{recipe().title}</h1>;
 
-- id: "@tanstack/solid-router#solid-router"
-  run: "pnpm dlx @tanstack/intent@latest load @tanstack/solid-router#solid-router"
-  for: "Solid bindings for TanStack Router. Hooks such as useSearch, useParams, useLoaderData, useRouterState, and useLocation return Accessor. Call the accessor. useRouter and useNavigate do not. Show, For, and createMemo around router state. Do not use @tanstack/react-router or @solidjs/router."
-- id: "@tanstack/router-plugin#router-plugin"
-  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-plugin#router-plugin"
-  for: "TanStack Router bundler plugin for route generation and automatic code splitting. Supports Vite, Webpack, Rspack, and esbuild. Configures autoCodeSplitting, routesDirectory, target framework, and code split groupings."
-- id: "@tanstack/router-core#router-core"
-  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core"
-  for: "Framework-agnostic core concepts for TanStack Router: route trees, createRouter, createRoute, createRootRoute, createRootRouteWithContext, addChildren, Register type declaration, route matching, route sorting, file naming conventions. Entry point for all router skills."
-- id: "@tanstack/router-core#router-core/auth-and-guards"
-  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/auth-and-guards"
-  for: "Route protection with beforeLoad, redirect()/throw redirect(), isRedirect helper, authenticated layout routes (_authenticated), non-redirect auth (inline login), RBAC with roles and permissions, auth provider integration (Auth0, Clerk, Supabase), router context for auth state."
-- id: "@tanstack/router-core#router-core/code-splitting"
-  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/code-splitting"
-  for: "Automatic code splitting (autoCodeSplitting), .lazy.tsx convention, createLazyFileRoute, createLazyRoute, lazyRouteComponent, getRouteApi for typed hooks in split files, codeSplitGroupings per-route override, splitBehavior programmatic config, critical vs non-critical properties."
-- id: "@tanstack/router-core#router-core/data-loading"
-  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/data-loading"
-  for: "Route loader option, loaderDeps for cache keys, staleTime/gcTime/ defaultPreloadStaleTime SWR caching, pendingComponent/pendingMs/ pendingMinMs, errorComponent/onError/onCatch, beforeLoad, router context and createRootRouteWithContext DI pattern, router.invalidate, Await component, deferred data loading with unawaited promises."
-- id: "@tanstack/router-core#router-core/navigation"
-  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/navigation"
-  for: "Link component, useNavigate, Navigate component, router.navigate, ToOptions/NavigateOptions/LinkOptions, from/to relative navigation, activeOptions/activeProps, preloading (intent/viewport/render), preloadDelay, navigation blocking (useBlocker, Block), createLink, linkOptions helper, scroll restoration, MatchRoute."
-- id: "@tanstack/router-core#router-core/not-found-and-errors"
-  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/not-found-and-errors"
-  for: "notFound() function, notFoundComponent, defaultNotFoundComponent, notFoundMode (fuzzy/root), errorComponent, CatchBoundary, CatchNotFound, isNotFound, NotFoundRoute (deprecated), route masking (mask option, createRouteMask, unmaskOnReload)."
-- id: "@tanstack/router-core#router-core/path-params"
-  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/path-params"
-  for: "Dynamic path segments ($paramName), splat routes ($ / _splat), optional params ({-$paramName}), prefix/suffix patterns ({$param}.ext), useParams, params.parse/stringify, pathParamsAllowedCharacters, i18n locale patterns."
-- id: "@tanstack/router-core#router-core/search-params"
-  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/search-params"
-  for: "validateSearch, search param validation with Zod/Valibot/ArkType adapters, fallback(), search middlewares (retainSearchParams, stripSearchParams), custom serialization (parseSearch, stringifySearch), search param inheritance, loaderDeps for cache keys, reading and writing search params."
-- id: "@tanstack/router-core#router-core/ssr"
-  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/ssr"
-  for: "Non-streaming and streaming SSR, RouterClient/RouterServer, renderRouterToString/renderRouterToStream, createRequestHandler, defaultRenderHandler/defaultStreamHandler, HeadContent/Scripts components, head route option (meta/links/styles/scripts), ScriptOnce, automatic loader dehydration/hydration, memory history on server, data serialization, document head management."
-- id: "@tanstack/router-core#router-core/type-safety"
-  run: "pnpm dlx @tanstack/intent@latest load @tanstack/router-core#router-core/type-safety"
-  for: "Full type inference philosophy (never cast, never annotate inferred values), Register module declaration, from narrowing on hooks and Link, strict:false for shared components, getRouteApi for code-split typed access, addChildren with object syntax for TS perf, LinkProps and ValidateLinkOptions type utilities, as const satisfies pattern."
-- id: "@tanstack/virtual-file-routes#virtual-file-routes"
-  run: "pnpm dlx @tanstack/intent@latest load @tanstack/virtual-file-routes#virtual-file-routes"
-  for: "Programmatic route tree building as an alternative to filesystem conventions: rootRoute, index, route, layout, physical, defineVirtualSubtreeConfig. Use with TanStack Router plugin's virtualRouteConfig option."
+// Write: call it through createSubmit (src/lib/submit.ts) for pending state and the error
+// snackbar. Cached queries revalidate themselves.
+const [saving, submit] = createSubmit();
+await submit("save", () => Recipes.updateRecipe(id, data));
+```
 
-<!-- intent-skills:end -->
+Because every write revalidates everything, a component that takes server data once as a starting point (the editor) must not remount when it refetches: pass it through a non-keyed `<Show>` and snapshot it with `untrack`.
+
+- The mutator (`src/mutator.ts`) returns the parsed body and throws `ApiError` (with `status`) for any non-2xx. GETs retry up to 3 times, except on 401/403/404. On the server it calls `API_ORIGIN` (default `http://127.0.0.1:8080`) and forwards the browser's cookies, so the first render already knows the session.
+- `ApiError` is marked safe, so a production render passes its message to `<Errored>`. Check a status with `errorStatus(error)`. After hydration the error is a plain object, not an `ApiError` instance.
+- Page errors: `PageErrored` in `components/page-state.tsx` (a 404 sets the HTTP status too). Loading: `<Loading fallback={<PageLoading … />}>`.
+- The session: `useSession()` / `signedIn()` from `src/lib/session.ts` (a 401 is `signed-out`, not an error). The root layout reads it on every page, so routes do not preload it.
+- Login and logout are browser navigations to `/api/v1/auth/login` and `POST /api/v1/auth/logout`. Hand-written URLs use `apiBase` / `photoUrl` from `src/lib/api.ts`.
+- `/api` reaches the Kotlin API through the Vite proxy in dev and `src/middleware.ts` in the production server (`node dist/server/node.js`).
+
+## UI
+
+Material 3 components are vendored from [solidx](https://github.com/bieniucieniu/solidx) `packages/kit` (Solid 2, on `@ui-sdk/solid`) at commit `4553f0d`: `components/m3`, `components/motion`, `components/tiptap`, and their helpers in `lib/{m3,motion,tiptap,utils}`. To update, copy the same files from a newer commit and rewrite `#kit/` imports to `@/`. Do not use the shadcn registry: it serves the Solid 1.9 code.
+
+- ui-sdk parts: `value` / `onValueChange`, `open` / `onOpenChange`, `pressed` / `onPressedChange`, `checked` / `onCheckedChange`. Text fields take `value` on `TextFieldInput`. There is no `as`: style a trigger with `class={buttonVariants(...)}` or swap its element with `render={(p) => <ItemChip {...p} />}`. There are no portal parts: popups open in the top layer.
+- State styling uses `data-open`, `data-checked`, `data-pressed`, `data-highlighted` and so on. Popups animate with `data-starting-style` / `data-ending-style`. `index.css` declares `@layer ui-sdk;` before Tailwind.
+- Tokens live in `src/m3-tokens.css`: colors from seed `#B4532A` (tonal spot), and every typescale tracking adds `--reading-tracking` (Aa menu). Keep both when updating from the kit. Use M3 utilities (`bg-surface-container`, `text-on-surface-variant`, `typescale-*`, `rounded-<shape>`, `shadow-level-*`, `medium:` / `expanded:`). There are no shadcn tokens here.
+- M3 gaps filled in `components/`: `popover.tsx` (ui-sdk popover on an M3 surface), `select-field.tsx` (native select), `recipe/item-picker.tsx` (ui-sdk combobox), `page-state.tsx`, and `notify()` in `notify.tsx` (snackbar). An outlined field on a surface other than `surface` needs `--text-field-notch` set to that color.
+- Icons: `components/icons.ts`, Tabler outline icons from `solid-icons/tb` under their `Icon<Name>` names. Add a name there. Use `stroke-width`, not `stroke`. `patches/solid-icons@2.0.0.patch` (root) points its prop types at Solid 2 JSX; redo it with `pnpm patch` when upgrading solid-icons.
+
+Vite+: `vite.config.ts` runs `@tailwindcss/vite`, `@solidjs/vite-plugin` (start mode) and `filesystem-routing/vite`. `pnpm exec vp check` formats, lints, and typechecks. `jsxImportSource` is `@solidjs/web`. The path alias is `@/*`.

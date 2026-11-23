@@ -1,35 +1,27 @@
 import { useRecipeView } from "@/components/recipe/view/context";
 import { CookMode } from "@/components/recipe/view/cook-mode";
 import { StepComments } from "@/components/recipe/view/step-comments";
-import { createFileRoute } from "@tanstack/solid-router";
+import { useNavigate, useParams } from "@solidjs/router";
+import { paths } from "@/paths";
 
 /**
  * Cook mode on one step. Moving between steps only changes the param, so this component stays
  * mounted and timers and done marks carry over.
  */
-export const Route = createFileRoute("/recipes/$id/_view/$step")({
-  component: CookStepPage,
-});
-
-function CookStepPage() {
-  const params = Route.useParams();
-  const navigate = Route.useNavigate();
+export default function CookStepPage() {
+  const params = useParams();
+  const navigate = useNavigate();
   const view = useRecipeView();
   return (
     <CookMode
       draft={view.draft()}
       cooks={view.cooks()}
       catalog={view.catalog}
-      stepKey={params().step}
+      stepKey={params.step ?? ""}
       onStep={(step, replace) =>
-        // CookMode scrolls the page to its stage itself; the router's reset to the top would
+        // CookMode scrolls the page to its stage itself; the router's scroll to the top would
         // undo that.
-        void navigate({
-          to: "/recipes/$id/$step",
-          params: { id: params().id, step },
-          replace,
-          resetScroll: false,
-        })
+        navigate(paths.recipes(view.recipeId())(step), { replace, scroll: false })
       }
       comments={(stepKey) => (
         <StepComments

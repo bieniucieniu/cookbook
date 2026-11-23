@@ -14,33 +14,41 @@ import {
   placement,
   type Relation,
 } from "@/lib/recipe-graph";
-import { produce, type SetStoreFunction } from "solid-js/store";
+import type { StoreSetter } from "solid-js";
 
 export type DraftActions = ReturnType<typeof createDraftActions>;
 
 /** Every draft edit in one place, so the panes stay thin and graph cleanup is not forgotten. */
-export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunction<RecipeDraft>) {
+export function createDraftActions(draft: RecipeDraft, setDraft: StoreSetter<RecipeDraft>) {
   const indexOf = (key: string) => draft.nodes.findIndex((node) => node.key === key);
   const renumber = (nodes: DraftNode[]) => nodes.forEach((node, ord) => (node.ord = ord));
   const plain = () => draft.edges.map((edge) => ({ from: edge.from, to: edge.to }));
+
+  /** `edges` with the labels of edges that were already there. */
+  const keepLabels = (state: RecipeDraft, edges: { from: string; to: string }[]) =>
+    edges.map((edge) => ({
+      ...edge,
+      label: state.edges.find((old) => old.from === edge.from && old.to === edge.to)?.label ?? "",
+    }));
+
+  /** Edits one step in place. */
+  const updateNode = (key: string, update: (node: DraftNode) => void) =>
+    setDraft((state) => {
+      const node = state.nodes.find((item) => item.key === key);
+      if (node) update(node);
+    });
 
   /** Rewires `key` to `relation` of `anchor`, keeping labels of edges that survive. */
   const wire = (key: string, relation: Relation, anchor: string | undefined) => {
     const detached = detachEdges(key, plain());
     const { edges, modes } = attachEdges(key, relation, anchor, draft.nodes, detached);
-    setDraft(
-      produce((state) => {
-        state.edges = edges.map((edge) => ({
-          ...edge,
-          label:
-            state.edges.find((old) => old.from === edge.from && old.to === edge.to)?.label ?? "",
-        }));
-        for (const [nodeKey, mode] of modes) {
-          const node = state.nodes.find((item) => item.key === nodeKey);
-          if (node) node.branchMode = mode;
-        }
-      })
-    );
+    setDraft((state) => {
+      state.edges = keepLabels(state, edges);
+      for (const [nodeKey, mode] of modes) {
+        const node = state.nodes.find((item) => item.key === nodeKey);
+        if (node) node.branchMode = mode;
+      }
+    });
   };
 
   /** List position for a step placed at `relation` to `anchor`: right after the anchor. */
@@ -56,14 +64,12 @@ export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunctio
     match: (item: DraftNode[T][number]) => boolean,
     update: (item: DraftNode[T][number]) => void
   ) =>
-    setDraft(
-      produce((state) => {
-        const node = state.nodes.find((item) => item.key === key);
-        const list: DraftNode[T][number][] | undefined = node?.[field];
-        const item = list?.find(match);
-        if (item) update(item);
-      })
-    );
+    setDraft((state) => {
+      const node = state.nodes.find((item) => item.key === key);
+      const list: DraftNode[T][number][] | undefined = node?.[field];
+      const item = list?.find(match);
+      if (item) update(item);
+    });
 
   return {
     canPlace: (anchor: string, relation: Relation) =>
@@ -76,12 +82,10 @@ export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunctio
       }
       const key = nextStepKey(draft.nodes);
       const at = positionFor(anchor);
-      setDraft(
-        produce((state) => {
-          state.nodes.splice(at, 0, blankNode(at, key));
-          renumber(state.nodes);
-        })
-      );
+      setDraft((state) => {
+        state.nodes.splice(at, 0, blankNode(at, key));
+        renumber(state.nodes);
+      });
       wire(key, relation, anchor);
       return key;
     },
@@ -94,17 +98,15 @@ export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunctio
         const others = draft.nodes.filter((node) => node.key !== key);
         if (!placement(anchor, relation, others, without).ok) return;
       }
-      setDraft(
-        produce((state) => {
-          const from = state.nodes.findIndex((node) => node.key === key);
-          const [node] = state.nodes.splice(from, 1);
-          if (!node) return;
-          const anchorAt =
-            anchor === undefined ? -1 : state.nodes.findIndex((item) => item.key === anchor);
-          state.nodes.splice(anchorAt < 0 ? state.nodes.length : anchorAt + 1, 0, node);
-          renumber(state.nodes);
-        })
-      );
+      setDraft((state) => {
+        const from = state.nodes.findIndex((node) => node.key === key);
+        const [node] = state.nodes.splice(from, 1);
+        if (!node) return;
+        const anchorAt =
+          anchor === undefined ? -1 : state.nodes.findIndex((item) => item.key === anchor);
+        state.nodes.splice(anchorAt < 0 ? state.nodes.length : anchorAt + 1, 0, node);
+        renumber(state.nodes);
+      });
       wire(key, relation, anchor);
     },
 
@@ -117,51 +119,49 @@ export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunctio
       const source = draft.nodes[at];
       if (!source) return undefined;
       const newKey = nextStepKey(draft.nodes);
-      setDraft(
-        produce((state) => {
-          state.nodes.splice(at + 1, 0, {
-            ...(JSON.parse(JSON.stringify(source)) as DraftNode),
-            key: newKey,
-          });
-          renumber(state.nodes);
-        })
-      );
+      setDraft((state) => {
+        state.nodes.splice(at + 1, 0, {
+          ...(JSON.parse(JSON.stringify(source)) as DraftNode),
+          key: newKey,
+        });
+        renumber(state.nodes);
+      });
       wire(newKey, "next", key);
       return newKey;
     },
 
     removeStep(key: string) {
       const edges = detachEdges(key, plain());
-      setDraft(
-        produce((state) => {
-          state.nodes = state.nodes.filter((node) => node.key !== key);
-          renumber(state.nodes);
-          state.edges = edges.map((edge) => ({
-            ...edge,
-            label:
-              state.edges.find((old) => old.from === edge.from && old.to === edge.to)?.label ?? "",
-          }));
-        })
-      );
+      setDraft((state) => {
+        state.nodes = state.nodes.filter((node) => node.key !== key);
+        renumber(state.nodes);
+        state.edges = keepLabels(state, edges);
+      });
+    },
+
+    /** Sets one recipe-wide field (title, photos, cooks, visibility, …). */
+    setRecipe<K extends keyof RecipeDraft>(field: K, value: RecipeDraft[K]) {
+      setDraft((state) => {
+        state[field] = value;
+      });
     },
 
     setStep<K extends keyof DraftNode>(key: string, field: K, value: DraftNode[K]) {
-      const at = indexOf(key);
-      if (at >= 0) setDraft("nodes", at, field, value);
+      updateNode(key, (node) => {
+        node[field] = value;
+      });
     },
 
     addIngredient(key: string, ingredientId: number) {
-      const at = indexOf(key);
-      const node = draft.nodes[at];
+      const node = draft.nodes.find((item) => item.key === key);
       if (!node || node.ingredients.some((item) => item.ingredientId === ingredientId)) return;
       // A new use follows how the rest of the recipe uses it, so optional never mixes.
       const optional = draft.nodes.some((other) =>
         other.ingredients.some((item) => item.ingredientId === ingredientId && item.optional)
       );
-      setDraft("nodes", at, "ingredients", (items) => [
-        ...items,
-        { ingredientId, qty: null, unit: null, optional, alts: [] },
-      ]);
+      updateNode(key, (target) => {
+        target.ingredients.push({ ingredientId, qty: null, unit: null, optional, alts: [] });
+      });
     },
     patchIngredient(key: string, ingredientId: number, patch: Partial<NodeIngredientWrite>) {
       patchItem(
@@ -173,20 +173,16 @@ export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunctio
     },
     /** Sets optional on every step that uses the ingredient. */
     setIngredientOptional(ingredientId: number, optional: boolean) {
-      setDraft(
-        produce((state) => {
-          for (const node of state.nodes)
-            for (const item of node.ingredients)
-              if (item.ingredientId === ingredientId) item.optional = optional;
-        })
-      );
+      setDraft((state) => {
+        for (const node of state.nodes)
+          for (const item of node.ingredients)
+            if (item.ingredientId === ingredientId) item.optional = optional;
+      });
     },
     removeIngredient(key: string, ingredientId: number) {
-      const at = indexOf(key);
-      if (at < 0) return;
-      setDraft("nodes", at, "ingredients", (items) =>
-        items.filter((item) => item.ingredientId !== ingredientId)
-      );
+      updateNode(key, (node) => {
+        node.ingredients = node.ingredients.filter((item) => item.ingredientId !== ingredientId);
+      });
     },
     addIngredientAlt(key: string, ingredientId: number, altIngredientId: number) {
       if (altIngredientId === ingredientId) return;
@@ -230,16 +226,14 @@ export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunctio
     },
 
     addTool(key: string, toolId: number) {
-      const at = indexOf(key);
-      const node = draft.nodes[at];
+      const node = draft.nodes.find((item) => item.key === key);
       if (!node || node.tools.some((item) => item.toolId === toolId)) return;
       const optional = draft.nodes.some((other) =>
         other.tools.some((item) => item.toolId === toolId && item.optional)
       );
-      setDraft("nodes", at, "tools", (items) => [
-        ...items,
-        { toolId, optional, hold: "active" as const, alts: [] },
-      ]);
+      updateNode(key, (target) => {
+        target.tools.push({ toolId, optional, hold: "active", alts: [] });
+      });
     },
     patchTool(key: string, toolId: number, patch: Partial<NodeToolWrite>) {
       patchItem(
@@ -250,17 +244,15 @@ export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunctio
       );
     },
     setToolOptional(toolId: number, optional: boolean) {
-      setDraft(
-        produce((state) => {
-          for (const node of state.nodes)
-            for (const item of node.tools) if (item.toolId === toolId) item.optional = optional;
-        })
-      );
+      setDraft((state) => {
+        for (const node of state.nodes)
+          for (const item of node.tools) if (item.toolId === toolId) item.optional = optional;
+      });
     },
     removeTool(key: string, toolId: number) {
-      const at = indexOf(key);
-      if (at < 0) return;
-      setDraft("nodes", at, "tools", (items) => items.filter((item) => item.toolId !== toolId));
+      updateNode(key, (node) => {
+        node.tools = node.tools.filter((item) => item.toolId !== toolId);
+      });
     },
     addToolAlt(key: string, toolId: number, altToolId: number) {
       if (altToolId === toolId) return;
@@ -299,20 +291,21 @@ export function createDraftActions(draft: RecipeDraft, setDraft: SetStoreFunctio
     },
 
     addSpan(key: string, span: Omit<SpanWrite, "ord">) {
-      const at = indexOf(key);
-      if (at < 0) return;
-      setDraft("nodes", at, "spans", (spans) => [...spans, { ...span, ord: spans.length }]);
+      updateNode(key, (node) => {
+        const spans = node.spans;
+        spans.push({ ...span, ord: spans.length });
+      });
     },
     patchSpan(key: string, index: number, patch: Partial<SpanWrite>) {
-      const at = indexOf(key);
-      if (at >= 0) setDraft("nodes", at, "spans", index, patch);
+      updateNode(key, (node) => {
+        const span = node.spans[index];
+        if (span) Object.assign(span, patch);
+      });
     },
     removeSpan(key: string, index: number) {
-      const at = indexOf(key);
-      if (at < 0) return;
-      setDraft("nodes", at, "spans", (spans) =>
-        spans.filter((_, spanIndex) => spanIndex !== index)
-      );
+      updateNode(key, (node) => {
+        node.spans = node.spans.filter((_, spanIndex) => spanIndex !== index);
+      });
     },
   };
 }

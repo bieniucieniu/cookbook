@@ -2,14 +2,9 @@ import { IconChefHat } from "@/components/icons";
 import { iconButtonVariants } from "@/components/m3/icon-button";
 import { useRecipeView } from "@/components/recipe/view/context";
 import { RecipeList } from "@/components/recipe/view/recipe-list";
-import { createFileRoute, Link } from "@tanstack/solid-router";
+import { paths } from "@/paths";
 
-export const Route = createFileRoute("/recipes/$id/_view/")({
-  component: RecipeListPage,
-});
-
-function RecipeListPage() {
-  const params = Route.useParams();
+export default function RecipeListPage() {
   const view = useRecipeView();
   return (
     <RecipeList
@@ -17,15 +12,14 @@ function RecipeListPage() {
       cooks={view.cooks()}
       catalog={view.catalog}
       stepAction={(node) => (
-        <Link
-          to="/recipes/$id/$step"
-          params={{ id: params().id, step: node.key }}
+        <a
+          href={paths.recipes(view.recipeId())(node.key)}
           aria-label={`Cook ${node.title}`}
           title="Cook this step"
           class={iconButtonVariants({ variant: "tonal", size: "xs" })}
         >
           <IconChefHat aria-hidden="true" />
-        </Link>
+        </a>
       )}
     />
   );

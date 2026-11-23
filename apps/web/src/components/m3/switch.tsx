@@ -1,45 +1,42 @@
-import { Switch as SwitchPrimitive } from "@kobalte/core/switch";
-import { type ComponentProps, Show, splitProps } from "solid-js";
-import { cn } from "@/lib/utils";
+import type { JSX } from "@solidjs/web";
+import {
+  Switch as SwitchPrimitive,
+  SwitchThumb as SwitchThumbPrimitive,
+} from "@ui-sdk/solid/switch";
+import { type ComponentProps, Show, omit } from "solid-js";
+import { cn, partClass } from "@/lib/utils";
 
-type SwitchProps = ComponentProps<typeof SwitchPrimitive>;
-type SwitchControlProps = ComponentProps<typeof SwitchPrimitive.Control>;
-type SwitchThumbProps = ComponentProps<typeof SwitchPrimitive.Thumb> & {
-  /** Show a check (on) and close (off) icon in the handle. The off handle grows to 24px. */
-  icons?: boolean;
-};
-type SwitchLabelProps = ComponentProps<typeof SwitchPrimitive.Label>;
-type SwitchDescriptionProps = ComponentProps<typeof SwitchPrimitive.Description>;
-type SwitchErrorMessageProps = ComponentProps<typeof SwitchPrimitive.ErrorMessage>;
+// ui-sdk's Switch is the track. `Switch` here is the `<label>` that lays out the track and its
+// text; put `checked` / `onCheckedChange` on `SwitchControl`.
 
-export function Switch(props: SwitchProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
+export function Switch(props: JSX.LabelHTMLAttributes<HTMLLabelElement>) {
   return (
-    <SwitchPrimitive
-      ref={props.ref}
+    <label
       data-slot="switch"
+      {...props}
       class={cn(
-        "group/switch inline-flex items-center gap-4 text-on-surface data-disabled:cursor-not-allowed",
+        "group/switch inline-flex items-center gap-4 text-on-surface has-data-disabled:cursor-not-allowed",
         props.class
       )}
-      {...rest}
     />
   );
 }
 
-/** The 52x32 track. Hover, focus, and press set the handle's state layer through --switch-layer. */
-export function SwitchControl(props: SwitchControlProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
+/**
+ * The 52x32 track. Hover, focus, and press set the handle's state layer through --switch-layer.
+ * It renders its own thumb unless you pass children.
+ */
+export function SwitchControl(props: ComponentProps<typeof SwitchPrimitive>) {
   return (
-    <SwitchPrimitive.Control
-      ref={props.ref}
-      data-slot="switch-control"
-      class={cn(
-        "group/switch-control relative inline-flex h-8 w-13 shrink-0 cursor-pointer items-center rounded-full border-2 border-outline bg-surface-container-highest motion-fast [--switch-layer:0] hover:[--switch-layer:0.08] active:[--switch-layer:0.1] peer-focus-visible:outline-3 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-secondary peer-focus-visible:[--switch-layer:0.1] data-checked:border-primary data-checked:bg-primary data-disabled:border-on-surface/12 data-disabled:bg-on-surface/12 data-disabled:[--switch-layer:0] data-disabled:data-checked:border-transparent",
+    <SwitchPrimitive
+      {...props}
+      class={partClass(
+        "group/switch-control relative inline-flex h-8 w-13 shrink-0 cursor-pointer items-center rounded-full border-2 border-outline bg-surface-container-highest outline-none motion-fast [--switch-layer:0] hover:[--switch-layer:0.08] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-secondary focus-visible:[--switch-layer:0.1] active:[--switch-layer:0.1] data-checked:border-primary data-checked:bg-primary data-disabled:border-on-surface/12 data-disabled:bg-on-surface/12 data-disabled:[--switch-layer:0] data-disabled:data-checked:border-transparent",
         props.class
       )}
-      {...rest}
-    />
+    >
+      {(props.children as JSX.Element) ?? <SwitchThumb />}
+    </SwitchPrimitive>
   );
 }
 
@@ -73,73 +70,62 @@ function CloseIcon() {
  * The handle: 16px off, 24px on, 28px while pressed. It slides 20px between the two ends with the
  * fast spatial spring.
  */
-export function SwitchThumb(props: SwitchThumbProps) {
-  const [, rest] = splitProps(props, ["class", "ref", "icons", "children"]);
+export function SwitchThumb(
+  props: ComponentProps<typeof SwitchThumbPrimitive> & {
+    /** Show a check (on) and close (off) icon in the handle. The off handle grows to 24px. */
+    icons?: boolean;
+  }
+) {
+  const rest = omit(props, "icons");
   return (
-    <SwitchPrimitive.Thumb
-      ref={props.ref}
-      data-slot="switch-thumb"
+    <SwitchThumbPrimitive
       data-icons={props.icons ? "" : undefined}
-      class={cn(
-        "pointer-events-none absolute top-1/2 left-3.5 flex size-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-outline motion-fast data-checked:translate-x-[calc(-50%+20px)] data-checked:size-6 data-checked:bg-on-primary data-icons:size-6 group-active/switch-control:size-7 group-data-disabled/switch-control:bg-on-surface/38 group-data-disabled/switch-control:data-checked:bg-surface",
+      {...rest}
+      class={partClass(
+        "pointer-events-none absolute top-1/2 left-3.5 flex size-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-outline motion-fast data-checked:size-6 data-checked:translate-x-[calc(-50%+20px)] data-checked:bg-on-primary data-icons:size-6 group-active/switch-control:size-7 group-data-disabled/switch-control:bg-on-surface/38 group-data-disabled/switch-control:data-checked:bg-surface",
         props.class
       )}
-      {...rest}
     >
-      <span
-        aria-hidden="true"
-        class="absolute size-10 rounded-full bg-on-surface opacity-(--switch-layer) motion-fast group-data-checked/switch-control:bg-primary"
-      />
+      <span class="absolute size-10 rounded-full bg-on-surface opacity-(--switch-layer) motion-fast group-data-checked/switch-control:bg-primary" />
       <Show when={props.icons}>
         <span class="relative flex">
           <CheckIcon />
           <CloseIcon />
         </span>
       </Show>
-    </SwitchPrimitive.Thumb>
+    </SwitchThumbPrimitive>
   );
 }
 
-export function SwitchLabel(props: SwitchLabelProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
+export function SwitchLabel(props: JSX.HTMLAttributes<HTMLSpanElement>) {
   return (
-    <SwitchPrimitive.Label
-      ref={props.ref}
+    <span
       data-slot="switch-label"
+      {...props}
       class={cn(
-        "typescale-body-large text-on-surface select-none data-disabled:text-on-surface/38",
+        "typescale-body-large text-on-surface select-none group-has-data-disabled/switch:text-on-surface/38",
         props.class
       )}
-      {...rest}
     />
   );
 }
 
-export function SwitchDescription(props: SwitchDescriptionProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
+export function SwitchDescription(props: JSX.HTMLAttributes<HTMLSpanElement>) {
   return (
-    <SwitchPrimitive.Description
-      ref={props.ref}
+    <span
       data-slot="switch-description"
+      {...props}
       class={cn("typescale-body-small text-on-surface-variant", props.class)}
-      {...rest}
     />
   );
 }
 
-export function SwitchErrorMessage(props: SwitchErrorMessageProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
+export function SwitchErrorMessage(props: JSX.HTMLAttributes<HTMLSpanElement>) {
   return (
-    <SwitchPrimitive.ErrorMessage
-      ref={props.ref}
+    <span
       data-slot="switch-error-message"
+      {...props}
       class={cn("typescale-body-small text-error", props.class)}
-      {...rest}
     />
   );
-}
-
-export function SwitchInput(props: ComponentProps<typeof SwitchPrimitive.Input>) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
-  return <SwitchPrimitive.Input ref={props.ref} class={cn("peer", props.class)} {...rest} />;
 }

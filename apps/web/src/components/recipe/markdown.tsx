@@ -1,16 +1,19 @@
 import { cn } from "@/lib/utils";
-import { lazy, Suspense } from "solid-js";
+import { clientOnly } from "@solidjs/web";
 
 /**
- * tiptap, ProseMirror and markdown-it are the largest part of the bundle, and markdown fields
- * are optional, so they load on first use. Until then the raw text shows in the same box.
+ * tiptap, ProseMirror and markdown-it are the largest part of the bundle and only run in the
+ * browser, so they load on the client after hydration. The server, and the client until then,
+ * renders the raw text in the same box.
  */
-const TiptapEditor = lazy(() =>
-  import("./markdown-tiptap").then((module) => ({ default: module.MarkdownEditor }))
-);
-const TiptapView = lazy(() =>
-  import("./markdown-tiptap").then((module) => ({ default: module.MarkdownView }))
-);
+const TiptapEditor = clientOnly(() => import("./markdown-tiptap"), {
+  export: "MarkdownEditor",
+  lazy: true,
+});
+const TiptapView = clientOnly(() => import("./markdown-tiptap"), {
+  export: "MarkdownView",
+  lazy: true,
+});
 
 type EditorProps = {
   defaultValue: string;
@@ -23,7 +26,8 @@ type EditorProps = {
 /** Writes markdown. Used only for fields listed in lib/markdown-fields.ts. */
 export function MarkdownEditor(props: EditorProps) {
   return (
-    <Suspense
+    <TiptapEditor
+      {...props}
       fallback={
         <div
           class={cn(
@@ -35,19 +39,16 @@ export function MarkdownEditor(props: EditorProps) {
           {props.defaultValue || props.placeholder}
         </div>
       }
-    >
-      <TiptapEditor {...props} />
-    </Suspense>
+    />
   );
 }
 
 /** Renders a markdown field read-only. Plain text reads as one paragraph. */
 export function MarkdownView(props: { value: string; class?: string }) {
   return (
-    <Suspense
+    <TiptapView
+      {...props}
       fallback={<div class={cn("markdown whitespace-pre-wrap", props.class)}>{props.value}</div>}
-    >
-      <TiptapView {...props} />
-    </Suspense>
+    />
   );
 }

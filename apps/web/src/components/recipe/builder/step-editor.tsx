@@ -12,7 +12,7 @@ import {
   IconToolsKitchen2,
   IconTrash,
 } from "@/components/icons";
-import { Button } from "@/components/m3/button";
+import { Button, buttonVariants } from "@/components/m3/button";
 import { IconButton } from "@/components/m3/icon-button";
 import {
   TextField,
@@ -20,13 +20,7 @@ import {
   TextFieldInput,
   TextFieldLabel,
 } from "@/components/m3/text-field";
-import {
-  Popover,
-  PopoverContent,
-  PopoverPortal,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/popover";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/popover";
 import { SelectField } from "@/components/select-field";
 import type { Catalog, CatalogKind } from "@/lib/catalog";
 import type { DraftNode, RecipeDraft } from "@/lib/recipe-draft";
@@ -37,8 +31,8 @@ import {
   relationLabel,
   type Relation,
 } from "@/lib/recipe-graph";
-import { createMemo, createSignal, For, type JSX, Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { dynamic, type JSX } from "@solidjs/web";
+import { createMemo, createSignal, For, Show, untrack } from "solid-js";
 import { IngredientEditor, RemoveButton, SpanEditor, ToolEditor } from "../editors";
 import { ItemPicker } from "../item-picker";
 import { MarkdownEditor } from "../markdown";
@@ -57,7 +51,7 @@ export function StepEditor(props: {
   onSelect: (key: string) => void;
 }) {
   const node = createMemo(() => props.draft.nodes.find((item) => item.key === props.stepKey));
-  const [noteOpen, setNoteOpen] = createSignal(Boolean(node()?.body.trim()));
+  const [noteOpen, setNoteOpen] = createSignal(untrack(() => Boolean(node()?.body.trim())));
   const key = () => props.stepKey;
   const titleOf = (other: string) => {
     const index = props.draft.nodes.findIndex((item) => item.key === other);
@@ -87,8 +81,8 @@ export function StepEditor(props: {
             </span>
             <input
               ref={(element) => {
-                // A new step opens ready to be named.
-                if (!step().title.trim()) queueMicrotask(() => element.focus());
+                // A new step opens ready to be named (a one-time read when the input mounts).
+                if (!untrack(() => step().title.trim())) queueMicrotask(() => element.focus());
               }}
               class="min-w-0 flex-1 rounded-small bg-transparent px-1 py-1 typescale-headline-small text-on-surface outline-none placeholder:text-on-surface-variant focus-ring"
               aria-label={`Step ${props.number} name`}
@@ -141,20 +135,21 @@ export function StepEditor(props: {
                       const swap = () =>
                         (item.alts ?? []).find((entry) => entry.altIngredientId === alt);
                       return (
-                        <TextField
-                          variant="outlined"
-                          value={String(swap()?.ratio ?? 1)}
-                          onChange={(value) => {
-                            const ratio = Number(value.replace(",", "."));
-                            if (Number.isFinite(ratio) && ratio > 0)
-                              props.actions.patchIngredientAlt(key(), item.ingredientId, alt, {
-                                ratio,
-                              });
-                          }}
-                        >
+                        <TextField variant="outlined">
                           <TextFieldContainer>
                             <TextFieldLabel>Amount × (1 = same amount)</TextFieldLabel>
-                            <TextFieldInput inputMode="decimal" class="tabular-nums" />
+                            <TextFieldInput
+                              inputmode="decimal"
+                              class="tabular-nums"
+                              value={String(swap()?.ratio ?? 1)}
+                              onValueChange={(value) => {
+                                const ratio = Number(value.replace(",", "."));
+                                if (Number.isFinite(ratio) && ratio > 0)
+                                  props.actions.patchIngredientAlt(key(), item.ingredientId, alt, {
+                                    ratio,
+                                  });
+                              }}
+                            />
                           </TextFieldContainer>
                         </TextField>
                       );
@@ -443,6 +438,7 @@ export function AddButton(props: {
     const result = check();
     return result.ok ? relationHint[props.relation] : result.reason;
   };
+  const Icon = dynamic(() => relationIcon[props.relation]);
   return (
     <span title={reason()}>
       <Button
@@ -452,7 +448,7 @@ export function AddButton(props: {
         aria-label={`${relationButton[props.relation]}: ${reason()}`}
         onClick={() => props.onAdd(props.relation)}
       >
-        <Dynamic component={relationIcon[props.relation]} aria-hidden="true" />
+        <Icon aria-hidden="true" />
         {relationButton[props.relation]}
       </Button>
     </span>
@@ -480,43 +476,43 @@ function ItemRow(props: {
             <span class="typescale-label-medium text-on-surface-variant">or</span>
             <Popover>
               <PopoverTrigger
-                as={ItemChip}
-                kind={props.kind}
-                name={props.catalog.name(props.kind, alt)}
                 aria-label={`Edit swap ${props.catalog.name(props.kind, alt)}`}
+                render={(trigger) => (
+                  <ItemChip
+                    {...trigger}
+                    kind={props.kind}
+                    name={props.catalog.name(props.kind, alt)}
+                  />
+                )}
               />
-              <PopoverPortal>
-                <PopoverContent>
-                  <PopoverTitle>Swap: {props.catalog.name(props.kind, alt)}</PopoverTitle>
-                  {props.altDetail?.(alt)}
-                  <RemoveButton label="Remove swap" onClick={() => props.onRemoveAlt(alt)} />
-                </PopoverContent>
-              </PopoverPortal>
+              <PopoverContent>
+                <PopoverTitle>Swap: {props.catalog.name(props.kind, alt)}</PopoverTitle>
+                {props.altDetail?.(alt)}
+                <RemoveButton label="Remove swap" onClick={() => props.onRemoveAlt(alt)} />
+              </PopoverContent>
             </Popover>
           </span>
         )}
       </For>
-      <Popover open={open()} onOpenChange={setOpen}>
-        <PopoverTrigger as={Button} variant="text" size="sm">
+      <Popover open={open()} onOpenChange={(next) => setOpen(next)}>
+        <PopoverTrigger class={buttonVariants({ variant: "text", size: "sm" })}>
           <IconArrowsShuffle aria-hidden="true" />
           Swap
         </PopoverTrigger>
-        <PopoverPortal>
-          <PopoverContent>
-            <ItemPicker
-              kind={props.kind}
-              catalog={props.catalog}
-              autofocus
-              label="Or use"
-              placeholder="Or use…"
-              exclude={[...props.exclude, ...props.alts]}
-              onPick={(id) => {
-                props.onAddAlt(id);
-                setOpen(false);
-              }}
-            />
-          </PopoverContent>
-        </PopoverPortal>
+        <PopoverContent>
+          <ItemPicker
+            kind={props.kind}
+            catalog={props.catalog}
+            autofocus
+            label="Or use"
+            placeholder="Or use…"
+            exclude={[...props.exclude, ...props.alts]}
+            onPick={(id) => {
+              props.onAddAlt(id);
+              setOpen(false);
+            }}
+          />
+        </PopoverContent>
       </Popover>
     </li>
   );

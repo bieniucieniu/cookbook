@@ -7,8 +7,17 @@ import { scaleAmount } from "@/lib/units";
 import { FilterChip } from "@/components/m3/chip";
 import { List } from "@/components/m3/list";
 import { Tabs, TabsContent, TabsIndicator, TabsList, TabsTrigger } from "@/components/m3/tabs";
-import { createMemo, createSignal, For, Index, Match, Show, Switch, type JSX } from "solid-js";
-import { createStore } from "solid-js/store";
+import type { JSX } from "@solidjs/web";
+import {
+  createMemo,
+  createSignal,
+  createStore,
+  For,
+  Match,
+  onSettled,
+  Show,
+  Switch,
+} from "solid-js";
 import { MarkdownView } from "../markdown";
 import { IconLabel, RowLabel } from "../parts";
 import { ItemRow } from "./item-row";
@@ -44,7 +53,16 @@ export function RecipeList(props: {
   stepAction?: (node: RecipeDraft["nodes"][number]) => JSX.Element;
 }) {
   const [checked, setChecked] = createStore<Record<string, boolean>>({});
-  const [sideBySide, setSideBySide] = createSignal(loadSideBySide());
+  const check = (key: string) => (value: boolean) =>
+    setChecked((state) => {
+      state[key] = value;
+    });
+  // The server cannot read localStorage, so render the default and apply the stored choice after
+  // hydration.
+  const [sideBySide, setSideBySide] = createSignal(true);
+  onSettled(() => {
+    setSideBySide(loadSideBySide());
+  });
   const toggleSideBySide = (on: boolean) => {
     setSideBySide(on);
     try {
@@ -99,7 +117,7 @@ export function RecipeList(props: {
                             optional={line.optional}
                             alts={line.alts.map((alt) => props.catalog.name("ingredient", alt.id))}
                             checked={checked[id] ?? false}
-                            onChange={(value) => setChecked(id, value)}
+                            onChange={check(id)}
                           />
                         );
                       }}
@@ -122,7 +140,7 @@ export function RecipeList(props: {
                       optional={line.optional}
                       alts={line.alts.map((alt) => props.catalog.name("tool", alt.id))}
                       checked={checked[`tool:${line.id}`] ?? false}
-                      onChange={(value) => setChecked(`tool:${line.id}`, value)}
+                      onChange={check(`tool:${line.id}`)}
                     />
                   )}
                 </For>
@@ -142,14 +160,14 @@ export function RecipeList(props: {
       <div class="flex w-full min-w-0 flex-col items-center gap-4">
         <Show when={hasRows()}>
           <div class={`flex justify-end ${stepWidth}`}>
-            <FilterChip pressed={sideBySide()} onChange={toggleSideBySide}>
+            <FilterChip pressed={sideBySide()} onPressedChange={toggleSideBySide}>
               Side by side
             </FilterChip>
           </div>
         </Show>
         {/* No cards: steps and rows are split by dividers. */}
         <ol class="flex w-full flex-col items-center divide-y divide-outline-variant">
-          <Index each={rows()}>
+          <For each={rows()} keyed={false}>
             {(row) => (
               <li
                 class={cn(
@@ -203,7 +221,7 @@ export function RecipeList(props: {
                 </Switch>
               </li>
             )}
-          </Index>
+          </For>
         </ol>
       </div>
     </div>

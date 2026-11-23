@@ -2,12 +2,13 @@ import { defineConfig } from "vite-plus";
 
 const ignore = [
   "dist/**",
+  "**/storybook-static/**",
   "**/dist/**",
   "**/build/**",
   "**/.gradle/**",
   "**/.devenv/**",
   "**/.devenv*/**",
-  "apps/web/src/routeTree.gen.ts",
+  "apps/web/file-routes.d.ts",
   "apps/web/src/generated/**",
   "**/*.kt",
   "**/*.kts",

@@ -1,49 +1,37 @@
-import { Progress as ProgressPrimitive, useProgressContext } from "@kobalte/core/progress";
-import { type ComponentProps, Show, splitProps } from "solid-js";
-import { cn } from "@/lib/utils";
+import {
+  Progress as ProgressPrimitive,
+  ProgressIndicator as ProgressIndicatorPrimitive,
+  ProgressLabel as ProgressLabelPrimitive,
+  ProgressTrack as ProgressTrackPrimitive,
+  ProgressValue as ProgressValuePrimitive,
+} from "@ui-sdk/solid/progress";
+import { type ComponentProps, Show, omit } from "solid-js";
+import { partClass } from "@/lib/utils";
 
-type ProgressProps = ComponentProps<typeof ProgressPrimitive>;
-type ProgressLabelProps = ComponentProps<typeof ProgressPrimitive.Label>;
-type ProgressValueLabelProps = ComponentProps<typeof ProgressPrimitive.ValueLabel>;
-type ProgressTrackProps = ComponentProps<typeof ProgressPrimitive.Track>;
-type ProgressFillProps = ComponentProps<typeof ProgressPrimitive.Fill> & {
-  /** M3 Expressive wavy indicator. */
-  wavy?: boolean;
-};
-
-/** Linear progress. Kobalte progress: `value`, `minValue`, `maxValue`, `indeterminate`. */
-export function Progress(props: ProgressProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
+/** Linear progress. ui-sdk progress: `value` (null while indeterminate), `min`, `max`. */
+export function Progress(props: ComponentProps<typeof ProgressPrimitive>) {
   return (
     <ProgressPrimitive
-      ref={props.ref}
-      data-slot="progress"
-      class={cn("group/progress flex w-full flex-col gap-2", props.class)}
-      {...rest}
+      {...props}
+      class={partClass("group/progress flex w-full flex-col gap-2", props.class)}
     />
   );
 }
 
-export function ProgressLabel(props: ProgressLabelProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
+export function ProgressLabel(props: ComponentProps<typeof ProgressLabelPrimitive>) {
   return (
-    <ProgressPrimitive.Label
-      ref={props.ref}
-      data-slot="progress-label"
-      class={cn("typescale-title-small text-on-surface", props.class)}
-      {...rest}
+    <ProgressLabelPrimitive
+      {...props}
+      class={partClass("typescale-title-small text-on-surface", props.class)}
     />
   );
 }
 
-export function ProgressValueLabel(props: ProgressValueLabelProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
+export function ProgressValueLabel(props: ComponentProps<typeof ProgressValuePrimitive>) {
   return (
-    <ProgressPrimitive.ValueLabel
-      ref={props.ref}
-      data-slot="progress-value-label"
-      class={cn("typescale-label-large text-on-surface-variant tabular-nums", props.class)}
-      {...rest}
+    <ProgressValuePrimitive
+      {...props}
+      class={partClass("typescale-label-large text-on-surface-variant tabular-nums", props.class)}
     />
   );
 }
@@ -52,50 +40,46 @@ export function ProgressValueLabel(props: ProgressValueLabelProps) {
  * The track. The indicator and the remaining track are separated by a 4px gap, and a 4px stop dot
  * marks the end.
  */
-export function ProgressTrack(props: ProgressTrackProps) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
+export function ProgressTrack(props: ComponentProps<typeof ProgressTrackPrimitive>) {
   return (
-    <ProgressPrimitive.Track
-      ref={props.ref}
-      data-slot="progress-track"
-      class={cn(
+    <ProgressTrackPrimitive
+      {...props}
+      class={partClass(
         "relative flex h-1 w-full items-center gap-1 has-data-wavy:h-2.5 after:h-1 after:min-w-0 after:flex-1 after:rounded-full after:bg-secondary-container before:absolute before:right-0 before:z-10 before:size-1 before:rounded-full before:bg-primary group-data-indeterminate/progress:overflow-hidden group-data-indeterminate/progress:rounded-full group-data-indeterminate/progress:bg-secondary-container group-data-indeterminate/progress:before:hidden group-data-indeterminate/progress:after:hidden",
         props.class
       )}
-      {...rest}
     />
   );
 }
 
-export function ProgressFill(props: ProgressFillProps) {
-  const [, rest] = splitProps(props, ["class", "ref", "wavy"]);
+/** The indicator. ui-sdk sets its width from the value. */
+export function ProgressFill(
+  props: ComponentProps<typeof ProgressIndicatorPrimitive> & {
+    /** M3 Expressive wavy indicator. */
+    wavy?: boolean;
+  }
+) {
+  const rest = omit(props, "wavy");
   return (
-    <ProgressPrimitive.Fill
-      ref={props.ref}
-      data-slot="progress-fill"
+    <ProgressIndicatorPrimitive
       data-wavy={props.wavy ? "" : undefined}
-      class={cn(
-        "h-1 w-(--kb-progress-fill-width) shrink-0 rounded-full bg-primary motion-default data-wavy:h-2.5 data-wavy:wave-mask data-wavy:animate-m3-wave group-data-indeterminate/progress:w-1/2 group-data-indeterminate/progress:origin-left group-data-indeterminate/progress:animate-m3-linear-indeterminate",
+      {...rest}
+      class={partClass(
+        "h-1 shrink-0 rounded-full bg-primary motion-default data-wavy:h-2.5 data-wavy:wave-mask data-wavy:animate-m3-wave group-data-indeterminate/progress:w-1/2 group-data-indeterminate/progress:origin-left group-data-indeterminate/progress:animate-m3-linear-indeterminate",
         props.class
       )}
-      {...rest}
     />
   );
 }
 
-type CircularProgressProps = ProgressProps & {
-  /** Diameter in px. Default 40. */
-  size?: number;
-  /** Stroke width in px. Default 4. */
-  thickness?: number;
-};
+/** Alias for the ui-sdk part name. */
+export const ProgressIndicator = ProgressFill;
 
-function CircularIndicator(props: { size: number; thickness: number }) {
-  const progress = useProgressContext();
-  const indeterminate = () => progress.dataset()["data-indeterminate"] !== undefined;
+function CircularIndicator(props: { size: number; thickness: number; percent: number | null }) {
+  const indeterminate = () => props.percent === null;
   const radius = () => (props.size - props.thickness) / 2;
   const circumference = () => 2 * Math.PI * radius();
-  const active = () => circumference() * (indeterminate() ? 0.25 : progress.valuePercent());
+  const active = () => circumference() * (indeterminate() ? 0.25 : (props.percent ?? 0) / 100);
   // Gap between indicator and track, plus room for the round caps.
   const gap = () => (active() > 0 && active() < circumference() ? 4 + props.thickness : 0);
   const track = () => Math.max(0, circumference() - active() - gap() * 2);
@@ -131,17 +115,29 @@ function CircularIndicator(props: { size: number; thickness: number }) {
   );
 }
 
-/** Circular progress (40px). Same Kobalte props as Progress. */
-export function CircularProgress(props: CircularProgressProps) {
-  const [, rest] = splitProps(props, ["class", "ref", "size", "thickness"]);
+/** Circular progress (40px). Same props as Progress. */
+export function CircularProgress(
+  props: ComponentProps<typeof ProgressPrimitive> & {
+    /** Diameter in px. Default 40. */
+    size?: number;
+    /** Stroke width in px. Default 4. */
+    thickness?: number;
+  }
+) {
+  const rest = omit(props, "size", "thickness");
   return (
     <ProgressPrimitive
-      ref={props.ref}
-      data-slot="circular-progress"
-      class={cn("group/progress inline-flex shrink-0", props.class)}
+      data-variant="circular"
       {...rest}
+      class={partClass("group/progress inline-flex shrink-0", props.class)}
     >
-      <CircularIndicator size={props.size ?? 40} thickness={props.thickness ?? 4} />
+      {(state) => (
+        <CircularIndicator
+          size={props.size ?? 40}
+          thickness={props.thickness ?? 4}
+          percent={state.percent}
+        />
+      )}
     </ProgressPrimitive>
   );
 }

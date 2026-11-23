@@ -15,8 +15,7 @@ import { lanes, rowMode } from "@/lib/recipe-graph";
 import type { RecipeSummary, SummaryLine } from "@/lib/recipe-summary";
 import { formatAmount, formatDuration } from "@/lib/units";
 import { cn } from "@/lib/utils";
-import { createMemo, For, Index, Show } from "solid-js";
-import type { SetStoreFunction } from "solid-js/store";
+import { createMemo, For, Show } from "solid-js";
 import { MarkdownEditor } from "../markdown";
 import { IconLabel, RowLabel, StepNumber } from "../parts";
 import type { DraftActions } from "./actions";
@@ -29,7 +28,6 @@ import type { Warning } from "./warnings";
  */
 export function SummaryPanel(props: {
   draft: RecipeDraft;
-  setDraft: SetStoreFunction<RecipeDraft>;
   actions: DraftActions;
   catalog: Catalog;
   summary: RecipeSummary;
@@ -58,13 +56,13 @@ export function SummaryPanel(props: {
           aria-label="Recipe name"
           placeholder="Recipe name, e.g. Tomato eggs"
           value={props.draft.title}
-          onInput={(event) => props.setDraft("title", event.currentTarget.value)}
+          onInput={(event) => props.actions.setRecipe("title", event.currentTarget.value)}
         />
         <MarkdownEditor
           label="About this recipe"
           placeholder="A line or two about the dish."
           defaultValue={props.draft.description}
-          onChange={(value) => props.setDraft("description", value)}
+          onChange={(value) => props.actions.setRecipe("description", value)}
         />
         <div class="flex flex-wrap items-center gap-x-4 gap-y-1 typescale-label-large text-on-surface-variant">
           <IconLabel
@@ -115,7 +113,7 @@ export function SummaryPanel(props: {
           <IconLabel icon={IconLayoutList} label="Steps" />
         </h2>
         <ol class="flex flex-col gap-2">
-          <Index each={rows()}>
+          <For each={rows()} keyed={false}>
             {(row) => (
               <li
                 class={cn(
@@ -187,7 +185,7 @@ export function SummaryPanel(props: {
                 </ol>
               </li>
             )}
-          </Index>
+          </For>
         </ol>
         <Button variant="tonal" class="w-fit" onClick={() => add("next")}>
           <IconPlus aria-hidden="true" />
@@ -204,8 +202,10 @@ export function SummaryPanel(props: {
                 <li>
                   <button
                     type="button"
-                    class="relative flex w-full items-start gap-2 rounded-small px-2 py-1.5 text-left typescale-body-medium text-on-surface-variant state-layer focus-ring"
-                    classList={{ "text-error": warning.blocking }}
+                    class={[
+                      "relative flex w-full items-start gap-2 rounded-small px-2 py-1.5 text-left typescale-body-medium text-on-surface-variant state-layer focus-ring",
+                      { "text-error": warning.blocking },
+                    ]}
                     onClick={() => props.onFix(warning)}
                   >
                     <IconAlertTriangle size={16} aria-hidden="true" class="mt-0.5 shrink-0" />

@@ -7,15 +7,12 @@ import { photoForUpload, uploadPhotoFile } from "@/lib/photos";
 import type { RecipeDraft } from "@/lib/recipe-draft";
 import { ApiError } from "@/mutator";
 import { createSignal, For, Show } from "solid-js";
-import type { SetStoreFunction } from "solid-js/store";
+import type { DraftActions } from "./actions";
 import { MarkdownEditor } from "../markdown";
 import { IconLabel, Stepper } from "../parts";
 
 /** Recipe-wide settings: photos, cooks, who can see it, tips. Name and intro live in the summary. */
-export function DetailsEditor(props: {
-  draft: RecipeDraft;
-  setDraft: SetStoreFunction<RecipeDraft>;
-}) {
+export function DetailsEditor(props: { draft: RecipeDraft; actions: DraftActions }) {
   const [uploading, setUploading] = createSignal(false);
   const [uploadError, setUploadError] = createSignal<string>();
   let fileInput: HTMLInputElement | undefined;
@@ -26,7 +23,7 @@ export function DetailsEditor(props: {
     setUploading(true);
     try {
       const created = await uploadPhotoFile(await photoForUpload(file));
-      props.setDraft("photos", (photos) => [...photos, { id: created.id, alt: "" }]);
+      props.actions.setRecipe("photos", [...props.draft.photos, { id: created.id, alt: "" }]);
     } catch (error) {
       setUploadError(error instanceof ApiError ? error.message : "Could not upload the photo");
     } finally {
@@ -52,7 +49,7 @@ export function DetailsEditor(props: {
                 void upload(event.dataTransfer?.files[0]);
               }}
             >
-              <IconPhoto size={40} stroke={1.5} aria-hidden="true" />
+              <IconPhoto size={40} stroke-width={1.5} aria-hidden="true" />
               {uploading() ? "Uploading…" : "Add a photo of the dish"}
             </button>
           }
@@ -71,7 +68,10 @@ export function DetailsEditor(props: {
                     class="absolute top-2 right-2"
                     aria-label="Remove photo"
                     onClick={() =>
-                      props.setDraft("photos", (photos) => photos.filter((_, at) => at !== index()))
+                      props.actions.setRecipe(
+                        "photos",
+                        props.draft.photos.filter((_, at) => at !== index())
+                      )
                     }
                   >
                     <IconTrash aria-hidden="true" />
@@ -91,11 +91,11 @@ export function DetailsEditor(props: {
           </div>
         </Show>
         <input
-          ref={(element) => (fileInput = element)}
+          ref={(el) => (fileInput = el)}
           type="file"
           accept="image/jpeg,image/png,image/webp"
           class="sr-only"
-          tabIndex={-1}
+          tabindex={-1}
           onChange={(event) => {
             const file = event.currentTarget.files?.[0];
             event.currentTarget.value = "";
@@ -119,7 +119,7 @@ export function DetailsEditor(props: {
           <Stepper
             label="cooks"
             value={props.draft.cooks}
-            onChange={(value) => props.setDraft("cooks", value)}
+            onChange={(value) => props.actions.setRecipe("cooks", value)}
             max={12}
           />
         </div>
@@ -129,7 +129,7 @@ export function DetailsEditor(props: {
             <ToggleButton
               variant="tonal"
               pressed={props.draft.visibility === "public"}
-              onChange={() => props.setDraft("visibility", "public")}
+              onPressedChange={() => props.actions.setRecipe("visibility", "public")}
             >
               <IconWorld aria-hidden="true" />
               Everyone
@@ -137,7 +137,7 @@ export function DetailsEditor(props: {
             <ToggleButton
               variant="tonal"
               pressed={props.draft.visibility === "private"}
-              onChange={() => props.setDraft("visibility", "private")}
+              onPressedChange={() => props.actions.setRecipe("visibility", "private")}
             >
               <IconLock aria-hidden="true" />
               Only me
@@ -156,7 +156,7 @@ export function DetailsEditor(props: {
           label="Tips"
           placeholder="Optional. Storage, serving, swaps."
           defaultValue={props.draft.notes}
-          onChange={(value) => props.setDraft("notes", value)}
+          onChange={(value) => props.actions.setRecipe("notes", value)}
         />
       </div>
     </div>

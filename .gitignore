@@ -33,3 +33,6 @@ devenv.local.yaml
 .pre-commit-config.yaml
 .env
 /.pnpm-store
+
+# Storybook build output
+storybook-static/

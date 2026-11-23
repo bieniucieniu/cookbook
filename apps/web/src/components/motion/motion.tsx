@@ -1,14 +1,6 @@
 import { isMotionValue } from "motion";
-import {
-  type Component,
-  createEffect,
-  on,
-  onCleanup,
-  splitProps,
-  untrack,
-  useContext,
-} from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { dynamic } from "@solidjs/web";
+import { type Component, createEffect, omit, onCleanup, untrack, useContext } from "solid-js";
 import { MotionConfigContext, VariantContext, type VariantContextValue } from "./context";
 import { PresenceContext } from "./presence";
 import {
@@ -18,16 +10,16 @@ import {
   resolveVariant,
   stripTarget,
   styleMotionValues,
-} from "./resolve";
-import { scheduleMotion } from "./schedule";
-import { MotionState, type MotionSnapshot } from "./state";
-import { isTransformKey, pinPopLayout, targetToStyle } from "./target-style";
+} from "@/lib/utils/motion/resolve";
+import { scheduleMotion } from "@/lib/motion/schedule";
+import { MotionState, type MotionSnapshot } from "@/lib/motion/state";
+import { isTransformKey, pinPopLayout, targetToStyle } from "@/lib/utils/motion/target-style";
 import {
   motionPropKeys,
   type AnimationControls,
   type MotionComponentProps,
   type MotionStyle,
-} from "./types";
+} from "@/lib/motion/types";
 
 const components = new Map<string, Component<MotionComponentProps>>();
 
@@ -47,7 +39,9 @@ function staticStyle(style: MotionStyle | undefined): Record<string, string | nu
 
 function createMotionComponent(tag: string): Component<MotionComponentProps> {
   return (props) => {
-    const [local, rest] = splitProps(props, motionPropKeys);
+    const local = props;
+    const rest = omit(props, ...motionPropKeys);
+    const Tag = dynamic(() => tag);
     const config = useContext(MotionConfigContext);
     const presence = useContext(PresenceContext);
     const parent = useContext(VariantContext);
@@ -135,69 +129,72 @@ function createMotionComponent(tag: string): Component<MotionComponentProps> {
     function setRef(node: Element) {
       element = node;
       state.attach(node);
-      const ref = local.ref;
-      if (typeof ref === "function") ref(node);
+      // Solid 2 hands a component its ref as a callback or a (nested) array of callbacks.
+      const ref: unknown = local.ref;
+      for (const fn of [ref].flat(Infinity)) {
+        if (typeof fn === "function") fn(node);
+      }
     }
 
-    createEffect(() => {
-      const present = presence?.isPresent() ?? true;
-      const snap = capture();
-      if (!present) {
-        if (leaving) return;
-        leaving = true;
-        state.prepare(snap);
-        const node = element;
-        pinned =
-          presence?.popLayout() && node instanceof HTMLElement
-            ? pinPopLayout(node, presence.anchorX(), presence.anchorY())
-            : undefined;
-        const done = state.exit().finally(() => {
+    // Compute reads the props; the apply phase runs the animation after the DOM commit.
+    createEffect(
+      () => ({ present: presence?.isPresent() ?? true, snap: capture() }),
+      ({ present, snap }) => {
+        if (!present) {
           if (leaving) return;
+          leaving = true;
+          state.prepare(snap);
+          const node = element;
+          pinned =
+            presence?.popLayout() && node instanceof HTMLElement
+              ? pinPopLayout(node, presence.anchorX(), presence.anchorY())
+              : undefined;
+          const done = state.exit().finally(() => {
+            if (leaving) return;
+            pinned?.();
+            pinned = undefined;
+          });
+          presence?.registerExit(done);
+          return;
+        }
+        if (leaving) {
+          leaving = false;
           pinned?.();
           pinned = undefined;
-        });
-        presence?.registerExit(done);
-        return;
+          state.cancelExit();
+        }
+        scheduleMotion(() => state.apply(snap));
       }
-      if (leaving) {
-        leaving = false;
-        pinned?.();
-        pinned = undefined;
-        state.cancelExit();
-      }
-      scheduleMotion(() => state.apply(snap));
-    });
+    );
 
     // `initialStyle` covers the first paint. Later changes to plain (non-MotionValue) style
     // values are written here; transform keys stay with MotionState.
     createEffect(
-      on(
-        () => staticStyle(local.style),
-        (next, prev) => {
-          const node = element;
-          if (!prev || !(node instanceof HTMLElement || node instanceof SVGElement)) return;
-          for (const key of Object.keys(prev)) {
-            if (!(key in next) && !isTransformKey(key)) node.style.removeProperty(key);
-          }
-          for (const [key, value] of Object.entries(next)) {
-            if (isTransformKey(key) || prev[key] === value) continue;
-            node.style.setProperty(key, String(value));
-          }
-        },
-        { defer: true }
-      )
+      () => staticStyle(local.style),
+      (next, prev) => {
+        const node = element;
+        if (!prev || !(node instanceof HTMLElement || node instanceof SVGElement)) return;
+        for (const key of Object.keys(prev)) {
+          if (!(key in next) && !isTransformKey(key)) node.style.removeProperty(key);
+        }
+        for (const [key, value] of Object.entries(next)) {
+          if (isTransformKey(key) || prev[key] === value) continue;
+          node.style.setProperty(key, String(value));
+        }
+      }
     );
 
-    createEffect(() => {
-      const child = local.children;
-      const node = element;
-      if (!node || !isMotionValue(child)) return;
-      node.textContent = String(child.get());
-      const stop = child.on("change", (latest) => {
-        node.textContent = String(latest);
-      });
-      onCleanup(stop);
-    });
+    createEffect(
+      () => local.children,
+      (child) => {
+        const node = element;
+        if (!node || !isMotionValue(child)) return;
+        node.textContent = String(child.get());
+        return child.on("change", (latest) => {
+          node.textContent = String(latest);
+        });
+      }
+    );
 
     onCleanup(() => state.destroy());
 
@@ -208,11 +205,11 @@ function createMotionComponent(tag: string): Component<MotionComponentProps> {
     };
 
     return (
-      <VariantContext.Provider value={variants}>
-        <Dynamic component={tag} {...rest} ref={setRef} style={initialStyle}>
+      <VariantContext value={variants}>
+        <Tag {...rest} ref={setRef} style={initialStyle}>
           {rendered()}
-        </Dynamic>
-      </VariantContext.Provider>
+        </Tag>
+      </VariantContext>
     );
   };
 }

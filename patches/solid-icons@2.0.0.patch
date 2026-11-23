@@ -1,0 +1,10 @@
+diff --git a/lib/index.d.ts b/lib/index.d.ts
+index 8e0d7ba6813db377917bbafc83d6c04f99698f93..c9a4fe6d2aedab01c8c7cda3ee80eaf6f34debdf 100644
+--- a/lib/index.d.ts
++++ b/lib/index.d.ts
+@@ -1,4 +1,4 @@
+-import type { JSX } from "solid-js";
++import type { JSX } from "@solidjs/web";
+ 
+ type SVGSVGElementTags = JSX.SVGElementTags["svg"];
+ 

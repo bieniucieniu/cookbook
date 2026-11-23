@@ -1,11 +1,7 @@
-import {
-  createIngredient,
-  getListIngredientsQueryKey,
-  useListIngredients,
-} from "@/generated/ingredients/ingredients";
-import { createTool, getListToolsQueryKey, useListTools } from "@/generated/tools/tools";
-import { useQueryClient } from "@tanstack/solid-query";
-import { createMemo, type Accessor } from "solid-js";
+import { Ingredients } from "@/generated/ingredients/ingredients";
+import type { Ingredient, Tool } from "@/generated/model";
+import { Tools } from "@/generated/tools/tools";
+import { createMemo } from "solid-js";
 
 export type CatalogKind = "ingredient" | "tool";
 
@@ -15,7 +11,6 @@ export type Catalog = {
   items: (kind: CatalogKind) => CatalogItem[];
   name: (kind: CatalogKind, id: number) => string;
   create: (kind: CatalogKind, name: string) => Promise<CatalogItem>;
-  loading: Accessor<boolean>;
 };
 
 /**
@@ -45,25 +40,25 @@ function nameHash(text: string): string {
   return hash.toString(36);
 }
 
-function listed(data: { status: number; data: unknown } | undefined): CatalogItem[] {
-  if (!data || data.status !== 200 || !Array.isArray(data.data)) return [];
-  const items: CatalogItem[] = [];
-  for (const row of data.data) {
-    if (row && typeof row === "object" && "id" in row && typeof row.id === "number") {
-      const name = "name" in row && typeof row.name === "string" ? row.name : "";
-      const slug = "slug" in row && typeof row.slug === "string" ? row.slug : "";
-      items.push({ id: row.id, slug, name });
-    }
-  }
-  return items.sort((left, right) => left.name.localeCompare(right.name));
+/** Rows with an id (the model marks it optional), sorted by name. */
+function listed(rows: (Ingredient | Tool)[]): CatalogItem[] {
+  return rows
+    .flatMap((row) =>
+      typeof row.id === "number" ? [{ id: row.id, slug: row.slug, name: row.name }] : []
+    )
+    .sort((left, right) => left.name.localeCompare(right.name));
 }
 
+/** Starts loading both dictionaries, for a route's `preload`. */
+export function preloadCatalog(): void {
+  void Ingredients.listIngredients();
+  void Tools.listTools();
+}
+
+/** The ingredient and tool dictionaries. Reading them suspends to the nearest `<Loading>`. */
 export function useCatalog(): Catalog {
-  const queryClient = useQueryClient();
-  const ingredients = useListIngredients();
-  const tools = useListTools();
-  const ingredientItems = createMemo(() => listed(ingredients.data));
-  const toolItems = createMemo(() => listed(tools.data));
+  const ingredientItems = createMemo(async () => listed(await Ingredients.listIngredients()));
+  const toolItems = createMemo(async () => listed(await Tools.listTools()));
   const ingredientNames = createMemo(
     () => new Map(ingredientItems().map((item) => [item.id, item.name]))
   );
@@ -73,18 +68,15 @@ export function useCatalog(): Catalog {
     items: (kind) => (kind === "ingredient" ? ingredientItems() : toolItems()),
     name: (kind, id) =>
       (kind === "ingredient" ? ingredientNames() : toolNames()).get(id) ?? `#${id}`,
-    loading: () => ingredients.isPending || tools.isPending,
     async create(kind, name) {
       const trimmed = name.trim();
       const data = { name: trimmed, slug: slugify(trimmed) };
       if (kind === "ingredient") {
-        const created = await createIngredient(data);
-        await queryClient.invalidateQueries({ queryKey: getListIngredientsQueryKey() });
-        return createdItem(created.data);
+        const created = await Ingredients.createIngredient(data);
+        return createdItem(created);
       }
-      const created = await createTool(data);
-      await queryClient.invalidateQueries({ queryKey: getListToolsQueryKey() });
-      return createdItem(created.data);
+      const created = await Tools.createTool(data);
+      return createdItem(created);
     },
   };
 }

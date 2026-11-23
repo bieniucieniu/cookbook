@@ -1,8 +1,9 @@
 import { IconAlertTriangle, type TablerIcon } from "@/components/icons";
 import { LoadingIndicator } from "@/components/m3/loading-indicator";
 import { cn } from "@/lib/utils";
-import { type JSX, Show } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { errorStatus } from "@/mutator";
+import { dynamic, httpStatus, type JSX } from "@solidjs/web";
+import { Errored, Show } from "solid-js";
 
 /** Whole-page wait: the M3 loading indicator, centered. */
 export function PageLoading(props: { label: string }) {
@@ -25,7 +26,7 @@ export function ErrorBlock(props: { title: string; detail?: string; class?: stri
       class={cn("flex flex-col items-center gap-4 px-6 py-12 text-center", props.class)}
     >
       <span class="flex size-20 items-center justify-center rounded-extra-large bg-error-container text-on-error-container">
-        <IconAlertTriangle class="size-10" stroke={1.5} aria-hidden="true" />
+        <IconAlertTriangle class="size-10" stroke-width={1.5} aria-hidden="true" />
       </span>
       <div class="flex max-w-prose min-w-0 flex-col gap-1">
         <p class="typescale-title-large text-on-surface">{props.title}</p>
@@ -44,10 +45,11 @@ export function EmptyState(props: {
   description: string;
   children?: JSX.Element;
 }) {
+  const Icon = dynamic(() => props.icon);
   return (
     <div class="flex flex-col items-center gap-4 px-6 py-12 text-center">
       <span class="flex size-20 items-center justify-center rounded-extra-large bg-secondary-container text-on-secondary-container">
-        <Dynamic component={props.icon} class="size-10" stroke={1.5} aria-hidden="true" />
+        <Icon class="size-10" stroke-width={1.5} aria-hidden="true" />
       </span>
       <div class="flex max-w-prose flex-col gap-1">
         <h2 class="typescale-title-large text-on-surface">{props.title}</h2>
@@ -55,5 +57,36 @@ export function EmptyState(props: {
       </div>
       {props.children}
     </div>
+  );
+}
+
+function errorDetail(error: unknown): string | undefined {
+  return error instanceof Error ? error.message : undefined;
+}
+
+/**
+ * Error boundary for a page's data. A 404 shows `notFoundTitle` and, while rendering on the
+ * server, answers with status 404; anything else shows `title` with the error's message.
+ */
+export function PageErrored(props: {
+  title: string;
+  notFoundTitle?: string;
+  children: JSX.Element;
+}) {
+  return (
+    <Errored
+      fallback={(error) => {
+        const notFound = () => errorStatus(error()) === 404;
+        if (notFound()) httpStatus(404);
+        return (
+          <ErrorBlock
+            title={notFound() && props.notFoundTitle ? props.notFoundTitle : props.title}
+            detail={errorDetail(error())}
+          />
+        );
+      }}
+    >
+      {props.children}
+    </Errored>
   );
 }

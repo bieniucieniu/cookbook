@@ -1,5 +1,5 @@
 import type { Editor } from "@tiptap/core";
-import type { JSX } from "solid-js";
+import { type JSX } from "@solidjs/web";
 import { type Accessor, createContext, useContext } from "solid-js";
 import { EditorContext } from "./Context";
 import { EditorContent, type EditorContentProps } from "./EditorContent";
@@ -16,7 +16,7 @@ export type TiptapContextType = {
 /**
  * Solid context that stores the current editor instance.
  */
-export const TiptapContext = createContext<TiptapContextType>();
+export const TiptapContext = createContext<TiptapContextType | null>(null);
 
 /**
  * Hook to read the Tiptap context and access the editor instance.
@@ -132,9 +132,9 @@ export function Tiptap(props: TiptapWrapperProps) {
   };
 
   return (
-    <EditorContext.Provider value={legacyContextValue}>
-      <TiptapContext.Provider value={tiptapContextValue}>{props.children}</TiptapContext.Provider>
-    </EditorContext.Provider>
+    <EditorContext value={legacyContextValue}>
+      <TiptapContext value={tiptapContextValue}>{props.children}</TiptapContext>
+    </EditorContext>
   );
 }
 

@@ -1,60 +1,45 @@
-import { ErrorBlock, PageLoading } from "@/components/page-state";
-import { RecipeEditor } from "@/components/recipe/builder/recipe-editor";
-import type { RecipeDetail } from "@/generated/model";
-import { getGetRecipeQueryOptions, type getRecipeResponse } from "@/generated/recipes/recipes";
+import { PageErrored, PageLoading } from "@/components/page-state";
+import { preloadEditor, RecipeEditor } from "@/components/recipe/builder/client";
+import { Recipes } from "@/generated/recipes/recipes";
+import { useEditorStep } from "@/lib/editor-search";
 import { detailToDraft } from "@/lib/recipe-draft";
-import { ApiError } from "@/mutator";
-import { useQuery } from "@tanstack/solid-query";
-import { createFileRoute } from "@tanstack/solid-router";
-import { Show } from "solid-js";
+import { type RouteDefinition, useParams } from "@solidjs/router";
+import { createMemo, Show } from "solid-js";
 
-export const Route = createFileRoute("/recipes/$id/edit")({
-  validateSearch: editorSearch,
-  component: EditRecipePage,
-});
+export const route = {
+  preload: ({ params }) => {
+    void Recipes.getRecipe(params.id ?? "");
+    preloadEditor();
+  },
+} satisfies RouteDefinition;
 
-function EditRecipePage() {
-  const params = Route.useParams();
-  const search = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const recipe = useQuery(() => getGetRecipeQueryOptions(params().id));
-  const detail = () => recipeDetail(recipe.data);
+export default function EditRecipePage() {
+  const params = useParams();
   return (
     <main class="flex w-full flex-col gap-2 px-4 medium:px-6">
-      <Show when={recipe.isPending}>
-        <PageLoading label="Loading the recipe" />
-      </Show>
-      <Show when={recipe.isError}>
-        <ErrorBlock
-          title={
-            recipe.error instanceof ApiError && recipe.error.status === 404
-              ? "Recipe not found"
-              : "Could not load the recipe"
-          }
-          detail={recipe.error?.message}
-        />
-      </Show>
-      <Show when={detail()}>
-        {(item) => (
-          <RecipeEditor
-            initial={detailToDraft(item())}
-            recipeId={params().id}
-            selected={search().step}
-            onSelect={(step) =>
-              void navigate({ search: (prev) => ({ ...prev, step }), replace: true })
-            }
-          />
-        )}
-      </Show>
+      <PageErrored title="Could not load the recipe" notFoundTitle="Recipe not found">
+        <Editor id={params.id ?? ""} />
+      </PageErrored>
     </main>
   );
 }
 
-function recipeDetail(result: getRecipeResponse | undefined): RecipeDetail | undefined {
-  if (!result || result.status !== 200) return undefined;
-  return result.data;
-}
-
-function editorSearch(search: Record<string, unknown>): { step?: string } {
-  return typeof search.step === "string" && search.step ? { step: search.step } : {};
+function Editor(props: { id: string }) {
+  const [step, selectStep] = useEditorStep();
+  const draft = createMemo(async () => detailToDraft(await Recipes.getRecipe(props.id)));
+  // Not keyed: the editor takes the draft once, as its starting point, and stays mounted when the
+  // recipe revalidates (every write does).
+  return (
+    <Show when={draft()}>
+      {(initial) => (
+        <RecipeEditor
+          initial={initial()}
+          recipeId={props.id}
+          selected={step()}
+          onSelect={selectStep}
+          fallback={<PageLoading label="Loading the editor" />}
+        />
+      )}
+    </Show>
+  );
 }

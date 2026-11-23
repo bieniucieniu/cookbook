@@ -1,26 +1,21 @@
-import { RecipeEditor } from "@/components/recipe/builder/recipe-editor";
+import { PageLoading } from "@/components/page-state";
+import { preloadEditor, RecipeEditor } from "@/components/recipe/builder/client";
+import { useEditorStep } from "@/lib/editor-search";
 import { blankDraft } from "@/lib/recipe-draft";
-import { createFileRoute } from "@tanstack/solid-router";
+import type { RouteDefinition } from "@solidjs/router";
 
-export const Route = createFileRoute("/recipes/new")({
-  validateSearch: editorSearch,
-  component: NewRecipePage,
-});
+export const route = { preload: preloadEditor } satisfies RouteDefinition;
 
-function NewRecipePage() {
-  const search = Route.useSearch();
-  const navigate = Route.useNavigate();
+export default function NewRecipePage() {
+  const [step, selectStep] = useEditorStep();
   return (
     <main class="flex w-full flex-col gap-2 px-4 medium:px-6">
       <RecipeEditor
         initial={blankDraft()}
-        selected={search().step}
-        onSelect={(step) => void navigate({ search: (prev) => ({ ...prev, step }), replace: true })}
+        selected={step()}
+        onSelect={selectStep}
+        fallback={<PageLoading label="Loading the editor" />}
       />
     </main>
   );
-}
-
-function editorSearch(search: Record<string, unknown>): { step?: string } {
-  return typeof search.step === "string" && search.step ? { step: search.step } : {};
 }

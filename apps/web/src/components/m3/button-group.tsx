@@ -1,5 +1,5 @@
-import type { JSX } from "solid-js";
-import { splitProps } from "solid-js";
+import { type JSX } from "@solidjs/web";
+import { omit } from "solid-js";
 import { type ButtonGroupVariant, ButtonGroupContext, type ButtonSize } from "./button";
 import { cn } from "@/lib/utils";
 
@@ -22,9 +22,9 @@ export interface ButtonGroupProps extends JSX.HTMLAttributes<HTMLDivElement> {
  * `connected` joins them with small inner corners; a selected toggle becomes fully round.
  */
 export function ButtonGroup(props: ButtonGroupProps) {
-  const [, rest] = splitProps(props, ["class", "ref", "variant", "size"]);
+  const rest = omit(props, "variant", "size");
   return (
-    <ButtonGroupContext.Provider
+    <ButtonGroupContext
       value={{
         get variant() {
           return props.variant ?? "standard";
@@ -35,17 +35,16 @@ export function ButtonGroup(props: ButtonGroupProps) {
       }}
     >
       <div
-        ref={props.ref}
         role="group"
         data-slot="button-group"
         data-variant={props.variant ?? "standard"}
+        {...rest}
         class={cn(
           "inline-flex items-center",
           props.variant === "connected" ? "gap-0.5" : standardGapClasses[props.size ?? "sm"],
           props.class
         )}
-        {...rest}
       />
-    </ButtonGroupContext.Provider>
+    </ButtonGroupContext>
   );
 }

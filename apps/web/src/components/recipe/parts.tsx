@@ -15,14 +15,15 @@ import type { SpanWriteKind } from "@/generated/model";
 import type { RowMode } from "@/lib/recipe-graph";
 import { formatAmount, formatDuration } from "@/lib/units";
 import { cn } from "@/lib/utils";
-import { type JSX, Show, splitProps } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import { dynamic, type JSX } from "@solidjs/web";
+import { omit, Show } from "solid-js";
 
 /** Icon with a visible short label. Icons back up text and never replace it. */
 export function IconLabel(props: { icon: TablerIcon; label: string; class?: string }) {
+  const Icon = dynamic(() => props.icon);
   return (
     <span class={cn("inline-flex items-center gap-1.5", props.class)}>
-      <Dynamic component={props.icon} size={18} stroke={1.75} aria-hidden="true" />
+      <Icon size={18} stroke-width={1.75} aria-hidden="true" />
       <span>{props.label}</span>
     </span>
   );
@@ -45,6 +46,7 @@ export function StepNumber(props: { value: number | undefined; size?: "sm" | "md
 
 /** "Pick one" for alternatives, "At the same time" for parallel steps. */
 export function RowLabel(props: { mode: RowMode; size?: "sm" | "md"; class?: string }) {
+  const Icon = dynamic(() => (props.mode === "xor" ? IconArrowsShuffle : IconGitBranch));
   return (
     <span
       class={cn(
@@ -53,11 +55,7 @@ export function RowLabel(props: { mode: RowMode; size?: "sm" | "md"; class?: str
         props.class
       )}
     >
-      <Dynamic
-        component={props.mode === "xor" ? IconArrowsShuffle : IconGitBranch}
-        size={props.size === "sm" ? 14 : 16}
-        aria-hidden="true"
-      />
+      <Icon size={props.size === "sm" ? 14 : 16} aria-hidden="true" />
       {props.mode === "xor" ? "Pick one" : "At the same time"}
     </span>
   );
@@ -119,49 +117,34 @@ type ChipProps = JSX.ButtonHTMLAttributes<HTMLButtonElement> & {
 
 /** One item with its amount. Amount is large and tabular, name is short. */
 export function ItemChip(props: ChipProps) {
-  const [local, rest] = splitProps(props, [
-    "kind",
-    "name",
-    "qty",
-    "unit",
-    "optional",
-    "muted",
-    "class",
-    "static",
-    "size",
-  ]);
-  const amount = () => formatAmount(local.qty, local.unit);
+  const rest = omit(props, "kind", "name", "qty", "unit", "optional", "muted", "static", "size");
+  const amount = () => formatAmount(props.qty, props.unit);
+  const Tag = dynamic(() => (props.static ? "span" : "button"));
+  const Icon = dynamic(() => (props.kind === "ingredient" ? IconCarrot : IconToolsKitchen2));
   return (
-    <Dynamic
-      component={local.static ? "span" : "button"}
-      type={local.static ? undefined : "button"}
+    <Tag
+      type={props.static ? undefined : "button"}
+      {...rest}
       class={cn(
         "relative inline-flex items-center gap-2 border border-outline-variant bg-surface-container-low py-1 text-on-surface",
-        local.size === "lg"
+        props.size === "lg"
           ? "min-h-14 rounded-large px-4 typescale-body-large"
           : "min-h-9 rounded-small px-3 typescale-label-large",
-        !local.static && "cursor-pointer state-layer focus-ring motion-fast",
-        local.optional && "border-dashed",
-        local.muted && "text-on-surface/38 line-through",
-        local.class
+        !props.static && "cursor-pointer state-layer focus-ring motion-fast",
+        props.optional && "border-dashed",
+        props.muted && "text-on-surface/38 line-through",
+        props.class
       )}
-      {...rest}
     >
-      <Dynamic
-        component={local.kind === "ingredient" ? IconCarrot : IconToolsKitchen2}
-        size={16}
-        stroke={1.75}
-        aria-hidden="true"
-        class="text-primary"
-      />
+      <Icon size={16} stroke-width={1.75} aria-hidden="true" class="text-primary" />
       <Show when={amount()}>
         <span class="font-semibold tabular-nums">{amount()}</span>
       </Show>
-      <span>{local.name}</span>
-      <Show when={local.optional}>
+      <span>{props.name}</span>
+      <Show when={props.optional}>
         <span class="typescale-label-small text-on-surface-variant">optional</span>
       </Show>
-    </Dynamic>
+    </Tag>
   );
 }
 
@@ -185,27 +168,28 @@ export function SpanBadge(
     play?: boolean;
   }
 ) {
-  const [local, rest] = splitProps(props, ["kind", "seconds", "class", "static", "play"]);
+  const rest = omit(props, "kind", "seconds", "static", "play");
+  const Tag = dynamic(() => (props.static ? "span" : "button"));
+  const Icon = dynamic(() => spanIcon[props.kind]);
   return (
-    <Dynamic
-      component={local.static ? "span" : "button"}
-      type={local.static ? undefined : "button"}
+    <Tag
+      type={props.static ? undefined : "button"}
+      {...rest}
       class={cn(
         "relative inline-flex min-h-9 items-center gap-1.5 rounded-small border px-2.5 py-1 typescale-label-large text-on-surface tabular-nums",
-        !local.static && "cursor-pointer state-layer focus-ring motion-fast",
-        local.kind === "wait"
+        !props.static && "cursor-pointer state-layer focus-ring motion-fast",
+        props.kind === "wait"
           ? "border-dashed border-outline"
           : "border-transparent bg-secondary-container text-on-secondary-container",
-        local.class
+        props.class
       )}
-      {...rest}
     >
-      <Dynamic component={spanIcon[local.kind]} size={16} stroke={1.75} aria-hidden="true" />
-      <span class="font-semibold">{formatDuration(local.seconds)}</span>
-      <span class="typescale-label-small opacity-80">{spanLabel[local.kind]}</span>
-      <Show when={local.play}>
-        <IconPlayerPlay size={16} stroke={1.75} aria-hidden="true" />
+      <Icon size={16} stroke-width={1.75} aria-hidden="true" />
+      <span class="font-semibold">{formatDuration(props.seconds)}</span>
+      <span class="typescale-label-small opacity-80">{spanLabel[props.kind]}</span>
+      <Show when={props.play}>
+        <IconPlayerPlay size={16} stroke-width={1.75} aria-hidden="true" />
       </Show>
-    </Dynamic>
+    </Tag>
   );
 }

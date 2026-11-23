@@ -1,109 +1,123 @@
 import type { Editor } from "@tiptap/core";
-import type { ComponentProps } from "solid-js";
-import { createEffect, createMemo, createSignal, For, onCleanup, splitProps } from "solid-js";
-import { createStore } from "solid-js/store";
-import { Dynamic, Portal } from "solid-js/web";
-import type { ContentComponent, ContentRenderer, EditorWithContentComponent } from "./editor";
+import { type ComponentProps, Portal, dynamic } from "@solidjs/web";
+import { createEffect, createSignal, For, omit } from "solid-js";
+import type {
+  ContentComponent,
+  ContentRenderer,
+  EditorWithContentComponent,
+} from "@/lib/tiptap/editor";
 
 export interface EditorContentProps extends ComponentProps<"div"> {
   editor: Editor | null;
 }
 
 function getInstance(): ContentComponent {
-  const [renderers, setRenderers] = createStore<Record<string, ContentRenderer | undefined>>({});
+  // A signal of the list, not a store: a store would proxy each SolidRenderer and its element.
+  const [renderers, setRenderers] = createSignal<readonly ContentRenderer[]>([]);
 
   return {
     renderers,
     setRenderer(id: string, renderer: ContentRenderer) {
-      setRenderers(id, renderer);
+      setRenderers((list) => {
+        const index = list.findIndex((item) => item.id === id);
+        if (index === -1) return [...list, renderer];
+        const next = list.slice();
+        next[index] = renderer;
+        return next;
+      });
     },
     removeRenderer(id: string) {
-      setRenderers(id, undefined);
+      setRenderers((list) => list.filter((item) => item.id !== id));
     },
   };
 }
 
+function RendererPortal(props: { renderer: ContentRenderer }) {
+  const Component = dynamic(() => props.renderer.component);
+  return (
+    <Portal mount={props.renderer.element}>
+      <Component {...props.renderer.props} />
+    </Portal>
+  );
+}
+
 export const EditorContent = (props: EditorContentProps) => {
   let editorContentRef: HTMLDivElement | undefined;
-  const [local, rest] = splitProps(props, ["editor"]);
+  const rest = omit(props, "editor");
   const [content, setContent] = createSignal<ContentComponent | null>(null);
 
-  createEffect(() => {
-    const editor: EditorWithContentComponent | null = local.editor;
-    const element = editorContentRef;
+  // Compute reads the editor; the apply phase moves its DOM in after the element mounts, and
+  // returns the cleanup that moves it out again.
+  createEffect(
+    () => props.editor as EditorWithContentComponent | null,
+    (editor) => {
+      const element = editorContentRef;
 
-    if (!editor || editor.isDestroyed || !element) {
-      return;
-    }
-
-    if (editor.contentComponent && editor.isEditorContentInitialized) {
-      return;
-    }
-
-    if (editor.view.dom?.parentNode) {
-      element.append(...Array.from(editor.view.dom.parentNode.childNodes));
-    }
-
-    editor.setOptions({
-      element,
-    });
-
-    const instance = getInstance();
-    editor.contentComponent = instance;
-    setContent(instance);
-    editor.createNodeViews();
-    editor.isEditorContentInitialized = true;
-
-    onCleanup(() => {
-      editor.isEditorContentInitialized = false;
-      setContent(null);
-
-      if (!editor.isDestroyed) {
-        editor.view.setProps({
-          nodeViews: {},
-        });
+      if (!editor || editor.isDestroyed || !element) {
+        return;
       }
 
-      editor.contentComponent = null;
+      if (editor.contentComponent && editor.isEditorContentInitialized) {
+        return;
+      }
 
-      try {
-        if (!editor.view.dom?.parentNode) {
-          return;
+      if (editor.view.dom?.parentNode) {
+        element.append(...Array.from(editor.view.dom.parentNode.childNodes));
+      }
+
+      editor.setOptions({
+        element,
+      });
+
+      const instance = getInstance();
+      editor.contentComponent = instance;
+      setContent(instance);
+      editor.createNodeViews();
+      editor.isEditorContentInitialized = true;
+
+      return () => {
+        editor.isEditorContentInitialized = false;
+        setContent(null);
+
+        if (!editor.isDestroyed) {
+          editor.view.setProps({
+            nodeViews: {},
+          });
         }
 
-        const newElement = document.createElement("div");
-        newElement.append(...Array.from(editor.view.dom.parentNode.childNodes));
+        editor.contentComponent = null;
 
-        editor.setOptions({
-          element: newElement,
-        });
-      } catch {
-        // do nothing
-      }
-    });
-  });
+        try {
+          if (!editor.view.dom?.parentNode) {
+            return;
+          }
 
-  const renderers = createMemo((): ContentRenderer[] => {
-    const store = content()?.renderers;
-    if (!store) {
-      return [];
+          const newElement = document.createElement("div");
+          newElement.append(...Array.from(editor.view.dom.parentNode.childNodes));
+
+          editor.setOptions({
+            element: newElement,
+          });
+        } catch {
+          // do nothing
+        }
+      };
     }
+  );
 
-    return Object.values(store).filter((renderer): renderer is ContentRenderer => renderer != null);
-  });
+  const renderers = () => content()?.renderers() ?? [];
 
   // Node views render here, so they are owned by EditorContent: they see its context
   // and are disposed when their renderer is removed.
   return (
     <>
-      <div ref={(element) => (editorContentRef = element)} {...rest} />
-      <For each={renderers()}>
-        {(renderer) => (
-          <Portal mount={renderer.element}>
-            <Dynamic component={renderer.component} {...renderer.props} />
-          </Portal>
-        )}
-      </For>
+      <div
+        ref={(el) => {
+          editorContentRef = el;
+        }}
+        {...rest}
+      />
+      <For each={renderers()}>{(renderer) => <RendererPortal renderer={renderer} />}</For>
     </>
   );
 };

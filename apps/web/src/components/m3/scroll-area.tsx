@@ -1,4 +1,5 @@
-import { type JSX, splitProps } from "solid-js";
+import { type JSX } from "@solidjs/web";
+
 import { cn } from "@/lib/utils";
 
 /**
@@ -7,16 +8,14 @@ import { cn } from "@/lib/utils";
  * flex-1` inside a flex column).
  */
 export function ScrollArea(props: JSX.HTMLAttributes<HTMLDivElement>) {
-  const [, rest] = splitProps(props, ["class", "ref"]);
   return (
     <div
-      ref={props.ref}
       data-slot="scroll-area"
+      {...props}
       class={cn(
         "relative overflow-auto overscroll-contain [scrollbar-color:var(--md-sys-color-outline)_transparent] [scrollbar-width:thin] outline-none focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-secondary",
         props.class
       )}
-      {...rest}
     />
   );
 }

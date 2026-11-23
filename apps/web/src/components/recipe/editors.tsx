@@ -9,13 +9,7 @@ import {
   TextFieldInput,
   TextFieldLabel,
 } from "@/components/m3/text-field";
-import {
-  Popover,
-  PopoverContent,
-  PopoverPortal,
-  PopoverTitle,
-  PopoverTrigger,
-} from "@/components/popover";
+import { Popover, PopoverContent, PopoverTitle, PopoverTrigger } from "@/components/popover";
 import type { NodeIngredientWrite, NodeToolWrite, SpanWrite } from "@/generated/model";
 import {
   durationPresets,
@@ -24,8 +18,8 @@ import {
   units,
   type UnitGroup,
 } from "@/lib/units";
-import { createSignal, For, type JSX } from "solid-js";
-import { Dynamic } from "solid-js/web";
+import type { JSX } from "@solidjs/web";
+import { createSignal, For } from "solid-js";
 import { ItemChip, SpanBadge, spanIcon, spanLabel } from "./parts";
 
 const groups: UnitGroup[] = ["mass", "volume", "count"];
@@ -45,14 +39,15 @@ export function QtyUnit(props: {
 }) {
   return (
     <div class="flex flex-col gap-3">
-      <TextField
-        variant="outlined"
-        value={props.qty == null ? "" : String(props.qty)}
-        onChange={(value) => props.onChange(parseQty(value), props.unit ?? null)}
-      >
+      <TextField variant="outlined">
         <TextFieldContainer>
           <TextFieldLabel>Amount</TextFieldLabel>
-          <TextFieldInput inputMode="decimal" class="tabular-nums" />
+          <TextFieldInput
+            inputmode="decimal"
+            class="tabular-nums"
+            value={props.qty == null ? "" : String(props.qty)}
+            onValueChange={(value) => props.onChange(parseQty(value), props.unit ?? null)}
+          />
         </TextFieldContainer>
       </TextField>
       <For each={groups}>
@@ -66,7 +61,7 @@ export function QtyUnit(props: {
                 {(unit) => (
                   <FilterChip
                     pressed={props.unit === unit.value}
-                    onChange={(pressed) =>
+                    onPressedChange={(pressed) =>
                       props.onChange(props.qty ?? null, pressed ? unit.value : null)
                     }
                   >
@@ -84,8 +79,8 @@ export function QtyUnit(props: {
 
 function OptionalSwitch(props: { checked: boolean; onChange: (value: boolean) => void }) {
   return (
-    <Switch checked={props.checked} onChange={props.onChange}>
-      <SwitchControl>
+    <Switch>
+      <SwitchControl checked={props.checked} onCheckedChange={(value) => props.onChange(value)}>
         <SwitchThumb />
       </SwitchControl>
       <SwitchLabel>Optional</SwitchLabel>
@@ -104,30 +99,32 @@ export function IngredientEditor(props: {
   return (
     <Popover>
       <PopoverTrigger
-        as={ItemChip}
-        kind="ingredient"
-        name={props.name}
-        qty={props.item.qty}
-        unit={props.item.unit}
-        optional={props.item.optional}
         aria-label={`Edit ${props.name}`}
-      />
-      <PopoverPortal>
-        <PopoverContent>
-          <PopoverTitle>{props.name}</PopoverTitle>
-          <QtyUnit
+        render={(trigger) => (
+          <ItemChip
+            {...trigger}
+            kind="ingredient"
+            name={props.name}
             qty={props.item.qty}
             unit={props.item.unit}
-            onChange={(qty, unit) => props.onChange({ qty, unit })}
+            optional={props.item.optional}
           />
-          <OptionalSwitch
-            checked={props.item.optional ?? false}
-            onChange={(optional) => props.onChange({ optional })}
-          />
-          {props.extra}
-          <RemoveButton onClick={props.onRemove} />
-        </PopoverContent>
-      </PopoverPortal>
+        )}
+      />
+      <PopoverContent>
+        <PopoverTitle>{props.name}</PopoverTitle>
+        <QtyUnit
+          qty={props.item.qty}
+          unit={props.item.unit}
+          onChange={(qty, unit) => props.onChange({ qty, unit })}
+        />
+        <OptionalSwitch
+          checked={props.item.optional ?? false}
+          onChange={(optional) => props.onChange({ optional })}
+        />
+        {props.extra}
+        <RemoveButton onClick={props.onRemove} />
+      </PopoverContent>
     </Popover>
   );
 }
@@ -141,41 +138,38 @@ export function ToolEditor(props: {
   return (
     <Popover>
       <PopoverTrigger
-        as={ItemChip}
-        kind="tool"
-        name={props.name}
-        optional={props.item.optional}
         aria-label={`Edit ${props.name}`}
+        render={(trigger) => (
+          <ItemChip {...trigger} kind="tool" name={props.name} optional={props.item.optional} />
+        )}
       />
-      <PopoverPortal>
-        <PopoverContent>
-          <PopoverTitle>{props.name}</PopoverTitle>
-          <div class="flex flex-col gap-1.5">
-            <span class="typescale-label-medium text-on-surface-variant">Busy</span>
-            <ButtonGroup variant="connected" size="sm" aria-label="Busy">
-              <ToggleButton
-                variant="tonal"
-                pressed={(props.item.hold ?? "active") === "active"}
-                onChange={() => props.onChange({ hold: "active" })}
-              >
-                While hands on
-              </ToggleButton>
-              <ToggleButton
-                variant="tonal"
-                pressed={props.item.hold === "span"}
-                onChange={() => props.onChange({ hold: "span" })}
-              >
-                Whole step
-              </ToggleButton>
-            </ButtonGroup>
-          </div>
-          <OptionalSwitch
-            checked={props.item.optional ?? false}
-            onChange={(optional) => props.onChange({ optional })}
-          />
-          <RemoveButton onClick={props.onRemove} />
-        </PopoverContent>
-      </PopoverPortal>
+      <PopoverContent>
+        <PopoverTitle>{props.name}</PopoverTitle>
+        <div class="flex flex-col gap-1.5">
+          <span class="typescale-label-medium text-on-surface-variant">Busy</span>
+          <ButtonGroup variant="connected" size="sm" aria-label="Busy">
+            <ToggleButton
+              variant="tonal"
+              pressed={(props.item.hold ?? "active") === "active"}
+              onPressedChange={() => props.onChange({ hold: "active" })}
+            >
+              While hands on
+            </ToggleButton>
+            <ToggleButton
+              variant="tonal"
+              pressed={props.item.hold === "span"}
+              onPressedChange={() => props.onChange({ hold: "span" })}
+            >
+              Whole step
+            </ToggleButton>
+          </ButtonGroup>
+        </div>
+        <OptionalSwitch
+          checked={props.item.optional ?? false}
+          onChange={(optional) => props.onChange({ optional })}
+        />
+        <RemoveButton onClick={props.onRemove} />
+      </PopoverContent>
     </Popover>
   );
 }
@@ -186,16 +180,19 @@ function DurationPicker(props: { span: SpanWrite; onChange: (patch: Partial<Span
     <div class="flex flex-col gap-3">
       <ButtonGroup variant="connected" size="sm" aria-label="Kind">
         <For each={["active", "wait"] as const}>
-          {(kind) => (
-            <ToggleButton
-              variant="tonal"
-              pressed={props.span.kind === kind}
-              onChange={() => props.onChange({ kind })}
-            >
-              <Dynamic component={spanIcon[kind]} aria-hidden="true" />
-              {spanLabel[kind]}
-            </ToggleButton>
-          )}
+          {(kind) => {
+            const Icon = spanIcon[kind];
+            return (
+              <ToggleButton
+                variant="tonal"
+                pressed={props.span.kind === kind}
+                onPressedChange={() => props.onChange({ kind })}
+              >
+                <Icon aria-hidden="true" />
+                {spanLabel[kind]}
+              </ToggleButton>
+            );
+          }}
         </For>
       </ButtonGroup>
       <ChipSet aria-label="Length">
@@ -204,7 +201,7 @@ function DurationPicker(props: { span: SpanWrite; onChange: (patch: Partial<Span
             <FilterChip
               class="tabular-nums"
               pressed={props.span.seconds === seconds}
-              onChange={() => props.onChange({ seconds })}
+              onPressedChange={() => props.onChange({ seconds })}
             >
               {formatDuration(seconds)}
             </FilterChip>
@@ -220,10 +217,15 @@ function DurationPicker(props: { span: SpanWrite; onChange: (patch: Partial<Span
           setCustom("");
         }}
       >
-        <TextField variant="outlined" value={custom()} onChange={setCustom} class="flex-1">
+        <TextField variant="outlined" class="flex-1">
           <TextFieldContainer>
             <TextFieldLabel>Minutes</TextFieldLabel>
-            <TextFieldInput inputMode="decimal" class="tabular-nums" />
+            <TextFieldInput
+              inputmode="decimal"
+              class="tabular-nums"
+              value={custom()}
+              onValueChange={setCustom}
+            />
           </TextFieldContainer>
         </TextField>
         <Button type="submit" variant="tonal" size="md">
@@ -243,18 +245,16 @@ export function SpanEditor(props: {
   return (
     <Popover defaultOpen={props.defaultOpen}>
       <PopoverTrigger
-        as={SpanBadge}
-        kind={props.span.kind}
-        seconds={props.span.seconds}
         aria-label={`Edit timer ${formatDuration(props.span.seconds)}`}
+        render={(trigger) => (
+          <SpanBadge {...trigger} kind={props.span.kind} seconds={props.span.seconds} />
+        )}
       />
-      <PopoverPortal>
-        <PopoverContent>
-          <PopoverTitle>Timer</PopoverTitle>
-          <DurationPicker span={props.span} onChange={props.onChange} />
-          <RemoveButton onClick={props.onRemove} />
-        </PopoverContent>
-      </PopoverPortal>
+      <PopoverContent>
+        <PopoverTitle>Timer</PopoverTitle>
+        <DurationPicker span={props.span} onChange={props.onChange} />
+        <RemoveButton onClick={props.onRemove} />
+      </PopoverContent>
     </Popover>
   );
 }

@@ -1,8 +1,9 @@
 import { FloatingMenuPlugin, type FloatingMenuPluginProps } from "@tiptap/extension-floating-menu";
-import { createEffect, createMemo, type JSX, onCleanup, splitProps, untrack } from "solid-js";
-import { Portal, spread } from "solid-js/web";
+import { type JSX } from "@solidjs/web";
+import { Portal, spread } from "@solidjs/web";
+import { createEffect, createMemo, omit } from "solid-js";
 import { useCurrentEditor } from "../Context";
-import { getAutoPluginKey } from "./getAutoPluginKey";
+import { getAutoPluginKey } from "@/lib/utils/tiptap/getAutoPluginKey";
 
 type Optional<T, K extends keyof T> = Pick<Partial<T>, K> & Omit<T, K>;
 
@@ -14,7 +15,8 @@ export type FloatingMenuProps = Omit<
 } & JSX.HTMLAttributes<HTMLDivElement>;
 
 export const FloatingMenu = (props: FloatingMenuProps) => {
-  const [, rest] = splitProps(props, [
+  const rest = omit(
+    props,
     "pluginKey",
     "editor",
     "updateDelay",
@@ -22,16 +24,15 @@ export const FloatingMenu = (props: FloatingMenuProps) => {
     "appendTo",
     "shouldShow",
     "options",
-    "children",
-  ]);
+    "children"
+  );
 
   const resolvedPluginKey = createMemo(() => getAutoPluginKey(props.pluginKey, "floatingMenu"));
 
   const menuEl = document.createElement("div");
 
-  createEffect(() => {
-    spread(menuEl, rest);
-  });
+  // `spread` keeps the attributes in sync on its own; it runs once, in the component body.
+  spread(menuEl, rest);
 
   const currentEditorCtx = useCurrentEditor();
   let registration = 0;
@@ -41,23 +42,22 @@ export const FloatingMenu = (props: FloatingMenuProps) => {
    */
   const pluginEditor = () => props.editor || currentEditorCtx.editor;
 
-  createEffect(() => {
-    const editor = pluginEditor();
+  // Compute reads the editor and the plugin key; the apply phase registers the plugin and returns
+  // the cleanup that unregisters it. The apply phase is untracked, so changing an option does not
+  // re-register the plugin: the `updateOptions` effect below forwards option changes.
+  createEffect(
+    () => ({ editor: pluginEditor(), pluginKey: resolvedPluginKey() }),
+    ({ editor, pluginKey }) => {
+      if (!editor || editor.isDestroyed) {
+        return;
+      }
 
-    if (!editor || editor.isDestroyed) {
-      return;
-    }
+      const floatingMenuElement = menuEl;
+      const current = ++registration;
+      floatingMenuElement.style.visibility = "hidden";
+      floatingMenuElement.style.position = "absolute";
 
-    const floatingMenuElement = menuEl;
-    const current = ++registration;
-    floatingMenuElement.style.visibility = "hidden";
-    floatingMenuElement.style.position = "absolute";
-
-    const pluginKey = resolvedPluginKey();
-    // Options are read untracked: changing one must not re-register the plugin.
-    // The `updateOptions` effect below forwards option changes.
-    const plugin = untrack(() =>
-      FloatingMenuPlugin({
+      const plugin = FloatingMenuPlugin({
         updateDelay: props.updateDelay,
         resizeDelay: props.resizeDelay,
         appendTo: props.appendTo,
@@ -66,45 +66,50 @@ export const FloatingMenu = (props: FloatingMenuProps) => {
         options: props.options,
         editor: editor,
         element: floatingMenuElement,
-      })
-    );
-
-    editor.registerPlugin(plugin);
-
-    onCleanup(() => {
-      editor.unregisterPlugin(pluginKey);
-      window.requestAnimationFrame(() => {
-        // A newer registration reuses this element; leave it in place.
-        if (current !== registration) {
-          return;
-        }
-        if (floatingMenuElement.parentNode) {
-          floatingMenuElement.parentNode.removeChild(floatingMenuElement);
-        }
       });
-    });
-  });
 
-  createEffect(() => {
-    const editor = pluginEditor();
+      editor.registerPlugin(plugin);
 
-    if (!editor || editor.isDestroyed) {
-      return;
+      return () => {
+        editor.unregisterPlugin(pluginKey);
+        window.requestAnimationFrame(() => {
+          // A newer registration reuses this element; leave it in place.
+          if (current !== registration) {
+            return;
+          }
+          if (floatingMenuElement.parentNode) {
+            floatingMenuElement.parentNode.removeChild(floatingMenuElement);
+          }
+        });
+      };
     }
+  );
 
-    editor.view.dispatch(
-      editor.state.tr.setMeta(resolvedPluginKey(), {
-        type: "updateOptions",
-        options: {
-          updateDelay: props.updateDelay,
-          resizeDelay: props.resizeDelay,
-          shouldShow: props.shouldShow,
-          options: props.options,
-          appendTo: props.appendTo,
-        },
-      })
-    );
-  });
+  createEffect(
+    () => ({
+      editor: pluginEditor(),
+      pluginKey: resolvedPluginKey(),
+      options: {
+        updateDelay: props.updateDelay,
+        resizeDelay: props.resizeDelay,
+        shouldShow: props.shouldShow,
+        options: props.options,
+        appendTo: props.appendTo,
+      },
+    }),
+    ({ editor, pluginKey, options }) => {
+      if (!editor || editor.isDestroyed) {
+        return;
+      }
+
+      editor.view.dispatch(
+        editor.state.tr.setMeta(pluginKey, {
+          type: "updateOptions",
+          options,
+        })
+      );
+    }
+  );
 
   return <Portal mount={menuEl}>{props.children}</Portal>;
 };

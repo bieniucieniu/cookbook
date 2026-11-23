@@ -4,9 +4,8 @@ import type { Catalog } from "@/lib/catalog";
 import type { DraftNode } from "@/lib/recipe-draft";
 import { formatDuration, scaleAmount } from "@/lib/units";
 import { cn } from "@/lib/utils";
-import { For, type JSX, Show } from "solid-js";
-import { createStore } from "solid-js/store";
-import { Dynamic } from "solid-js/web";
+import { dynamic, type JSX } from "@solidjs/web";
+import { createStore, For, Show } from "solid-js";
 import { MarkdownView } from "../markdown";
 import { SpanBadge, spanLabel, StepNumber } from "../parts";
 import { ItemRow } from "./item-row";
@@ -42,8 +41,14 @@ export function StepView(props: {
   const [checked, setChecked] = createStore<Record<string, boolean>>({});
   const isChecked = (key: string) => (props.checkable ? (checked[key] ?? false) : undefined);
   const toggle = (key: string) =>
-    props.checkable ? (value: boolean) => setChecked(key, value) : undefined;
+    props.checkable
+      ? (value: boolean) =>
+          setChecked((state) => {
+            state[key] = value;
+          })
+      : undefined;
   const needs = () => props.node.ingredients.length + props.node.tools.length > 0;
+  const Heading = dynamic(() => (large() ? "h2" : "h3"));
 
   return (
     <article class={cn("@container flex flex-col", large() ? "gap-5" : "gap-3", props.class)}>
@@ -51,8 +56,7 @@ export function StepView(props: {
         <Show when={props.number !== undefined}>
           <StepNumber value={props.number} />
         </Show>
-        <Dynamic
-          component={large() ? "h2" : "h3"}
+        <Heading
           class={cn(
             "min-w-0 flex-1 text-on-surface",
             large() ? "typescale-emphasized-headline-large" : "typescale-title-medium"
@@ -69,7 +73,7 @@ export function StepView(props: {
               ×{props.node.repeatMin}
             </span>
           </Show>
-        </Dynamic>
+        </Heading>
         <Show when={props.action}>{props.action}</Show>
       </header>
 

@@ -14,10 +14,9 @@ export type RecipeView = {
   userId: Accessor<number | undefined>;
 };
 
+/** Provided by the recipe layout route. Without it, `useContext` throws ContextNotFoundError. */
 export const RecipeViewContext = createContext<RecipeView>();
 
 export function useRecipeView(): RecipeView {
-  const view = useContext(RecipeViewContext);
-  if (!view) throw new Error("useRecipeView needs the recipe layout route");
-  return view;
+  return useContext(RecipeViewContext);
 }
