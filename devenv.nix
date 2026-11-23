@@ -1,24 +1,16 @@
 { pkgs, config, ... }:
 let
   root = config.devenv.root;
-  jdkPackage = pkgs.zulu25;
-  webDev = ''
-    set -eu
-    cd "${root}"
-    exec pnpm --filter web dev
-  '';
-  storybookDev = ''
-    set -eu
-    cd "${root}"
-    exec pnpm --filter @cookbook/storybook dev
-  '';
+
   # Local dev database, same as services.postgres.initialDatabases below.
-  pgEnv = ''
-    export PGHOST=127.0.0.1 PGPORT=5432 PGDATABASE=cookbook PGUSER=cookbook PGPASSWORD=cookbook
-  '';
 in
 {
-  dotenv.enable = true;
+  env = {
+    PGHOST = "127.0.0.1";
+    PGDATABASE = "cookbook";
+    PGUSER = "cookbook";
+    PGPASSWORD = "cookbook";
+  };
 
   packages = [
     pkgs.git
@@ -27,15 +19,19 @@ in
     pkgs.seaweedfs
   ];
 
-  languages.java = {
-    enable = true;
-    jdk.package = jdkPackage;
-    gradle = {
+  languages.java =
+    let
+      jdkPackage = pkgs.zulu25;
+    in
+    {
       enable = true;
-      package = pkgs.gradle_9.override { java = jdkPackage; };
+      jdk.package = jdkPackage;
+      gradle = {
+        enable = true;
+        package = pkgs.gradle_9.override { java = jdkPackage; };
+      };
+      lsp.enable = false;
     };
-    lsp.enable = false;
-  };
 
   languages.javascript = {
     enable = true;
@@ -48,7 +44,7 @@ in
   };
 
   processes.seaweed = {
-    exec = ''
+    exec = /* bash */ ''
       set -eu
       dir="${root}/.devenv/state/seaweed"
       mkdir -p "$dir"
@@ -94,6 +90,7 @@ in
         initialSQL = ''
           \set ON_ERROR_STOP on
           set role cookbook;
+
         ''
         + builtins.readFile ./apps/api/db/migrations/0001_init.sql;
       }
@@ -102,18 +99,16 @@ in
 
   # psql into the local dev database. Extra args go to psql (`pg -c 'select 1'`).
   scripts.pg.exec = ''
-    ${pgEnv}
     exec psql "$@"
   '';
 
   # Load apps/api/db/seed.sql into the local dev database. Safe to rerun.
-  scripts.seed.exec = ''
+  scripts.seed.exec = /* bash */ ''
     set -eu
-    ${pgEnv}
     exec psql -v ON_ERROR_STOP=1 -q -f "${root}/apps/api/db/seed.sql"
   '';
 
-  enterShell = ''
+  enterShell = /* bash */ ''
     unset DEVELOPER_DIR
     unset SDKROOT
     echo "java $(java -version 2>&1 | head -n 1)"
@@ -122,7 +117,7 @@ in
     echo "pnpm $(pnpm --version)"
   '';
 
-  enterTest = ''
+  enterTest = /* bash */ ''
     java -version
     gradle --version
     node --version
@@ -130,14 +125,6 @@ in
     gradle --version | grep -q 'Gradle 9'
     pnpm --version | grep -q '^11\.'
   '';
-
-  tasks."web:dev" = {
-    exec = webDev;
-  };
-
-  tasks."storybook:dev" = {
-    exec = storybookDev;
-  };
 
   profiles = {
     server = {
@@ -147,7 +134,7 @@ in
             "devenv:processes:postgres"
             "devenv:processes:seaweed"
           ];
-          exec = ''
+          exec = /* bash */ ''
             set -eu
             unset DEVELOPER_DIR
             unset SDKROOT
@@ -169,7 +156,11 @@ in
       module = {
         processes.web = {
           after = [ "devenv:processes:server" ];
-          exec = webDev;
+          exec = /* bash */ ''
+            set -eu
+            cd "${root}"
+            exec pnpm --filter web dev
+          '';
           ready = {
             http.get = {
               port = 3000;
@@ -182,7 +173,11 @@ in
     storybook = {
       module = {
         processes.storybook = {
-          exec = storybookDev;
+          exec = /* bash */ ''
+            set -eu
+            cd "${root}"
+            exec pnpm --filter @cookbook/storybook dev
+          '';
           ready = {
             http.get = {
               port = 6006;
