@@ -3,7 +3,9 @@ package com.bieniucieniu.cookbook.app
 import com.bieniucieniu.cookbook.core.health.configureHealthRouting
 import com.bieniucieniu.cookbook.core.http.configureSerialization
 import com.bieniucieniu.cookbook.core.http.configureStatusPages
+import com.bieniucieniu.cookbook.features.auth.AuthConfig
 import com.bieniucieniu.cookbook.features.auth.SessionReader
+import io.ktor.server.application.Application
 import com.bieniucieniu.cookbook.features.recipes.configureRecipeRouting
 import io.ktor.client.request.get
 import io.ktor.server.application.install
@@ -44,6 +46,7 @@ class ApplicationTest {
     fun swaggerJson() = testApplication {
         application {
             configureSerialization()
+            routingKoin()
             configureRouting()
         }
         val response = client.get("/api/v1/swagger/documentation.json")
@@ -100,11 +103,19 @@ class ApplicationTest {
     fun unversionedPathsAreGone() = testApplication {
         application {
             configureSerialization()
+            routingKoin()
             configureRouting()
         }
         assertEquals(HttpStatusCode.NotFound, client.get("/health").status)
         assertEquals(HttpStatusCode.NotFound, client.get("/recipes").status)
         assertEquals(HttpStatusCode.NotFound, client.get("/swagger/documentation.json").status)
         assertEquals(HttpStatusCode.OK, client.get("/api/v1/health").status)
+    }
+
+    /** configureRouting reads AuthConfig while it builds the MCP well-known paths; handlers resolve the rest lazily. */
+    private fun Application.routingKoin() {
+        install(Koin) {
+            modules(module { single { AuthConfig.fromEnv() } })
+        }
     }
 }
