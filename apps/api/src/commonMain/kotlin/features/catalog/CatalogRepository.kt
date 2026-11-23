@@ -5,7 +5,7 @@ import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import com.bieniucieniu.cookbook.core.database.sql
 import com.bieniucieniu.cookbook.core.database.tx
 import com.bieniucieniu.cookbook.core.http.ApiException
-import com.bieniucieniu.cookbook.core.http.mapSql
+import com.bieniucieniu.cookbook.core.database.mapped
 import com.bieniucieniu.cookbook.db.CookbookDatabase
 import com.bieniucieniu.cookbook.features.catalog.domain.Allergen
 import com.bieniucieniu.cookbook.features.catalog.domain.Ingredient
@@ -201,10 +201,10 @@ class CatalogRepository(
     }
 
     suspend fun ingredientIds(): Set<Long> =
-        database.ingredientsQueries.selectIngredientIds().awaitAsList().map { it }.toSet()
+        database.ingredientsQueries.selectIngredientIds().awaitAsList().toSet()
 
     suspend fun toolIds(): Set<Long> =
-        database.toolsQueries.selectToolIds().awaitAsList().map { it }.toSet()
+        database.toolsQueries.selectToolIds().awaitAsList().toSet()
 
     suspend fun upsertAllergen(slug: String, name: String): Long = insertReturning(
         """
@@ -248,7 +248,7 @@ class CatalogRepository(
     }
 
     suspend fun allergenIds(): Set<Long> =
-        database.allergensQueries.selectAllergenIds().awaitAsList().map { it }.toSet()
+        database.allergensQueries.selectAllergenIds().awaitAsList().toSet()
 
     suspend fun allergensByIngredient(): Map<Long, List<Long>> =
         database.ingredientsQueries.selectIngredientAllergens().awaitAsList()
@@ -267,18 +267,10 @@ class CatalogRepository(
             }
 
     private suspend fun insertReturning(text: String, args: Map<String, Any?>): Long =
-        try {
-            postgres.fetchAll(sql(text, args)).getOrThrow().single().get("id").asLong()
-        } catch (error: Throwable) {
-            throw mapSql(error)
-        }
+        postgres.mapped { fetchAll(sql(text, args)).getOrThrow().single().get("id").asLong() }
 
     private suspend fun execute(text: String, args: Map<String, Any?>): Long =
-        try {
-            postgres.execute(sql(text, args)).getOrThrow()
-        } catch (error: Throwable) {
-            throw mapSql(error)
-        }
+        postgres.mapped { execute(sql(text, args)).getOrThrow() }
 }
 
 internal fun unknownIds(label: String, wanted: Set<Long>, known: Set<Long>) {

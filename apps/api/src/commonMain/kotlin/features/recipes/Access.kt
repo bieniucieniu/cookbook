@@ -18,6 +18,12 @@ enum class RecipeAction {
     ChangeVisibility,
 }
 
+/** Loads the actor's grant on [recipe] and returns the status [action] is denied with, or null when allowed. */
+suspend fun RecipeRepository.denial(actorId: Long?, recipe: RecipeHead, action: RecipeAction): HttpStatusCode? {
+    val grant = if (actorId == null) null else grantFor(recipe.id, actorId)
+    return decide(actorId, RecipeAcl(recipe.ownerId, visibility(recipe.visibility), grant), action)
+}
+
 fun canRead(actorId: Long?, acl: RecipeAcl): Boolean =
     acl.visibility == RecipeVisibility.Public ||
         (actorId != null && (actorId == acl.ownerId || acl.grant != null))

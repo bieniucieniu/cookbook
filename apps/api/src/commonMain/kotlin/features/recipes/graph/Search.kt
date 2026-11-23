@@ -1,5 +1,7 @@
 package com.bieniucieniu.cookbook.features.recipes.graph
 
+import com.bieniucieniu.cookbook.features.recipes.domain.Presence
+
 data class SearchQuery(
     val excludeIngredientIds: Set<Long> = emptySet(),
     val excludeAllergenIds: Set<Long> = emptySet(),

@@ -18,14 +18,7 @@ import org.koin.ktor.ext.get
 fun Application.configureDatabase() {
     val config = get<DatabaseConfig>()
     val postgres = get<IPostgresSQL>()
-    if (config.autoMigrate) {
-        val directory = migrationsDir()
-        runBlocking {
-            postgres.migrate(
-                path = directory,
-                table = "_sqlx4k_migrations",
-            ).getOrThrow()
-        }
+    if (runBlocking { postgres.migrateIfEnabled(config) }) {
         log.info("Database migrated")
     } else {
         log.info("Database auto-migrate disabled (AUTO_MIGRATE=false)")
@@ -36,6 +29,13 @@ fun Application.configureDatabase() {
             postgres.close().getOrThrow()
         }
     }
+}
+
+/** Applies the migrations when `AUTO_MIGRATE` is on. Returns whether they ran. */
+suspend fun IPostgresSQL.migrateIfEnabled(config: DatabaseConfig): Boolean {
+    if (!config.autoMigrate) return false
+    migrate(path = migrationsDir(), table = "_sqlx4k_migrations").getOrThrow()
+    return true
 }
 
 fun databaseModule(): Module = module {

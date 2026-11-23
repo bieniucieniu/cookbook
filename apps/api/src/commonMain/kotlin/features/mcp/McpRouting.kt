@@ -1,6 +1,7 @@
 package com.bieniucieniu.cookbook.features.mcp
 
-import com.bieniucieniu.cookbook.core.http.ErrorBody
+import com.bieniucieniu.cookbook.core.http.ApiException
+import com.bieniucieniu.cookbook.core.http.workosNotConfigured
 import com.bieniucieniu.cookbook.features.auth.Actor
 import com.bieniucieniu.cookbook.features.auth.AuthConfig
 import com.bieniucieniu.cookbook.features.auth.AuthRepository
@@ -30,8 +31,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import org.koin.dsl.module
 import org.koin.ktor.ext.inject
-
-private val rpcJson = Json { ignoreUnknownKeys = true }
 
 val mcpModule = module {
     single {
@@ -64,26 +63,15 @@ fun Route.configureMcpWellKnownRouting() {
     )
     for (path in protectedResourcePaths) {
         get(path) {
-            if (!config.mcpConfigured) {
-                call.respond(HttpStatusCode.ServiceUnavailable, ErrorBody(listOf("workos is not configured")))
-                return@get
-            }
-            if (!originAllowed(call, config.mcpResourceUrl)) return@get
+            preflight(call, config)
             call.respond(auth.protectedResource())
         }.hide()
     }
 
     get("/.well-known/oauth-authorization-server") {
-        if (!config.mcpConfigured) {
-            call.respond(HttpStatusCode.ServiceUnavailable, ErrorBody(listOf("workos is not configured")))
-            return@get
-        }
-        if (!originAllowed(call, config.mcpResourceUrl)) return@get
+        preflight(call, config)
         val metadata = auth.authorizationServerMetadata()
-        if (metadata == null) {
-            call.respond(HttpStatusCode.BadGateway, ErrorBody(listOf("authorization server metadata unavailable")))
-            return@get
-        }
+            ?: throw ApiException(HttpStatusCode.BadGateway, listOf("authorization server metadata unavailable"))
         call.respondText(metadata, ContentType.Application.Json)
     }.hide()
 }
@@ -96,17 +84,12 @@ fun Route.configureMcpRouting() {
 
     route("/mcp") {
         post {
-            if (!config.mcpConfigured) {
-                call.respond(HttpStatusCode.ServiceUnavailable, ErrorBody(listOf("workos is not configured")))
-                return@post
-            }
-            if (!originAllowed(call, config.mcpResourceUrl)) return@post
+            preflight(call, config)
             when (val gate = auth.gate(call.request.header(HttpHeaders.Authorization))) {
-                McpGate.Unconfigured ->
-                    call.respond(HttpStatusCode.ServiceUnavailable, ErrorBody(listOf("workos is not configured")))
+                McpGate.Unconfigured -> throw workosNotConfigured()
                 McpGate.Denied -> {
                     call.response.header(HttpHeaders.WWWAuthenticate, auth.challenge())
-                    call.respond(HttpStatusCode.Unauthorized, ErrorBody(listOf("Authorization needed")))
+                    throw ApiException(HttpStatusCode.Unauthorized, listOf("Authorization needed"))
                 }
                 is McpGate.Ready -> dispatch(call, tools, gate.actor)
             }
@@ -114,12 +97,12 @@ fun Route.configureMcpRouting() {
     }.hide()
 }
 
-private suspend fun originAllowed(call: ApplicationCall, resourceUrl: String): Boolean {
+/** Shared by every MCP route: 503 until WorkOS is configured, 403 for a foreign browser Origin. */
+private fun preflight(call: ApplicationCall, config: AuthConfig) {
+    if (!config.mcpConfigured) throw workosNotConfigured()
     val origin = call.request.header(HttpHeaders.Origin)
-    if (origin.isNullOrBlank()) return true
-    if (origin.trimEnd('/') == resourceOrigin(resourceUrl)) return true
-    call.respond(HttpStatusCode.Forbidden, ErrorBody(listOf("origin rejected")))
-    return false
+    if (origin.isNullOrBlank() || origin.trimEnd('/') == resourceOrigin(config.mcpResourceUrl)) return
+    throw ApiException(HttpStatusCode.Forbidden, listOf("origin rejected"))
 }
 
 private suspend fun dispatch(call: ApplicationCall, tools: McpTools, actor: Actor) {
@@ -130,7 +113,7 @@ private suspend fun dispatch(call: ApplicationCall, tools: McpTools, actor: Acto
         return
     }
     val message = try {
-        rpcJson.parseToJsonElement(text) as? JsonObject
+        Json.parseToJsonElement(text) as? JsonObject
     } catch (_: Throwable) {
         null
     }
@@ -152,7 +135,7 @@ private suspend fun dispatch(call: ApplicationCall, tools: McpTools, actor: Acto
     val result = when (method) {
         "initialize" -> initializeResult()
         "ping" -> JsonObject(emptyMap())
-        "tools/list" -> buildJsonObject { put("tools", tools.definitions()) }
+        "tools/list" -> buildJsonObject { put("tools", tools.definitions) }
         "tools/call" -> {
             val name = params["name"]?.jsonPrimitive?.contentOrNull
             if (name == null) {

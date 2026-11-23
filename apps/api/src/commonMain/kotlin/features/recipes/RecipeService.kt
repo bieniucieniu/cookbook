@@ -18,6 +18,7 @@ import com.bieniucieniu.cookbook.features.recipes.domain.ParallelPair
 import com.bieniucieniu.cookbook.features.recipes.domain.Presence
 import com.bieniucieniu.cookbook.features.auth.Actor
 import com.bieniucieniu.cookbook.features.auth.AuthRepository
+import com.bieniucieniu.cookbook.features.auth.nowSeconds
 import com.bieniucieniu.cookbook.features.recipes.domain.GrantWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeDetail
 import com.bieniucieniu.cookbook.features.recipes.domain.RecipeGrant
@@ -50,10 +51,6 @@ import com.bieniucieniu.cookbook.s3.DeleteObjectRequest
 import com.bieniucieniu.cookbook.s3.S3Client
 import com.bieniucieniu.cookbook.s3.S3Exception
 import io.ktor.http.HttpStatusCode
-import com.bieniucieniu.cookbook.features.recipes.graph.GateMode as GraphGate
-import com.bieniucieniu.cookbook.features.recipes.graph.Presence as GraphPresence
-import com.bieniucieniu.cookbook.features.recipes.graph.SpanKind as GraphSpan
-import com.bieniucieniu.cookbook.features.recipes.graph.ToolHold as GraphHold
 
 class RecipeService(
     private val recipes: RecipeRepository,
@@ -63,7 +60,7 @@ class RecipeService(
     private val bucket: String,
 ) {
     suspend fun list(actorId: Long?, query: SearchQuery): List<RecipeListItem> {
-        val allergens = catalog.allergensByIngredient().mapValues { (_, ids) -> ids.toSet() }
+        val allergens = allergensFor(query)
         val visible = recipes.visibleSummaries(actorId)
         val ids = visible.map { it.id }.toSet()
         val ingredientFacts = recipes.allIngredientFacts().filter { it.recipe_id in ids }.groupBy { it.recipe_id }
@@ -81,10 +78,10 @@ class RecipeService(
                 elapsedMinSeconds = row.elapsedMinSeconds,
                 elapsedMaxSeconds = row.elapsedMaxSeconds,
                 ingredientFacts = ingredientFacts[row.id].orEmpty().associate {
-                    it.ingredient_id to graphPresence(it.presence)
+                    it.ingredient_id to presence(it.presence)
                 },
                 toolFacts = toolFacts[row.id].orEmpty().associate {
-                    it.tool_id to graphPresence(it.presence)
+                    it.tool_id to presence(it.presence)
                 },
                 ingredientAlts = ingredientAlts[row.id].orEmpty().map {
                     SearchAlt(it.ingredient_id, it.alt_ingredient_id)
@@ -126,60 +123,37 @@ class RecipeService(
         val edgeRows = recipes.edges(id)
         val ingredientAlts = recipes.ingredientAlts(id)
         val toolAlts = recipes.toolAlts(id)
-        val timeHandsMin = recipe.handsOnMinSeconds
-        val timeHandsMax = recipe.handsOnMaxSeconds
-        val timeElapsedMin = recipe.elapsedMinSeconds
-        val timeElapsedMax = recipe.elapsedMaxSeconds
         if (nodes.isEmpty()) {
-            return RecipeDetail(
-                id = recipe.id,
-                title = recipe.title,
-                description = recipe.description,
-                notes = recipe.notes,
-                cooks = recipe.cooks,
-                ownerId = recipe.ownerId,
-                visibility = visibility(recipe.visibility),
-                handsOnMinSeconds = timeHandsMin,
-                handsOnMaxSeconds = timeHandsMax,
-                elapsedMinSeconds = timeElapsedMin,
-                elapsedMaxSeconds = timeElapsedMax,
-                nodes = emptyList(),
-                edges = emptyList(),
-                summary = RecipeSummary(emptyList(), emptyList(), 0),
-                ingredientFacts = emptyList(),
-                toolFacts = emptyList(),
-                parallelPairs = emptyList(),
-                avoidNodeIds = emptyList(),
-                photos = photos,
-                comments = comments,
-            )
+            return recipe.toDetail(photos, comments, summary = RecipeSummary(emptyList(), emptyList(), 0))
         }
+        val ingredientsByNode = ingredientRows.groupBy { it.node_id }
+        val toolsByNode = toolRows.groupBy { it.node_id }
+        val spansByNode = spanRows.groupBy { it.node_id }
         val analysis = try {
-            analyze(storedGraph(recipe.cooks, nodes, edgeRows, spanRows, ingredientRows, toolRows))
+            analyze(storedGraph(recipe.cooks, nodes, edgeRows, spansByNode, ingredientsByNode, toolsByNode))
         } catch (failure: GraphFailure) {
             throw ApiException(HttpStatusCode.BadRequest, failure.errors)
         }
-        val allergens = catalog.allergensByIngredient().mapValues { (_, ids) -> ids.toSet() }
         val searchRecipe = SearchRecipe(
             id = recipe.id,
             title = recipe.title,
             cooks = recipe.cooks,
-            handsOnMinSeconds = timeHandsMin,
-            handsOnMaxSeconds = timeHandsMax,
-            elapsedMinSeconds = timeElapsedMin,
-            elapsedMaxSeconds = timeElapsedMax,
+            handsOnMinSeconds = recipe.handsOnMinSeconds,
+            handsOnMaxSeconds = recipe.handsOnMaxSeconds,
+            elapsedMinSeconds = recipe.elapsedMinSeconds,
+            elapsedMaxSeconds = recipe.elapsedMaxSeconds,
             ingredientFacts = analysis.ingredientFacts,
             toolFacts = analysis.toolFacts,
             ingredientAlts = ingredientAlts.map { SearchAlt(it.ingredient_id, it.alt_ingredient_id) },
             toolAlts = toolAlts.map { SearchToolAlt(it.tool_id, it.alt_tool_id) },
-            allergensByIngredient = allergens,
+            allergensByIngredient = allergensFor(query),
         )
         val avoid = avoidNodes(analysis.alternatives, searchRecipe, query).map { it.toLong() }.sorted()
         val ingredientSwaps = ingredientAlts.groupBy { it.node_id to it.ingredient_id }
         val toolSwaps = toolAlts.groupBy { it.node_id to it.tool_id }
         val nodeResponses = nodes.map { node ->
-            val ingredients = ingredientRows.filter { it.node_id == node.id }
-            val tools = toolRows.filter { it.node_id == node.id }
+            val ingredients = ingredientsByNode[node.id].orEmpty()
+            val tools = toolsByNode[node.id].orEmpty()
             NodeResponse(
                 id = node.id,
                 key = node.key,
@@ -190,7 +164,7 @@ class RecipeService(
                 repeatMin = node.repeat_min,
                 repeatMax = node.repeat_max,
                 ord = node.ord,
-                spans = spanRows.filter { it.node_id == node.id }.map {
+                spans = spansByNode[node.id].orEmpty().map {
                     SpanResponse(ord = it.ord, kind = spanKind(it.kind), seconds = it.seconds)
                 },
                 ingredients = ingredients.map { row ->
@@ -225,18 +199,9 @@ class RecipeService(
             IngredientFactResponse(it.ingredient_id, presence(it.presence))
         }
         val toolFacts = recipes.toolFacts(id).map { ToolFactResponse(it.tool_id, presence(it.presence)) }
-        return RecipeDetail(
-            id = recipe.id,
-            title = recipe.title,
-            description = recipe.description,
-            notes = recipe.notes,
-            cooks = recipe.cooks,
-            ownerId = recipe.ownerId,
-            visibility = visibility(recipe.visibility),
-            handsOnMinSeconds = timeHandsMin,
-            handsOnMaxSeconds = timeHandsMax,
-            elapsedMinSeconds = timeElapsedMin,
-            elapsedMaxSeconds = timeElapsedMax,
+        return recipe.toDetail(
+            photos = photos,
+            comments = comments,
             nodes = nodeResponses,
             edges = edgeRows.map { EdgeResponse(it.from_node_id, it.to_node_id, it.label) },
             summary = summarize(
@@ -250,10 +215,13 @@ class RecipeService(
                 ParallelPair(left.toLong(), right.toLong())
             }.sortedWith(compareBy({ it.nodeId }, { it.otherNodeId })),
             avoidNodeIds = avoid,
-            photos = photos,
-            comments = comments,
         )
     }
+
+    /** The allergen map only matters when the query excludes something, so skip the table read otherwise. */
+    private suspend fun allergensFor(query: SearchQuery): Map<Long, Set<Long>> =
+        if (!query.hasExclusions) emptyMap()
+        else catalog.allergensByIngredient().mapValues { (_, ids) -> ids.toSet() }
 
     suspend fun create(actor: Actor, write: RecipeWrite, ownerId: Long? = actor.userId): RecipeDetail {
         val analysis = prepare(write)
@@ -292,7 +260,7 @@ class RecipeService(
         val keys = recipes.nodes(id).map { it.key }.toSet()
         if (write.stepKey !in keys) throw ApiException(HttpStatusCode.BadRequest, listOf("unknown step ${write.stepKey}"))
         val user = users.userById(actor.userId) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
-        val createdAt = com.bieniucieniu.cookbook.features.auth.nowSeconds()
+        val createdAt = nowSeconds()
         val commentId = recipes.insertComment(id, write.stepKey, actor.userId, write.body, createdAt)
         return CommentResponse(commentId, write.stepKey, actor.userId, user.email, write.body, createdAt)
     }
@@ -337,12 +305,7 @@ class RecipeService(
     }
 
     private suspend fun require(actorId: Long?, recipe: RecipeHead, action: RecipeAction) {
-        val grant = if (actorId == null) null else recipes.grantFor(recipe.id, actorId)
-        val denied = decide(
-            actorId,
-            RecipeAcl(recipe.ownerId, visibility(recipe.visibility), grant),
-            action,
-        )
+        val denied = recipes.denial(actorId, recipe, action)
         if (denied != null) throw ApiException(denied, listOf(if (denied == HttpStatusCode.NotFound) "recipe not found" else "forbidden"))
     }
 
@@ -397,18 +360,51 @@ private fun CommentRow.toResponse() = CommentResponse(
     createdAt = createdAt,
 )
 
+private fun RecipeHead.toDetail(
+    photos: List<PhotoRef>,
+    comments: List<CommentResponse>,
+    summary: RecipeSummary,
+    nodes: List<NodeResponse> = emptyList(),
+    edges: List<EdgeResponse> = emptyList(),
+    ingredientFacts: List<IngredientFactResponse> = emptyList(),
+    toolFacts: List<ToolFactResponse> = emptyList(),
+    parallelPairs: List<ParallelPair> = emptyList(),
+    avoidNodeIds: List<Long> = emptyList(),
+) = RecipeDetail(
+    id = id,
+    title = title,
+    description = description,
+    notes = notes,
+    cooks = cooks,
+    ownerId = ownerId,
+    visibility = visibility(visibility),
+    handsOnMinSeconds = handsOnMinSeconds,
+    handsOnMaxSeconds = handsOnMaxSeconds,
+    elapsedMinSeconds = elapsedMinSeconds,
+    elapsedMaxSeconds = elapsedMaxSeconds,
+    nodes = nodes,
+    edges = edges,
+    summary = summary,
+    ingredientFacts = ingredientFacts,
+    toolFacts = toolFacts,
+    parallelPairs = parallelPairs,
+    avoidNodeIds = avoidNodeIds,
+    photos = photos,
+    comments = comments,
+)
+
 private fun RecipeWrite.toGraph() = InputGraph(
     cooks = cooks,
     nodes = nodes.map { node ->
         InputNode(
             key = node.key,
-            branch = node.branchMode.toGraph(),
-            join = node.joinMode.toGraph(),
+            branch = node.branchMode,
+            join = node.joinMode,
             repeatMin = node.repeatMin,
             repeatMax = node.repeatMax,
-            spans = node.spans.map { InputSpan(it.ord, it.kind.toGraph(), it.seconds) },
+            spans = node.spans.map { InputSpan(it.ord, it.kind, it.seconds) },
             ingredients = node.ingredients.map { InputIngredient(it.ingredientId, it.optional) },
-            tools = node.tools.map { InputTool(it.toolId, it.optional, it.hold.toGraph()) },
+            tools = node.tools.map { InputTool(it.toolId, it.optional, it.hold) },
         )
     },
     edges = edges.map { InputEdge(it.from, it.to) },
@@ -418,75 +414,36 @@ private fun storedGraph(
     cooks: Int,
     nodes: List<com.bieniucieniu.cookbook.db.Recipe_nodes>,
     edges: List<com.bieniucieniu.cookbook.db.Recipe_edges>,
-    spans: List<com.bieniucieniu.cookbook.db.Recipe_node_spans>,
-    ingredients: List<com.bieniucieniu.cookbook.db.SelectNodeIngredients>,
-    tools: List<com.bieniucieniu.cookbook.db.SelectNodeTools>,
+    spans: Map<Long, List<com.bieniucieniu.cookbook.db.Recipe_node_spans>>,
+    ingredients: Map<Long, List<com.bieniucieniu.cookbook.db.SelectNodeIngredients>>,
+    tools: Map<Long, List<com.bieniucieniu.cookbook.db.SelectNodeTools>>,
 ) = InputGraph(
     cooks = cooks,
     nodes = nodes.map { node ->
         InputNode(
             key = node.id.toString(),
-            branch = gate(node.branch_mode).toGraph(),
-            join = gate(node.join_mode).toGraph(),
+            branch = gate(node.branch_mode),
+            join = gate(node.join_mode),
             repeatMin = node.repeat_min,
             repeatMax = node.repeat_max,
-            spans = spans.filter { it.node_id == node.id }.map {
-                InputSpan(it.ord, spanKind(it.kind).toGraph(), it.seconds)
-            },
-            ingredients = ingredients.filter { it.node_id == node.id }.map {
-                InputIngredient(it.ingredient_id, it.optional)
-            },
-            tools = tools.filter { it.node_id == node.id }.map {
-                InputTool(it.tool_id, it.optional, toolHold(it.hold).toGraph())
-            },
+            spans = spans[node.id].orEmpty().map { InputSpan(it.ord, spanKind(it.kind), it.seconds) },
+            ingredients = ingredients[node.id].orEmpty().map { InputIngredient(it.ingredient_id, it.optional) },
+            tools = tools[node.id].orEmpty().map { InputTool(it.tool_id, it.optional, toolHold(it.hold)) },
         )
     },
     edges = edges.map { InputEdge(it.from_node_id.toString(), it.to_node_id.toString()) },
 )
-
-private fun GateMode.toGraph(): GraphGate = when (this) {
-    GateMode.None -> GraphGate.None
-    GateMode.And -> GraphGate.And
-    GateMode.Xor -> GraphGate.Xor
-}
 
 internal fun visibility(value: String): RecipeVisibility = when (value) {
     "private" -> RecipeVisibility.Private
     else -> RecipeVisibility.Public
 }
 
-private fun SpanKind.toGraph(): GraphSpan = when (this) {
-    SpanKind.Active -> GraphSpan.Active
-    SpanKind.Wait -> GraphSpan.Wait
-}
+// Unknown stored values fall back to the first entry (the column default).
+private fun gate(value: String): GateMode = GateMode.entries.firstOrNull { it.db == value } ?: GateMode.None
 
-private fun ToolHold.toGraph(): GraphHold = when (this) {
-    ToolHold.Active -> GraphHold.Active
-    ToolHold.Span -> GraphHold.Span
-}
+private fun spanKind(value: String): SpanKind = SpanKind.entries.firstOrNull { it.db == value } ?: SpanKind.Active
 
-private fun gate(value: String): GateMode = when (value) {
-    "and" -> GateMode.And
-    "xor" -> GateMode.Xor
-    else -> GateMode.None
-}
+private fun toolHold(value: String): ToolHold = ToolHold.entries.firstOrNull { it.db == value } ?: ToolHold.Active
 
-private fun spanKind(value: String): SpanKind = when (value) {
-    "wait" -> SpanKind.Wait
-    else -> SpanKind.Active
-}
-
-private fun toolHold(value: String): ToolHold = when (value) {
-    "span" -> ToolHold.Span
-    else -> ToolHold.Active
-}
-
-private fun presence(value: String): Presence = when (value) {
-    "some_paths" -> Presence.SomePaths
-    else -> Presence.AllPaths
-}
-
-private fun graphPresence(value: String): GraphPresence = when (value) {
-    "some_paths" -> GraphPresence.SomePaths
-    else -> GraphPresence.AllPaths
-}
+private fun presence(value: String): Presence = Presence.entries.firstOrNull { it.db == value } ?: Presence.AllPaths

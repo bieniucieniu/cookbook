@@ -2,6 +2,7 @@ package com.bieniucieniu.cookbook.core.http
 
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.Application
+import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.install
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.response.respond
@@ -22,6 +23,13 @@ fun Application.configureStatusPages() {
         }
     }
 }
+
+fun ApplicationCall.longParam(name: String): Long =
+    parameters[name]?.toLongOrNull()
+        ?: throw ApiException(HttpStatusCode.BadRequest, listOf("$name must be an integer"))
+
+fun workosNotConfigured(): ApiException =
+    ApiException(HttpStatusCode.ServiceUnavailable, listOf("workos is not configured"))
 
 internal fun mapSql(error: Throwable): Throwable {
     if (error is ApiException) return error

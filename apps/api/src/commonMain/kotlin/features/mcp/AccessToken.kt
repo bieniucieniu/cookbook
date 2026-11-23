@@ -1,5 +1,6 @@
 package com.bieniucieniu.cookbook.features.mcp
 
+import com.bieniucieniu.cookbook.workos.base64UrlDecode as decodeBase64Url
 import dev.whyoleg.cryptography.CryptographyProvider
 import dev.whyoleg.cryptography.algorithms.RSA
 import dev.whyoleg.cryptography.algorithms.SHA256
@@ -16,8 +17,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
-import kotlin.io.encoding.Base64
-import kotlin.io.encoding.ExperimentalEncodingApi
 
 /** The claims the MCP route needs from a verified AuthKit access token. */
 data class TokenClaims(val subject: String, val expiresAt: Long?)
@@ -30,14 +29,8 @@ internal data class Jwt(
     val signature: ByteArray,
 )
 
-private val tokenJson = Json { ignoreUnknownKeys = true }
-
-@OptIn(ExperimentalEncodingApi::class)
-private val base64Url = Base64.UrlSafe.withPadding(Base64.PaddingOption.ABSENT_OPTIONAL)
-
-@OptIn(ExperimentalEncodingApi::class)
 internal fun base64UrlDecode(value: String): ByteArray? = try {
-    base64Url.decode(value)
+    decodeBase64Url(value)
 } catch (_: IllegalArgumentException) {
     null
 }
@@ -52,7 +45,7 @@ internal fun parseJwt(token: String): Jwt? {
 }
 
 private fun jsonObject(bytes: ByteArray): JsonObject? = try {
-    tokenJson.parseToJsonElement(bytes.decodeToString()) as? JsonObject
+    Json.parseToJsonElement(bytes.decodeToString()) as? JsonObject
 } catch (_: Throwable) {
     null
 }

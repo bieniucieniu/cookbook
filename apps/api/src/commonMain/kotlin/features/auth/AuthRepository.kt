@@ -2,7 +2,7 @@ package com.bieniucieniu.cookbook.features.auth
 
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import com.bieniucieniu.cookbook.core.database.sql
-import com.bieniucieniu.cookbook.core.database.tx
+import com.bieniucieniu.cookbook.core.database.mapped
 import com.bieniucieniu.cookbook.db.CookbookDatabase
 import io.github.smyrgeorge.sqlx4k.impl.extensions.asLong
 import io.github.smyrgeorge.sqlx4k.postgres.IPostgresSQL
@@ -32,7 +32,7 @@ class AuthRepository(
     private val postgres: IPostgresSQL,
 ) {
     suspend fun upsertUser(workosUserId: String, email: String, firstName: String, lastName: String): LocalUser =
-        postgres.tx {
+        postgres.mapped {
             val row = fetchAll(
                 sql(
                     """
@@ -72,7 +72,7 @@ class AuthRepository(
         }
 
     suspend fun insertSession(userId: Long, tokenHash: String, workosSessionId: String?, expiresAt: Long) {
-        postgres.tx {
+        postgres.mapped {
             execute(
                 sql(
                     """
@@ -100,7 +100,7 @@ class AuthRepository(
     }
 
     suspend fun insertAttempt(state: String, codeVerifier: String, expiresAt: Long) {
-        postgres.tx {
+        postgres.mapped {
             execute(
                 sql(
                     """

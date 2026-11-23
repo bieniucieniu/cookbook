@@ -4,28 +4,28 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-enum class GateMode {
-    @SerialName("none") None,
-    @SerialName("and") And,
-    @SerialName("xor") Xor,
+enum class GateMode(val db: String) {
+    @SerialName("none") None("none"),
+    @SerialName("and") And("and"),
+    @SerialName("xor") Xor("xor"),
 }
 
 @Serializable
-enum class SpanKind {
-    @SerialName("active") Active,
-    @SerialName("wait") Wait,
+enum class SpanKind(val db: String) {
+    @SerialName("active") Active("active"),
+    @SerialName("wait") Wait("wait"),
 }
 
 @Serializable
-enum class ToolHold {
-    @SerialName("active") Active,
-    @SerialName("span") Span,
+enum class ToolHold(val db: String) {
+    @SerialName("active") Active("active"),
+    @SerialName("span") Span("span"),
 }
 
 @Serializable
-enum class Presence {
-    @SerialName("all_paths") AllPaths,
-    @SerialName("some_paths") SomePaths,
+enum class Presence(val db: String) {
+    @SerialName("all_paths") AllPaths("all_paths"),
+    @SerialName("some_paths") SomePaths("some_paths"),
 }
 
 @Serializable

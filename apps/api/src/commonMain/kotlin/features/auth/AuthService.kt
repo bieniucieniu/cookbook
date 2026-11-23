@@ -1,6 +1,7 @@
 package com.bieniucieniu.cookbook.features.auth
 
 import com.bieniucieniu.cookbook.core.http.ApiException
+import com.bieniucieniu.cookbook.core.http.workosNotConfigured
 import com.bieniucieniu.cookbook.workos.AuthorizationUrlOptions
 import com.bieniucieniu.cookbook.workos.LogoutUrlOptions
 import com.bieniucieniu.cookbook.workos.WorkOS
@@ -10,6 +11,7 @@ import com.bieniucieniu.cookbook.workos.sha256Hex
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.request.userAgent
+import io.ktor.server.response.respondRedirect
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -23,12 +25,10 @@ data class MeResponse(
 class AuthService(
     private val config: AuthConfig,
     private val repository: AuthRepository,
-    workos: WorkOS?,
+    val workos: WorkOS?,
 ) {
-    val workos: WorkOS? = workos
-
     suspend fun loginUrl(): String {
-        val client = workos ?: throw ApiException(HttpStatusCode.ServiceUnavailable, listOf("workos is not configured"))
+        val client = workos ?: throw workosNotConfigured()
         val state = client.randomToken()
         val issued = client.userManagement.getAuthorizationUrlWithPKCE(
             AuthorizationUrlOptions(
@@ -42,7 +42,7 @@ class AuthService(
     }
 
     suspend fun callback(call: ApplicationCall) {
-        val client = workos ?: throw ApiException(HttpStatusCode.ServiceUnavailable, listOf("workos is not configured"))
+        val client = workos ?: throw workosNotConfigured()
         val code = call.request.queryParameters["code"]
             ?: throw ApiException(HttpStatusCode.BadRequest, listOf("code is required"))
         val state = call.request.queryParameters["state"]
@@ -81,27 +81,27 @@ class AuthService(
             expiresAt = nowSeconds() + config.sessionTtlSeconds,
         )
         call.response.cookies.append(sessionCookie(token, config.sessionTtlSeconds))
-        call.redirect("/")
+        call.respondRedirect("/")
     }
 
     suspend fun me(actor: Actor?): MeResponse {
-        val current = actor ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
-        val user = repository.userById(current.userId)
-            ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val current = actor ?: throw loginRequired()
+        val user = repository.userById(current.userId) ?: throw loginRequired()
         return MeResponse(user.id, user.email, user.firstName, user.lastName)
     }
 
     suspend fun logout(call: ApplicationCall) {
         val token = call.request.cookies[SESSION_COOKIE]
-        val session = token?.let { repository.session(sha256Hex(it)) }
-        if (token != null) repository.deleteSession(sha256Hex(token))
+        val tokenHash = token?.let(::sha256Hex)
+        val session = tokenHash?.let { repository.session(it) }
+        if (tokenHash != null) repository.deleteSession(tokenHash)
         call.response.cookies.append(clearSessionCookie())
         val sid = session?.workosSessionId
         val client = workos
         if (sid != null && client != null) {
-            call.redirect(client.userManagement.getLogoutUrl(LogoutUrlOptions(sid, config.logoutReturnTo)))
+            call.respondRedirect(client.userManagement.getLogoutUrl(LogoutUrlOptions(sid, config.logoutReturnTo)))
         } else {
-            call.redirect("/")
+            call.respondRedirect("/")
         }
     }
 }

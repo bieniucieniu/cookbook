@@ -2,6 +2,7 @@ package com.bieniucieniu.cookbook.features.catalog
 
 import com.bieniucieniu.cookbook.core.http.ApiException
 import com.bieniucieniu.cookbook.core.http.ErrorBody
+import com.bieniucieniu.cookbook.core.http.longParam
 import com.bieniucieniu.cookbook.features.catalog.domain.Allergen
 import com.bieniucieniu.cookbook.features.catalog.domain.AllergenSet
 import com.bieniucieniu.cookbook.features.catalog.domain.Ingredient
@@ -22,8 +23,6 @@ import io.ktor.server.routing.openapi.describe
 import io.ktor.utils.io.ExperimentalKtorApi
 import org.koin.ktor.ext.inject
 
-private val slugPattern = Regex("[a-z0-9]+(-[a-z0-9]+)*")
-
 @OptIn(ExperimentalKtorApi::class)
 fun Route.configureCatalogRouting() {
     val repository: CatalogRepository by inject()
@@ -43,7 +42,7 @@ fun Route.configureCatalogRouting() {
 
     post("/allergens") {
         val body = call.receive<NamedWrite>()
-        requireNamed(body)
+        body.validate()
         call.respond(HttpStatusCode.Created, repository.createAllergen(body.slug, body.name))
     }.describe {
         operationId = "createAllergen"
@@ -78,7 +77,7 @@ fun Route.configureCatalogRouting() {
     put("/allergens/{id}") {
         val id = call.longParam("id")
         val body = call.receive<NamedWrite>()
-        requireNamed(body)
+        body.validate()
         if (!repository.updateAllergen(id, body.slug, body.name)) {
             throw ApiException(HttpStatusCode.NotFound, listOf("allergen not found"))
         }
@@ -120,7 +119,7 @@ fun Route.configureCatalogRouting() {
 
     post("/ingredients") {
         val body = call.receive<NamedWrite>()
-        requireNamed(body)
+        body.validate()
         call.respond(HttpStatusCode.Created, repository.createIngredient(body.slug, body.name))
     }.describe {
         operationId = "createIngredient"
@@ -149,7 +148,7 @@ fun Route.configureCatalogRouting() {
     put("/ingredients/{id}") {
         val id = call.longParam("id")
         val body = call.receive<NamedWrite>()
-        requireNamed(body)
+        body.validate()
         if (!repository.updateIngredient(id, body.slug, body.name)) {
             throw ApiException(HttpStatusCode.NotFound, listOf("ingredient not found"))
         }
@@ -239,7 +238,7 @@ fun Route.configureCatalogRouting() {
 
     post("/tools") {
         val body = call.receive<NamedWrite>()
-        requireNamed(body)
+        body.validate()
         call.respond(HttpStatusCode.Created, repository.createTool(body.slug, body.name))
     }.describe {
         operationId = "createTool"
@@ -268,7 +267,7 @@ fun Route.configureCatalogRouting() {
     put("/tools/{id}") {
         val id = call.longParam("id")
         val body = call.receive<NamedWrite>()
-        requireNamed(body)
+        body.validate()
         if (!repository.updateTool(id, body.slug, body.name)) {
             throw ApiException(HttpStatusCode.NotFound, listOf("tool not found"))
         }
@@ -323,14 +322,3 @@ fun Route.configureCatalogRouting() {
         }
     }
 }
-
-private fun requireNamed(body: NamedWrite) {
-    val errors = mutableListOf<String>()
-    if (!slugPattern.matches(body.slug)) errors += "slug must match [a-z0-9]+(-[a-z0-9]+)*"
-    if (body.name.isBlank()) errors += "name must not be blank"
-    if (errors.isNotEmpty()) throw ApiException(HttpStatusCode.BadRequest, errors)
-}
-
-private fun io.ktor.server.application.ApplicationCall.longParam(name: String): Long =
-    parameters[name]?.toLongOrNull()
-        ?: throw ApiException(HttpStatusCode.BadRequest, listOf("$name must be an integer"))

@@ -13,9 +13,14 @@ internal fun sql(text: String, args: Map<String, Any?> = emptyMap()): Statement 
     return statement
 }
 
+/** Runs a multi-statement write in one transaction, with SQL errors mapped to [ApiException][com.bieniucieniu.cookbook.core.http.ApiException]. */
 internal suspend fun <T> IPostgresSQL.tx(block: suspend QueryExecutor.() -> T): T =
+    mapped { transaction { block() } }
+
+/** Runs a single statement with SQL errors mapped, without the BEGIN/COMMIT round trips of [tx]. */
+internal suspend fun <T> IPostgresSQL.mapped(block: suspend IPostgresSQL.() -> T): T =
     try {
-        transaction { block() }
+        block()
     } catch (error: Throwable) {
         throw mapSql(error)
     }

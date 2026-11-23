@@ -6,10 +6,9 @@ import com.bieniucieniu.cookbook.features.auth.Actor
 import com.bieniucieniu.cookbook.features.auth.nowSeconds
 import com.bieniucieniu.cookbook.features.recipes.RecipeAction
 import com.bieniucieniu.cookbook.features.recipes.RecipeRepository
-import com.bieniucieniu.cookbook.features.recipes.decide
+import com.bieniucieniu.cookbook.features.recipes.denial
 import com.bieniucieniu.cookbook.features.recipes.domain.PhotoCreated
 import com.bieniucieniu.cookbook.features.recipes.photoObjectKey
-import com.bieniucieniu.cookbook.features.recipes.visibility
 import com.bieniucieniu.cookbook.s3.GetObjectRequest
 import com.bieniucieniu.cookbook.s3.PutObjectRequest
 import com.bieniucieniu.cookbook.s3.S3Client
@@ -53,17 +52,7 @@ class PhotoService(
             if (actor?.userId != photo.ownerId) throw ApiException(HttpStatusCode.NotFound, listOf("photo not found"))
         } else {
             val recipe = recipes.recipe(photo.recipeId) ?: throw ApiException(HttpStatusCode.NotFound, listOf("photo not found"))
-            val grant = if (actor == null) null else recipes.grantFor(recipe.id, actor.userId)
-            val denied = decide(
-                actor?.userId,
-                com.bieniucieniu.cookbook.features.recipes.RecipeAcl(
-                    recipe.ownerId,
-                    visibility(recipe.visibility),
-                    grant,
-                ),
-                RecipeAction.Read,
-            )
-            if (denied != null) throw ApiException(HttpStatusCode.NotFound, listOf("photo not found"))
+            if (recipes.denial(actor?.userId, recipe, RecipeAction.Read) != null) throw ApiException(HttpStatusCode.NotFound, listOf("photo not found"))
         }
         val stored = try {
             storage.getObject(GetObjectRequest(s3.bucket, photoObjectKey(photo.storageKey)))

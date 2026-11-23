@@ -1,9 +1,21 @@
 package com.bieniucieniu.cookbook.features.catalog.domain
 
+import com.bieniucieniu.cookbook.core.http.ApiException
+import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class NamedWrite(val slug: String, val name: String)
+data class NamedWrite(val slug: String, val name: String) {
+    /** Throws 400 with every rule the slug and name break. Shared by the REST routes and the MCP tools. */
+    fun validate() {
+        val errors = mutableListOf<String>()
+        if (!slugPattern.matches(slug)) errors += "slug must match [a-z0-9]+(-[a-z0-9]+)*"
+        if (name.isBlank()) errors += "name must not be blank"
+        if (errors.isNotEmpty()) throw ApiException(HttpStatusCode.BadRequest, errors)
+    }
+}
+
+private val slugPattern = Regex("[a-z0-9]+(-[a-z0-9]+)*")
 
 @Serializable
 data class Allergen(val id: Long = 0, val slug: String, val name: String)

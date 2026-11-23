@@ -3,6 +3,7 @@ package com.bieniucieniu.cookbook.features.recipes
 import app.cash.sqldelight.async.coroutines.awaitAsList
 import app.cash.sqldelight.async.coroutines.awaitAsOneOrNull
 import com.bieniucieniu.cookbook.core.database.sql
+import com.bieniucieniu.cookbook.core.database.mapped
 import com.bieniucieniu.cookbook.core.database.tx
 import com.bieniucieniu.cookbook.core.http.ApiException
 import com.bieniucieniu.cookbook.db.CookbookDatabase
@@ -31,7 +32,7 @@ import com.bieniucieniu.cookbook.features.recipes.domain.RecipeWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.SpanKind
 import com.bieniucieniu.cookbook.features.recipes.domain.ToolHold
 import com.bieniucieniu.cookbook.features.recipes.graph.Analysis
-import com.bieniucieniu.cookbook.features.recipes.graph.Presence
+import com.bieniucieniu.cookbook.features.recipes.domain.Presence
 import io.github.smyrgeorge.sqlx4k.QueryExecutor
 import io.github.smyrgeorge.sqlx4k.impl.extensions.asLong
 import io.github.smyrgeorge.sqlx4k.impl.extensions.asLongOrNull
@@ -187,7 +188,7 @@ class RecipeRepository(
         database.recipeGraphQueries.commentById(commentId, recipeId).awaitAsOneOrNull()?.toRow()
 
     suspend fun insertPhoto(ownerId: Long, storageKey: String, contentType: String, createdAt: Long): Long =
-        postgres.tx {
+        postgres.mapped {
             fetchAll(
                 sql(
                     """
@@ -206,13 +207,13 @@ class RecipeRepository(
         }
 
     suspend fun deletePhoto(id: Long) {
-        postgres.tx {
+        postgres.mapped {
             execute(sql("DELETE FROM recipe_photos WHERE id = :id", mapOf("id" to id))).getOrThrow()
         }
     }
 
     suspend fun insertComment(recipeId: Long, stepKey: String, userId: Long, body: String, createdAt: Long): Long =
-        postgres.tx {
+        postgres.mapped {
             fetchAll(
                 sql(
                     """
@@ -232,7 +233,7 @@ class RecipeRepository(
         }
 
     suspend fun deleteComment(recipeId: Long, commentId: Long): Boolean {
-        val deleted = postgres.tx {
+        val deleted = postgres.mapped {
             execute(
                 sql(
                     "DELETE FROM recipe_step_comments WHERE recipe_id = :recipe_id AND id = :id",
@@ -297,7 +298,7 @@ class RecipeRepository(
         }
 
     suspend fun delete(id: Long): Boolean {
-        val deleted = postgres.tx {
+        val deleted = postgres.mapped {
             execute(sql("DELETE FROM recipes WHERE id = :id", mapOf("id" to id))).getOrThrow()
         }
         return deleted == 1L
@@ -329,8 +330,8 @@ private suspend fun QueryExecutor.writeGraph(recipeId: Long, write: RecipeWrite,
                     "key" to node.key,
                     "title" to node.title,
                     "body" to node.body,
-                    "branch_mode" to node.branchMode.db(),
-                    "join_mode" to node.joinMode.db(),
+                    "branch_mode" to node.branchMode.db,
+                    "join_mode" to node.joinMode.db,
                     "repeat_min" to node.repeatMin,
                     "repeat_max" to node.repeatMax,
                     "ord" to node.ord,
@@ -348,7 +349,7 @@ private suspend fun QueryExecutor.writeGraph(recipeId: Long, write: RecipeWrite,
                     mapOf(
                         "node_id" to nodeId,
                         "ord" to span.ord,
-                        "kind" to span.kind.db(),
+                        "kind" to span.kind.db,
                         "seconds" to span.seconds,
                     ),
                 ),
@@ -400,7 +401,7 @@ private suspend fun QueryExecutor.writeGraph(recipeId: Long, write: RecipeWrite,
                         "node_id" to nodeId,
                         "tool_id" to tool.toolId,
                         "optional" to tool.optional,
-                        "hold" to tool.hold.db(),
+                        "hold" to tool.hold.db,
                     ),
                 ),
             ).getOrThrow().single().get("id").asLong()
@@ -447,7 +448,7 @@ private suspend fun QueryExecutor.writeGraph(recipeId: Long, write: RecipeWrite,
                 mapOf(
                     "recipe_id" to recipeId,
                     "ingredient_id" to ingredientId,
-                    "presence" to presence.db(),
+                    "presence" to presence.db,
                 ),
             ),
         ).getOrThrow()
@@ -459,7 +460,7 @@ private suspend fun QueryExecutor.writeGraph(recipeId: Long, write: RecipeWrite,
                 INSERT INTO recipe_tool_facts (recipe_id, tool_id, presence)
                 VALUES (:recipe_id, :tool_id, :presence)
                 """.trimIndent(),
-                mapOf("recipe_id" to recipeId, "tool_id" to toolId, "presence" to presence.db()),
+                mapOf("recipe_id" to recipeId, "tool_id" to toolId, "presence" to presence.db),
             ),
         ).getOrThrow()
     }
@@ -560,27 +561,6 @@ private suspend fun QueryExecutor.attachPhotos(recipeId: Long, actorId: Long, ph
         ).getOrThrow()
     }
     return removed.map { it.get("storage_key").asString() }
-}
-
-private fun GateMode.db(): String = when (this) {
-    GateMode.None -> "none"
-    GateMode.And -> "and"
-    GateMode.Xor -> "xor"
-}
-
-private fun SpanKind.db(): String = when (this) {
-    SpanKind.Active -> "active"
-    SpanKind.Wait -> "wait"
-}
-
-private fun ToolHold.db(): String = when (this) {
-    ToolHold.Active -> "active"
-    ToolHold.Span -> "span"
-}
-
-private fun Presence.db(): String = when (this) {
-    Presence.AllPaths -> "all_paths"
-    Presence.SomePaths -> "some_paths"
 }
 
 private fun RecipeVisibility.wire(): String = when (this) {

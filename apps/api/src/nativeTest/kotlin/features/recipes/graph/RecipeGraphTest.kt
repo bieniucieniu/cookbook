@@ -1,5 +1,9 @@
 package com.bieniucieniu.cookbook.features.recipes.graph
 
+import com.bieniucieniu.cookbook.features.recipes.domain.GateMode
+import com.bieniucieniu.cookbook.features.recipes.domain.Presence
+import com.bieniucieniu.cookbook.features.recipes.domain.SpanKind
+import com.bieniucieniu.cookbook.features.recipes.domain.ToolHold
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

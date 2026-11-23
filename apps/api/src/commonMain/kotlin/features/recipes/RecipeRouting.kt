@@ -2,7 +2,9 @@ package com.bieniucieniu.cookbook.features.recipes
 
 import com.bieniucieniu.cookbook.core.http.ApiException
 import com.bieniucieniu.cookbook.core.http.ErrorBody
+import com.bieniucieniu.cookbook.core.http.longParam
 import com.bieniucieniu.cookbook.features.auth.SessionReader
+import com.bieniucieniu.cookbook.features.auth.requireActor
 import com.bieniucieniu.cookbook.features.recipes.domain.CommentResponse
 import com.bieniucieniu.cookbook.features.recipes.domain.CommentWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.GrantWrite
@@ -46,7 +48,7 @@ fun Route.configureRecipeRouting() {
     }
 
     post("/recipes") {
-        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val actor = sessions.requireActor(call)
         val body = call.receive<RecipeWrite>()
         call.respond(HttpStatusCode.Created, service.create(actor, body))
     }.describe {
@@ -79,7 +81,7 @@ fun Route.configureRecipeRouting() {
     }
 
     put("/recipes/{id}") {
-        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val actor = sessions.requireActor(call)
         val id = call.longParam("id")
         val body = call.receive<RecipeWrite>()
         call.respond(service.update(actor, id, body))
@@ -102,7 +104,7 @@ fun Route.configureRecipeRouting() {
     }
 
     delete("/recipes/{id}") {
-        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val actor = sessions.requireActor(call)
         val id = call.longParam("id")
         service.delete(actor, id)
         call.respond(HttpStatusCode.NoContent)
@@ -118,7 +120,7 @@ fun Route.configureRecipeRouting() {
     }
 
     get("/recipes/{id}/grants") {
-        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val actor = sessions.requireActor(call)
         val id = call.longParam("id")
         call.respond(service.grants(actor, id))
     }.describe {
@@ -133,7 +135,7 @@ fun Route.configureRecipeRouting() {
     }
 
     put("/recipes/{id}/grants") {
-        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val actor = sessions.requireActor(call)
         val id = call.longParam("id")
         val body = call.receive<GrantWrite>()
         call.respond(service.grant(actor, id, body))
@@ -155,7 +157,7 @@ fun Route.configureRecipeRouting() {
     }
 
     delete("/recipes/{id}/grants/{userId}") {
-        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val actor = sessions.requireActor(call)
         val id = call.longParam("id")
         val userId = call.longParam("userId")
         service.revoke(actor, id, userId)
@@ -172,7 +174,7 @@ fun Route.configureRecipeRouting() {
     }
 
     post("/recipes/{id}/comments") {
-        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val actor = sessions.requireActor(call)
         val id = call.longParam("id")
         val body = call.receive<CommentWrite>()
         call.respond(HttpStatusCode.Created, service.comment(actor, id, body))
@@ -193,7 +195,7 @@ fun Route.configureRecipeRouting() {
     }
 
     delete("/recipes/{id}/comments/{commentId}") {
-        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val actor = sessions.requireActor(call)
         val id = call.longParam("id")
         val commentId = call.longParam("commentId")
         service.deleteComment(actor, id, commentId)
@@ -209,10 +211,6 @@ fun Route.configureRecipeRouting() {
         }
     }
 }
-
-private fun ApplicationCall.longParam(name: String): Long =
-    parameters[name]?.toLongOrNull()
-        ?: throw ApiException(HttpStatusCode.BadRequest, listOf("$name must be an integer"))
 
 private fun ApplicationCall.searchQuery(): SearchQuery {
     fun longs(name: String): Set<Long> =

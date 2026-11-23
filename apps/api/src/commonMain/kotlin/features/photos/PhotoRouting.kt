@@ -2,7 +2,9 @@ package com.bieniucieniu.cookbook.features.photos
 
 import com.bieniucieniu.cookbook.core.http.ApiException
 import com.bieniucieniu.cookbook.core.http.ErrorBody
+import com.bieniucieniu.cookbook.core.http.longParam
 import com.bieniucieniu.cookbook.features.auth.SessionReader
+import com.bieniucieniu.cookbook.features.auth.requireActor
 import com.bieniucieniu.cookbook.features.recipes.domain.PhotoCreated
 import com.bieniucieniu.cookbook.features.recipes.domain.PhotoUpload
 import io.ktor.http.ContentType
@@ -28,7 +30,7 @@ fun Route.configurePhotoRouting() {
     val sessions: SessionReader by inject()
 
     post("/photos") {
-        val actor = sessions.actor(call) ?: throw ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+        val actor = sessions.requireActor(call)
         var bytes: ByteArray? = null
         var contentType: String? = null
         call.receiveMultipart().forEachPart { part ->
@@ -62,9 +64,7 @@ fun Route.configurePhotoRouting() {
     }
 
     get("/photos/{id}") {
-        val id = call.parameters["id"]?.toLongOrNull()
-            ?: throw ApiException(HttpStatusCode.BadRequest, listOf("id must be an integer"))
-        val photo = photos.read(sessions.actor(call), id)
+        val photo = photos.read(sessions.actor(call), call.longParam("id"))
         call.respondBytes(photo.bytes, ContentType.parse(photo.contentType))
     }.describe {
         operationId = "getPhoto"

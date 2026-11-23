@@ -1,14 +1,11 @@
 package com.bieniucieniu.cookbook.features.recipes.graph
 
+import com.bieniucieniu.cookbook.features.recipes.domain.GateMode
+import com.bieniucieniu.cookbook.features.recipes.domain.Presence
+import com.bieniucieniu.cookbook.features.recipes.domain.SpanKind
+import com.bieniucieniu.cookbook.features.recipes.domain.ToolHold
+
 const val MAX_CONFIGURATIONS = 64
-
-enum class GateMode { None, And, Xor }
-
-enum class SpanKind { Active, Wait }
-
-enum class ToolHold { Active, Span }
-
-enum class Presence { AllPaths, SomePaths }
 
 data class InputSpan(val ord: Int, val kind: SpanKind, val seconds: Int)
 

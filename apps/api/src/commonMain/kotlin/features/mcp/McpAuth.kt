@@ -39,7 +39,6 @@ class McpAuth(
 ) {
     private val cache = mutableMapOf<String, Cached>()
     private val mutex = Mutex()
-    private val json = Json { ignoreUnknownKeys = true }
     private val verifier: AccessTokenVerifier? = config.authKitDomain?.let { domain ->
         AccessTokenVerifier(
             issuer = domain,
@@ -105,9 +104,7 @@ class McpAuth(
     private suspend fun cached(token: String): Actor? {
         val now = nowSeconds()
         return mutex.withLock {
-            val stale = cache.filterValues { it.exp <= now }.keys
-            stale.forEach { cache.remove(it) }
-            cache[sha256Hex(token)]?.actor
+            cache[sha256Hex(token)]?.takeIf { it.exp > now }?.actor
         }
     }
 
@@ -123,7 +120,7 @@ class McpAuth(
     private suspend fun fetchJwks(domain: String): JsonObject? = try {
         val response = http.get("${domain.trimEnd('/')}/oauth2/jwks")
         if (!response.status.isSuccess()) null
-        else json.parseToJsonElement(response.bodyAsText()) as? JsonObject
+        else Json.parseToJsonElement(response.bodyAsText()) as? JsonObject
     } catch (_: Throwable) {
         null
     }

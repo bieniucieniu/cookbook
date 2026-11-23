@@ -66,9 +66,8 @@ class McpTools(
 ) {
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
     private val pretty = Json { prettyPrint = true; explicitNulls = false; encodeDefaults = true }
-    private val slugPattern = Regex("[a-z0-9]+(-[a-z0-9]+)*")
 
-    fun definitions(): JsonArray = buildJsonArray {
+    val definitions: JsonArray = buildJsonArray {
         add(toolDefinition(
             name = "list_ingredients",
             description = "List catalog ingredients (id, slug, name, allergenIds, alts).",
@@ -172,10 +171,7 @@ class McpTools(
 
     private fun named(arguments: JsonObject): NamedWrite {
         val body = json.decodeFromJsonElement(NamedWrite.serializer(), arguments)
-        val errors = mutableListOf<String>()
-        if (!slugPattern.matches(body.slug)) errors += "slug must match [a-z0-9]+(-[a-z0-9]+)*"
-        if (body.name.isBlank()) errors += "name must not be blank"
-        if (errors.isNotEmpty()) throw ApiException(HttpStatusCode.BadRequest, errors)
+        body.validate()
         return body
     }
 

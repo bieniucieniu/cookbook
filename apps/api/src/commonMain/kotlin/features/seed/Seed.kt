@@ -1,18 +1,14 @@
 package com.bieniucieniu.cookbook.features.seed
 
-import com.bieniucieniu.cookbook.app.httpModule
+import com.bieniucieniu.cookbook.app.coreModules
 import com.bieniucieniu.cookbook.core.database.DatabaseConfig
-import com.bieniucieniu.cookbook.core.database.databaseModule
-import com.bieniucieniu.cookbook.core.database.migrationsDir
+import com.bieniucieniu.cookbook.core.database.migrateIfEnabled
 import com.bieniucieniu.cookbook.features.auth.Actor
 import com.bieniucieniu.cookbook.features.auth.AuthRepository
 import com.bieniucieniu.cookbook.features.auth.AGENT_EMAIL
-import com.bieniucieniu.cookbook.features.auth.authModule
 import com.bieniucieniu.cookbook.features.auth.nowSeconds
 import com.bieniucieniu.cookbook.features.catalog.CatalogRepository
-import com.bieniucieniu.cookbook.features.catalog.catalogModule
 import com.bieniucieniu.cookbook.features.photos.S3Config
-import com.bieniucieniu.cookbook.features.photos.photoModule
 import com.bieniucieniu.cookbook.features.recipes.RecipeRepository
 import com.bieniucieniu.cookbook.features.recipes.RecipeService
 import com.bieniucieniu.cookbook.features.recipes.domain.EdgeWrite
@@ -29,7 +25,6 @@ import com.bieniucieniu.cookbook.features.recipes.domain.SpanWrite
 import com.bieniucieniu.cookbook.features.recipes.domain.ToolHold
 import com.bieniucieniu.cookbook.features.recipes.domain.ToolSwapWrite
 import com.bieniucieniu.cookbook.features.recipes.photoObjectKey
-import com.bieniucieniu.cookbook.features.recipes.recipeModule
 import com.bieniucieniu.cookbook.s3.PutObjectRequest
 import com.bieniucieniu.cookbook.s3.S3Client
 import dev.whyoleg.cryptography.random.CryptographyRandom
@@ -226,24 +221,13 @@ class Seed(
 
 fun seedMain() {
     val koin = startKoin {
-        modules(
-            databaseModule(),
-            photoModule,
-            httpModule,
-            authModule,
-            catalogModule,
-            recipeModule,
-            module { single { Seed(get(), get(), get(), get(), get(), get()) } },
-        )
+        modules(coreModules() + module { single { Seed(get(), get(), get(), get(), get(), get()) } })
     }.koin
     try {
         runBlocking {
             val postgres = koin.get<IPostgresSQL>()
             try {
-                val config = koin.get<DatabaseConfig>()
-                if (config.autoMigrate) {
-                    postgres.migrate(path = migrationsDir(), table = "_sqlx4k_migrations").getOrThrow()
-                }
+                postgres.migrateIfEnabled(koin.get<DatabaseConfig>())
                 koin.get<Seed>().run()
             } finally {
                 runCatching { koin.get<HttpClient>().close() }

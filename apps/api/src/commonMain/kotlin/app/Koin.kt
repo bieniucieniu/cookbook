@@ -9,21 +9,24 @@ import com.bieniucieniu.cookbook.features.recipes.recipeModule
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import org.koin.core.logger.Level
+import org.koin.core.module.Module
 import org.koin.core.logger.PrintLogger
 import org.koin.ktor.plugin.Koin
+
+/** Every module but MCP. The seed binary starts these without the HTTP server. */
+fun coreModules(): List<Module> = listOf(
+    databaseModule(),
+    photoModule,
+    httpModule,
+    authModule,
+    catalogModule,
+    recipeModule,
+)
 
 fun Application.configureKoin() {
     install(Koin) {
         logger(PrintLogger(level = Level.DEBUG))
-        modules(
-            databaseModule(),
-            photoModule,
-            httpModule,
-            authModule,
-            catalogModule,
-            recipeModule,
-            mcpModule,
-        )
+        modules(coreModules() + mcpModule)
         createEagerInstances()
     }
 }

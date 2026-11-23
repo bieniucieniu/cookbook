@@ -1,12 +1,13 @@
 package com.bieniucieniu.cookbook.features.auth
 
+import com.bieniucieniu.cookbook.core.http.ApiException
 import com.bieniucieniu.cookbook.features.mcp.bearerToken
 import com.bieniucieniu.cookbook.workos.secureEquals
 import com.bieniucieniu.cookbook.workos.sha256Hex
 import io.ktor.http.Cookie
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpStatusCode
 import io.ktor.server.application.ApplicationCall
-import io.ktor.server.response.respondRedirect
 import kotlin.time.Clock
 
 const val SESSION_COOKIE = "cookbook_session"
@@ -24,6 +25,11 @@ fun interface SessionReader {
     suspend fun actor(call: ApplicationCall): Actor?
 }
 
+suspend fun SessionReader.requireActor(call: ApplicationCall): Actor =
+    actor(call) ?: throw loginRequired()
+
+fun loginRequired(): ApiException = ApiException(HttpStatusCode.Unauthorized, listOf("login required"))
+
 class SessionService(
     private val repository: AuthRepository,
     private val agentToken: String?,
@@ -36,9 +42,10 @@ class SessionService(
             return Actor(user.id)
         }
         val token = call.request.cookies[SESSION_COOKIE] ?: return null
-        val session = repository.session(sha256Hex(token)) ?: return null
+        val tokenHash = sha256Hex(token)
+        val session = repository.session(tokenHash) ?: return null
         if (session.expiresAt <= nowSeconds()) {
-            repository.deleteSession(sha256Hex(token))
+            repository.deleteSession(tokenHash)
             return null
         }
         return Actor(session.userId)
@@ -65,5 +72,3 @@ fun clearSessionCookie(): Cookie = Cookie(
     httpOnly = true,
     extensions = mapOf("SameSite" to "Lax"),
 )
-
-suspend fun ApplicationCall.redirect(location: String): Unit = respondRedirect(location)
