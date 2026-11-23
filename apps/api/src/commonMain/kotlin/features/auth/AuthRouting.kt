@@ -4,6 +4,7 @@ import com.bieniucieniu.cookbook.core.http.ErrorBody
 import io.ktor.http.HttpStatusCode
 import io.ktor.openapi.jsonSchema
 import io.ktor.server.response.respond
+import io.ktor.server.response.respondRedirect
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
@@ -17,7 +18,7 @@ fun Route.configureAuthRouting() {
     val sessions: SessionReader by inject()
 
     get("/auth/login") {
-        call.redirect(auth.loginUrl())
+        call.respondRedirect(auth.loginUrl())
     }.describe {
         operationId = "login"
         tag("auth")
